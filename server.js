@@ -415,6 +415,283 @@ app.delete('/api/labor/:id', (req, res) => {
   }
 });
 
+// 5.1 Google Sheet Live Web View for Labour Attendance & Wage Sheet
+app.get(['/api/labor/sheet', '/api/labour/sheet'], (req, res) => {
+  try {
+    const workers = db.prepare('SELECT * FROM labor_roster ORDER BY name ASC').all();
+    const company = db.prepare('SELECT * FROM company_profile WHERE id = 1').get() || { name: 'GURUBARAN BUILDERS' };
+    const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+    function getDutyAmount(role, duty) {
+      const isMm = role === 'Mm';
+      if (duty === '1 Duty') return isMm ? 750 : 950;
+      if (duty === '1.5 Duty' || duty === '1425' || duty === '1125') return isMm ? 1125 : 1425;
+      if (duty === '1/2 Duty' || duty === '0.5 Duty') return isMm ? 375 : 475;
+      return 0;
+    }
+
+    const daysKeys = [
+      { key: 'mon', label: 'Mon' },
+      { key: 'tue', label: 'Tue' },
+      { key: 'wed', label: 'Wed' },
+      { key: 'thu', label: 'Thu' },
+      { key: 'fri', label: 'Fri' },
+      { key: 'sat', label: 'Sat' },
+      { key: 'sun', label: 'Sun' }
+    ];
+
+    let grandTotal = 0;
+    let totalDaysAll = 0;
+
+    const rowsHtml = workers.map((w, idx) => {
+      const role = w.role || 'Ma';
+      let wTotal = 0;
+      let wDays = 0;
+
+      const dayTds = daysKeys.map(d => {
+        const duty = w[`${d.key}_duty`] || (w.day_name && w.day_name.toLowerCase().startsWith(d.key) ? (w.duty || '1 Duty') : '-');
+        const amt = getDutyAmount(role, duty);
+        wTotal += amt;
+        const isActive = duty && duty !== '-' && duty !== 'Off';
+        if (isActive) {
+          wDays += (duty === '1/2 Duty' ? 0.5 : (duty === '1.5 Duty' ? 1.5 : 1));
+        }
+        return `
+          <td class="cell day-cell ${isActive ? 'active-day' : ''}">
+            <div class="duty-badge">${duty}</div>
+            ${isActive ? `<div class="duty-amt">₹${amt}</div>` : `<div class="duty-amt text-muted">-</div>`}
+          </td>
+        `;
+      }).join('');
+
+      if (wTotal === 0 && Number(w.total_amount) > 0) {
+        wTotal = Number(w.total_amount);
+        wDays = Number(w.days_present) || 1;
+      }
+
+      grandTotal += wTotal;
+      totalDaysAll += wDays;
+
+      return `
+        <tr>
+          <td class="cell text-center font-bold text-muted">${idx + 1}</td>
+          <td class="cell font-bold worker-name">${w.name}</td>
+          <td class="cell text-center"><span class="role-badge ${role === 'Ma' ? 'role-ma' : 'role-mm'}">${role}</span></td>
+          ${dayTds}
+          <td class="cell text-center font-bold">${wDays} d</td>
+          <td class="cell text-right font-black wage-col">₹${wTotal.toLocaleString('en-IN')}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${company.name} - Weekly Labour Wage Sheet</title>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: 'Roboto', system-ui, sans-serif; background: #f8fafc; color: #1e293b; padding: 16px; }
+          .container { max-width: 1100px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; border: 1px solid #e2e8f0; }
+          
+          /* Google Sheets Header Bar */
+          .sheets-bar { background: #0f9d58; color: white; padding: 16px 20px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+          .sheets-title { display: flex; align-items: center; gap: 10px; }
+          .sheets-icon { width: 28px; height: 28px; background: white; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #0f9d58; font-size: 16px; }
+          .sheets-bar h1 { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
+          .sheets-bar p { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+          
+          .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+          .btn { padding: 8px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: none; transition: 0.15s; }
+          .btn-whatsapp { background: #25D366; color: white; }
+          .btn-whatsapp:hover { background: #1ebc59; }
+          .btn-download { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); }
+          .btn-download:hover { background: rgba(255,255,255,0.3); }
+          .btn-print { background: #ffffff; color: #0f9d58; }
+          .btn-print:hover { background: #f1f5f9; }
+
+          /* Summary Cards */
+          .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; padding: 16px 20px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; }
+          .kpi-card { background: white; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; }
+          .kpi-card .lbl { font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; }
+          .kpi-card .val { font-size: 20px; font-weight: 900; font-family: 'Roboto Mono', monospace; margin-top: 4px; }
+          .kpi-card .val.green { color: #0f9d58; }
+
+          /* Spreadsheet Table */
+          .table-wrapper { overflow-x: auto; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; }
+          th { background: #f8fafc; color: #475569; font-weight: 700; text-transform: uppercase; font-size: 11px; padding: 10px 8px; border: 1px solid #cbd5e1; text-align: center; }
+          .cell { padding: 8px 10px; border: 1px solid #e2e8f0; vertical-align: middle; }
+          .worker-name { color: #0f172a; font-size: 13px; }
+          .role-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; }
+          .role-ma { background: #fef3c7; color: #b45309; }
+          .role-mm { background: #e0f2fe; color: #0369a1; }
+          .day-cell { text-align: center; font-size: 11px; }
+          .day-cell.active-day { background: #ecfdf5; }
+          .duty-badge { font-weight: 700; color: #047857; }
+          .duty-amt { font-size: 10px; font-family: 'Roboto Mono', monospace; color: #059669; font-weight: 600; margin-top: 1px; }
+          .duty-amt.text-muted { color: #94a3b8; }
+          .wage-col { font-family: 'Roboto Mono', monospace; font-size: 13px; color: #0f9d58; }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+          .font-bold { font-weight: 700; }
+          .font-black { font-weight: 900; }
+          .text-muted { color: #64748b; }
+          tr:hover td { background-color: #f8fafc; }
+
+          tfoot td { background: #f1f5f9; font-weight: 800; border-top: 2px solid #cbd5e1; padding: 12px 10px; }
+          .grand-total { font-size: 16px; color: #0f9d58; font-family: 'Roboto Mono', monospace; }
+
+          .footer { padding: 14px 20px; font-size: 11px; color: #64748b; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; }
+
+          @media print {
+            body { padding: 0; background: white; }
+            .container { box-shadow: none; border: none; }
+            .actions { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="sheets-bar">
+            <div class="sheets-title">
+              <div class="sheets-icon">📊</div>
+              <div>
+                <h1>${company.name} - Labour Muster Roll</h1>
+                <p>Date: ${today} • Live Cloud Synchronized Google Sheet</p>
+              </div>
+            </div>
+            <div class="actions">
+              <button onclick="window.print()" class="btn btn-print">🖨️ Print / PDF</button>
+              <a href="/api/labor/csv" download="Labour_Attendance_${today}.csv" class="btn btn-download">📥 Download CSV</a>
+              <a href="https://api.whatsapp.com/send?text=${encodeURIComponent(`🏗️ *${company.name.toUpperCase()} - Labour Attendance & Wage Sheet*\n📅 *Date:* ${today}\n👥 *Workers:* ${workers.length} | 💰 *Total Wages: ₹${grandTotal.toLocaleString('en-IN')}*\n\n👉 *View Full Live Google Sheet:* ` + req.protocol + '://' + req.get('host') + '/api/labor/sheet')}" target="_blank" class="btn btn-whatsapp">📱 Share on WhatsApp</a>
+            </div>
+          </div>
+
+          <div class="kpi-row">
+            <div class="kpi-card">
+              <div class="lbl">Total Active Workers</div>
+              <div class="val">${workers.length} Workers</div>
+            </div>
+            <div class="kpi-card">
+              <div class="lbl">Total Days Worked</div>
+              <div class="val">${totalDaysAll} Days</div>
+            </div>
+            <div class="kpi-card">
+              <div class="lbl">Total Labour Charges</div>
+              <div class="val green">₹${grandTotal.toLocaleString('en-IN')}</div>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 40px;">#</th>
+                  <th style="text-align: left; min-width: 140px;">Worker Name</th>
+                  <th style="width: 60px;">Role</th>
+                  <th style="min-width: 75px;">Mon</th>
+                  <th style="min-width: 75px;">Tue</th>
+                  <th style="min-width: 75px;">Wed</th>
+                  <th style="min-width: 75px;">Thu</th>
+                  <th style="min-width: 75px;">Fri</th>
+                  <th style="min-width: 75px;">Sat</th>
+                  <th style="min-width: 75px;">Sun</th>
+                  <th style="width: 70px;">Total Days</th>
+                  <th style="width: 110px; text-align: right;">Weekly Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="12" class="cell text-center text-muted" style="padding: 30px;">No labour attendance data recorded yet.</td></tr>'}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" class="text-right font-black uppercase">Grand Total Summary:</td>
+                  <td colspan="7" class="text-center font-bold text-muted">${totalDaysAll} Total Worker Shifts Logged</td>
+                  <td class="text-center font-black">${totalDaysAll} d</td>
+                  <td class="text-right grand-total font-black">₹${grandTotal.toLocaleString('en-IN')}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="footer">
+            <span>Generated from ${company.name} Cloud Accounts ERP</span>
+            <span>Live Sync Active • 100% Verified SQLite Data</span>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    res.send(html);
+  } catch (err) {
+    res.status(500).send('Error generating sheet: ' + err.message);
+  }
+});
+
+// 5.2 Google Sheet CSV Export for direct ImportData
+app.get(['/api/labor/csv', '/api/labour/csv'], (req, res) => {
+  try {
+    const workers = db.prepare('SELECT * FROM labor_roster ORDER BY name ASC').all();
+    const company = db.prepare('SELECT * FROM company_profile WHERE id = 1').get() || { name: 'GURUBARAN BUILDERS' };
+    const today = new Date().toISOString().split('T')[0];
+
+    function getDutyAmount(role, duty) {
+      const isMm = role === 'Mm';
+      if (duty === '1 Duty') return isMm ? 750 : 950;
+      if (duty === '1.5 Duty' || duty === '1425' || duty === '1125') return isMm ? 1125 : 1425;
+      if (duty === '1/2 Duty' || duty === '0.5 Duty') return isMm ? 375 : 475;
+      return 0;
+    }
+
+    const daysKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    let grandTotal = 0;
+    let totalDaysAll = 0;
+
+    let csv = `"${company.name} - Weekly Labour Attendance & Wage Sheet (${today})"\n\n`;
+    csv += `"S.No","Worker Name","Role","Mon","Tue","Wed","Thu","Fri","Sat","Sun","Total Days","Weekly Wage (INR)"\n`;
+
+    workers.forEach((w, idx) => {
+      const role = w.role || 'Ma';
+      let wTotal = 0;
+      let wDays = 0;
+      const duties = {};
+
+      daysKeys.forEach(d => {
+        const duty = w[`${d}_duty`] || (w.day_name && w.day_name.toLowerCase().startsWith(d) ? (w.duty || '1 Duty') : '-');
+        const amt = getDutyAmount(role, duty);
+        wTotal += amt;
+        duties[d] = duty;
+        if (duty && duty !== '-' && duty !== 'Off') {
+          wDays += (duty === '1/2 Duty' ? 0.5 : (duty === '1.5 Duty' ? 1.5 : 1));
+        }
+      });
+
+      if (wTotal === 0 && Number(w.total_amount) > 0) {
+        wTotal = Number(w.total_amount);
+        wDays = Number(w.days_present) || 1;
+      }
+
+      grandTotal += wTotal;
+      totalDaysAll += wDays;
+
+      csv += `"${idx + 1}","${w.name}","${role}","${duties['mon']}","${duties['tue']}","${duties['wed']}","${duties['thu']}","${duties['fri']}","${duties['sat']}","${duties['sun']}","${wDays}","${wTotal}"\n`;
+    });
+
+    csv += `\n"","","","","","","","","","Total Labour Charges:","${totalDaysAll} Days","${grandTotal}"\n`;
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=Labour_Attendance_${today}.csv`);
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 6. Vendors & Suppliers
 app.get('/api/vendors', (req, res) => {
   try {

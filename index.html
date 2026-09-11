@@ -470,9 +470,13 @@
               <i data-lucide="share-2" class="w-4 h-4"></i>
               <span>Send via WhatsApp</span>
             </button>
-            <button onclick="exportLabourGoogleSheets()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs border border-slate-700 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
-              <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-              <span>Google Sheet / Excel</span>
+            <button onclick="openLabourGoogleSheetView()" class="px-3 py-2 rounded-xl bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 font-bold text-xs border border-emerald-500/40 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="table" class="w-4 h-4"></i>
+              <span>Live Google Sheet</span>
+            </button>
+            <button onclick="exportLabourGoogleSheets()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>Download CSV</span>
             </button>
             <button onclick="openModal('modalLabor')" class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow-md transition-colors cursor-pointer">
               + Add Labour
@@ -1809,6 +1813,11 @@
       return { rows, grandTotal, totalDaysAll, totalWorkers: rows.length };
     }
 
+    function openLabourGoogleSheetView() {
+      const url = `${getApiUrl()}/labor/sheet`;
+      window.open(url, '_blank');
+    }
+
     function shareWeeklyLabourWhatsApp() {
       const summary = getLabourWeeklySummary();
       if (summary.rows.length === 0) {
@@ -1818,6 +1827,7 @@
 
       const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       const compName = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
+      const sheetUrl = `${getApiUrl()}/labor/sheet`;
 
       let msg = `🏗️ *${compName.toUpperCase()}*\n`;
       msg += `📋 *Weekly Labour Attendance & Wage Summary*\n`;
@@ -1833,6 +1843,7 @@
       msg += `📊 *Total Days Worked:* ${summary.totalDaysAll} Days\n`;
       msg += `💰 *TOTAL LABOUR CHARGES: ₹${summary.grandTotal.toLocaleString('en-IN')}*\n`;
       msg += `─────────────────────\n`;
+      msg += `📊 *View Full Live Google Sheet:* \n${sheetUrl}\n\n`;
       msg += `_Sent via ${compName} Mobile App_`;
 
       const encoded = encodeURIComponent(msg);
