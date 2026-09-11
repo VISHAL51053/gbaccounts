@@ -827,7 +827,9 @@ app.post(['/api/labor/history', '/api/labour/history'], (req, res) => {
 
 app.delete(['/api/labor/history/:id', '/api/labour/history/:id'], (req, res) => {
   try {
-    db.prepare('DELETE FROM labor_weekly_history WHERE id = ?').run(req.params.id);
+    const { id } = req.params;
+    const decoded = decodeURIComponent(id).trim();
+    db.prepare('DELETE FROM labor_weekly_history WHERE id = ? OR week_label = ?').run(decoded, decoded);
     res.json({ success: true, message: 'Archived week deleted from history.' });
   } catch (err) {
     res.status(500).json({ error: err.message });

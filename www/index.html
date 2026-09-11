@@ -2117,10 +2117,11 @@
     async function deleteLabor(id) {
       if (confirm('Delete this labour record from SQLite?')) {
         appData.labor = (appData.labor || []).filter(l => l.id !== id);
+        saveLocalState();
         renderAll();
         try {
           if (isSQLiteOnline) {
-            await apiFetch(`${API_URL}/labor/${id}`, { method: 'DELETE' });
+            await apiFetch(`${API_URL}/labor/${encodeURIComponent(id)}`, { method: 'DELETE' });
             await fetchFromSQLite();
           }
         } catch (err) {
@@ -2415,17 +2416,23 @@
     }
 
     async function deleteLaborHistory(id) {
-      if (!confirm('Are you sure you want to delete this archived week record from SQLite history?')) return;
+      if (!id) return;
+      const item = (appData.laborWeeklyHistory || []).find(h => h.id === id);
+      const label = (item && item.week_label) ? item.week_label : (item ? `Week Ending ${item.week_ending}` : id);
+
+      if (!confirm(`Are you sure you want to delete "${label}" from history?`)) return;
+
+      // Immediately purge from memory and local storage
+      appData.laborWeeklyHistory = (appData.laborWeeklyHistory || []).filter(h => h.id !== id);
+      saveLocalState();
+      renderAll();
+
       try {
         if (isSQLiteOnline) {
-          await apiFetch(`${API_URL}/labor/history/${id}`, { method: 'DELETE' });
+          await apiFetch(`${API_URL}/labor/history/${encodeURIComponent(id)}`, { method: 'DELETE' });
           await fetchFromSQLite();
-        } else {
-          appData.laborWeeklyHistory = (appData.laborWeeklyHistory || []).filter(h => h.id !== id);
-          saveLocalState();
-          renderAll();
         }
-        showSyncToast('Archived week deleted.');
+        showSyncToast(`"${label}" deleted from history.`);
       } catch (err) {
         console.error('Error deleting history record:', err);
         alert('Error deleting: ' + (err.message || err));
