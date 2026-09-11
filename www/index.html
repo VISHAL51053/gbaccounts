@@ -2547,758 +2547,225 @@
       const compName = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
       const compAddress = (appData.company && appData.company.address) || 'Chennai, Tamil Nadu';
       const compPhone = (appData.company && appData.company.phone) || '';
-      const compEmail = (appData.company && appData.company.email) || '';
 
-      const rawMaterials = appData.materials || [];
-      const rawProjects = appData.projects || [];
-      const rawVendors = appData.vendors || [];
-      const rawPayments = appData.supplierPayments || [];
-      const rawLabor = appData.labor || [];
-
-      // Collect all unique sites
-      const allSitesSet = new Set();
-      rawProjects.forEach(p => { if (p.name) allSitesSet.add(p.name); });
-      rawMaterials.forEach(m => {
-        const sName = m.project_name || m.project;
-        if (sName) allSitesSet.add(sName);
-      });
-      const siteNamesList = Array.from(allSitesSet).sort();
-
-      // Collect all unique suppliers
-      const allSuppliersSet = new Set();
-      rawVendors.forEach(v => { if (v.name) allSuppliersSet.add(v.name); });
-      rawMaterials.forEach(m => { if (m.vendor) allSuppliersSet.add(m.vendor); });
-      const supplierNamesList = Array.from(allSuppliersSet).sort();
-
-      const serializedData = JSON.stringify({
-        materials: rawMaterials,
-        projects: rawProjects,
-        vendors: rawVendors,
-        payments: rawPayments,
-        labor: rawLabor,
-        company: appData.company || { name: compName, address: compAddress, phone: compPhone, email: compEmail },
-        initialTab: defaultTab,
-        initialSite: filterSite,
-        todayDate: today
-      });
-
-      const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(compName)} - Material Purchases & Site Statement Google Sheet</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f1f5f9; color: #0f172a; padding: 16px; }
-    
-    /* Google Sheet App Bar */
-    .sheet-chrome { background: #0f9d58; color: white; padding: 12px 20px; border-radius: 8px 8px 0 0; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
-    .sheet-brand { display: flex; align-items: center; gap: 10px; }
-    .sheet-brand h1 { font-size: 17px; font-weight: 900; letter-spacing: -0.02em; }
-    .sheet-brand p { font-size: 11px; opacity: 0.88; font-weight: 500; }
-    .sheet-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    
-    .btn { padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; }
-    .btn-white { background: white; color: #0f9d58; }
-    .btn-white:hover { background: #f8fafc; }
-    .btn-dark { background: #0b8043; color: white; border: 1px solid rgba(255,255,255,0.25); }
-    .btn-dark:hover { background: #086a37; }
-    
-    /* Toolbar & Tab Bar */
-    .toolbar-bar { background: #0c7a44; color: white; padding: 10px 20px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 2px solid #086a37; }
-    .tab-pills { display: flex; gap: 6px; flex-wrap: wrap; }
-    .tab-pill { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.25); transition: all 0.2s; user-select: none; }
-    .tab-pill.active { background: white; color: #0b8043; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
-    
-    .filter-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .filter-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
-    .filter-select, .search-input { padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.5); font-size: 12px; background: white; color: #0f172a; font-weight: 600; outline: none; }
-    .search-input { width: 150px; }
-
-    /* Sheet Content */
-    .sheet-body { background: white; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 8px 8px; padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
-    
-    /* Letterhead */
-    .company-banner { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f9d58; padding-bottom: 14px; margin-bottom: 20px; }
-    .comp-title { font-size: 22px; font-weight: 900; color: #0f172a; }
-    .comp-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
-    .statement-tag { font-size: 12px; color: #0f9d58; font-weight: 800; text-transform: uppercase; margin-top: 4px; }
-    
-    /* Stats Bar */
-    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 24px; }
-    .stat-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; border-left: 4px solid #0f9d58; }
-    .stat-box.red { border-left-color: #ef4444; }
-    .stat-box.green { border-left-color: #10b981; }
-    .stat-box.amber { border-left-color: #f59e0b; }
-    .stat-box.blue { border-left-color: #3b82f6; }
-    .stat-label { font-size: 11px; text-transform: uppercase; font-weight: 800; color: #64748b; letter-spacing: 0.5px; }
-    .stat-val { font-size: 20px; font-weight: 900; margin-top: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-
-    /* Tables */
-    .section-head { display: flex; justify-content: space-between; align-items: center; margin: 24px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #0f9d58; }
-    .section-title { font-size: 14px; font-weight: 800; text-transform: uppercase; color: #0f9d58; display: flex; align-items: center; gap: 8px; }
-    .section-badge { font-size: 11px; background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 12px; font-weight: 700; }
-    
-    .site-card-box { border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 24px; overflow: hidden; }
-    .site-card-header { background: #f1f5f9; border-bottom: 1px solid #cbd5e1; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
-    .site-title { font-size: 14px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 6px; }
-    .site-meta { font-size: 12px; color: #64748b; }
-    
-    table { width: 100%; border-collapse: collapse; font-size: 12px; background: white; margin-bottom: 16px; }
-    th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 9px 12px; font-weight: 800; text-align: left; text-transform: uppercase; font-size: 11px; color: #334155; letter-spacing: 0.3px; }
-    td { border: 1px solid #e2e8f0; padding: 8px 12px; color: #1e293b; }
-    tr:nth-child(even) { background: #f8fafc; }
-    tr:hover { background: #f1f5f9; }
-    tfoot tr { background: #f1f5f9; font-weight: 800; }
-    
-    .cost-cell { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 800; color: #dc2626; }
-    .paid-cell { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 800; color: #059669; }
-    .bal-cell { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 800; color: #d97706; }
-    
-    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
-    .status-settled { background: #d1fae5; color: #065f46; }
-    .status-pending { background: #fee2e2; color: #991b1b; }
-    
-    .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 30px; padding-top: 14px; border-top: 1px solid #e2e8f0; }
-
-    /* Print Optimization */
-    @media print {
-      body { padding: 0; background: white; }
-      .sheet-chrome, .toolbar-bar, .no-print { display: none !important; }
-      .sheet-body { border: none; box-shadow: none; padding: 0; }
-      th { background: #e2e8f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      tr:nth-child(even) { background: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .stat-box { border-left-width: 4px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .status-settled { background: #d1fae5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .status-pending { background: #fee2e2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      @page { margin: 1.2cm; size: landscape; }
-    }
-  </style>
-</head>
-<body>
-  <!-- Top Bar -->
-  <div class="sheet-chrome no-print">
-    <div class="sheet-brand">
-      <span>📊</span>
-      <div>
-        <h1>Google Sheets Live View • Material Procurement & Site Statement</h1>
-        <p>${escapeHtml(compName)} Management ERP</p>
-      </div>
-    </div>
-    <div class="sheet-actions">
-      <button onclick="window.print()" class="btn btn-white">🖨️ Print / Save PDF</button>
-      <button onclick="exportActiveCsv()" class="btn btn-dark">📥 Download CSV</button>
-      <button onclick="window.close()" class="btn btn-dark">✖ Close</button>
-    </div>
-  </div>
-
-  <!-- Toolbar & Filters -->
-  <div class="toolbar-bar no-print">
-    <div class="tab-pills">
-      <div id="pill-purchases" onclick="switchView('purchases')" class="tab-pill">📋 Raw Material Purchases</div>
-      <div id="pill-sitewise" onclick="switchView('sitewise')" class="tab-pill">🏗️ Site-Wise Statement</div>
-      <div id="pill-suppliers" onclick="switchView('suppliers')" class="tab-pill">👥 Supplier Balances</div>
-      <div id="pill-payments" onclick="switchView('payments')" class="tab-pill">💳 Payment History</div>
-      <div id="pill-master" onclick="switchView('master')" class="tab-pill">📊 Master Statement</div>
-    </div>
-    <div class="filter-controls">
-      <span class="filter-label">Filter Site:</span>
-      <select id="selSiteFilter" onchange="applyFilters()" class="filter-select">
-        <option value="">All Sites (${siteNamesList.length})</option>
-        ${siteNamesList.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
-      </select>
-
-      <span class="filter-label">Supplier:</span>
-      <select id="selSupplierFilter" onchange="applyFilters()" class="filter-select">
-        <option value="">All Suppliers (${supplierNamesList.length})</option>
-        ${supplierNamesList.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
-      </select>
-
-      <input type="text" id="txtSearch" oninput="applyFilters()" placeholder="Search..." class="search-input" />
-    </div>
-  </div>
-
-  <!-- Main Sheet Body -->
-  <div class="sheet-body">
-    <!-- Letterhead -->
-    <div class="company-banner">
-      <div>
-        <div class="comp-title">${escapeHtml(compName)}</div>
-        <div class="comp-sub">${escapeHtml(compAddress)} ${compPhone ? '• Ph: ' + escapeHtml(compPhone) : ''}</div>
-        <div id="lblStatementTag" class="statement-tag">RAW MATERIAL PURCHASES & SITE-WISE EXPENSES MASTER STATEMENT</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:800;">Statement Date</div>
-        <div style="font-size:14px; font-weight:800; color:#0f172a;">${today}</div>
-        <div style="font-size:11px; color:#059669; font-weight:800; margin-top:4px;">● Live SQLite Sync</div>
-      </div>
-    </div>
-
-    <!-- Dynamic Metrics Cards -->
-    <div class="stats-bar">
-      <div class="stat-box red">
-        <div class="stat-label">Total Material Purchases</div>
-        <div id="kpiTotalPurchases" class="stat-val" style="color:#dc2626;">₹0</div>
-      </div>
-      <div class="stat-box green">
-        <div class="stat-label">Total Amount Paid</div>
-        <div id="kpiTotalPaid" class="stat-val" style="color:#059669;">₹0</div>
-      </div>
-      <div class="stat-box amber">
-        <div class="stat-label">Total Outstanding Balance</div>
-        <div id="kpiTotalBalance" class="stat-val" style="color:#d97706;">₹0</div>
-      </div>
-      <div class="stat-box blue">
-        <div class="stat-label">Active Sites</div>
-        <div id="kpiActiveSites" class="stat-val" style="color:#2563eb;">0</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Deliveries Logged</div>
-        <div id="kpiDeliveriesCount" class="stat-val" style="color:#0f172a;">0</div>
-      </div>
-    </div>
-
-    <!-- Content Sections Container -->
-    <div id="sheetContentContainer">
-      <!-- Injected dynamically by JS -->
-    </div>
-
-    <div class="footer">
-      Generated automatically by <strong>${escapeHtml(compName)} ERP System</strong> on ${today}. Confidential & Proprietary Document.
-    </div>
-  </div>
-
-  <script>
-    const db = ${serializedData};
-    let currentView = db.initialTab || 'purchases';
-
-    function fmtINR(val) {
-      const num = Number(val) || 0;
-      return '₹' + num.toLocaleString('en-IN', { maximumFractionDigits: 0 });
-    }
-
-    function escapeTxt(str) {
-      if (!str) return '';
-      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    function init() {
-      if (db.initialSite) {
-        const sel = document.getElementById('selSiteFilter');
-        if (sel) sel.value = db.initialSite;
-      }
-      switchView(currentView);
-    }
-
-    function switchView(viewName) {
-      currentView = viewName;
-      ['purchases', 'sitewise', 'suppliers', 'payments', 'master'].forEach(t => {
-        const pill = document.getElementById('pill-' + t);
-        if (pill) {
-          if (t === viewName) pill.classList.add('active');
-          else pill.classList.remove('active');
-        }
-      });
-      renderView();
-    }
-
-    function applyFilters() {
-      renderView();
-    }
-
-    function getFilteredData() {
-      const siteFilter = (document.getElementById('selSiteFilter') ? document.getElementById('selSiteFilter').value : '').trim().toLowerCase();
-      const suppFilter = (document.getElementById('selSupplierFilter') ? document.getElementById('selSupplierFilter').value : '').trim().toLowerCase();
-      const search = (document.getElementById('txtSearch') ? document.getElementById('txtSearch').value : '').trim().toLowerCase();
-
-      let mats = db.materials || [];
-      let pays = db.payments || [];
-
-      if (siteFilter) {
-        mats = mats.filter(m => ((m.project_name || m.project || '').toLowerCase() === siteFilter));
-        pays = pays.filter(p => ((p.project_name || '').toLowerCase() === siteFilter));
-      }
-
-      if (suppFilter) {
-        mats = mats.filter(m => ((m.vendor || '').toLowerCase() === suppFilter));
-        pays = pays.filter(p => ((p.vendor || '').toLowerCase() === suppFilter));
-      }
-
-      if (search) {
-        mats = mats.filter(m => (
-          (m.item || '').toLowerCase().includes(search) ||
-          (m.vendor || '').toLowerCase().includes(search) ||
-          (m.project_name || m.project || '').toLowerCase().includes(search) ||
-          (m.category || '').toLowerCase().includes(search) ||
-          (m.date || '').toLowerCase().includes(search)
-        ));
-        pays = pays.filter(p => (
-          (p.vendor || '').toLowerCase().includes(search) ||
-          (p.project_name || '').toLowerCase().includes(search) ||
-          (p.mode || '').toLowerCase().includes(search) ||
-          (p.notes || '').toLowerCase().includes(search) ||
-          (p.date || '').toLowerCase().includes(search)
-        ));
-      }
-
-      return { mats, pays };
-    }
-
-    function renderView() {
-      const { mats, pays } = getFilteredData();
-      const container = document.getElementById('sheetContentContainer');
-      const tagLabel = document.getElementById('lblStatementTag');
+      const mats = (appData.materials || []).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      const pays = (appData.supplierPayments || []).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      const projects = appData.projects || [];
+      const vendors = appData.vendors || [];
 
       const totalMatCost = mats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
       const totalPaid = pays.reduce((s, p) => s + (Number(p.amount) || 0), 0);
       const totalBalance = totalMatCost - totalPaid;
 
-      // Unique sites in filtered mats
-      const activeSitesSet = new Set();
-      mats.forEach(m => {
-        const s = m.project_name || m.project;
-        if (s) activeSitesSet.add(s);
-      });
-
-      // Update KPI Boxes
-      document.getElementById('kpiTotalPurchases').textContent = fmtINR(totalMatCost);
-      document.getElementById('kpiTotalPaid').textContent = fmtINR(totalPaid);
-      document.getElementById('kpiTotalBalance').textContent = fmtINR(totalBalance);
-      document.getElementById('kpiTotalBalance').style.color = totalBalance > 0 ? '#dc2626' : '#059669';
-      document.getElementById('kpiActiveSites').textContent = activeSitesSet.size || (db.projects || []).length;
-      document.getElementById('kpiDeliveriesCount').textContent = mats.length;
-
-      let html = '';
-
-      if (currentView === 'purchases') {
-        if (tagLabel) tagLabel.textContent = 'RAW MATERIAL PURCHASES MASTER LOG';
-        html = renderPurchasesTable(mats, totalMatCost);
-      } else if (currentView === 'sitewise') {
-        if (tagLabel) tagLabel.textContent = 'SITE-WISE RAW MATERIAL & EXPENSES STATEMENT';
-        html = renderSiteWiseView(mats);
-      } else if (currentView === 'suppliers') {
-        if (tagLabel) tagLabel.textContent = 'SUPPLIER ACCOUNTS & PAYMENT BALANCE STATEMENT';
-        html = renderSuppliersView(mats, pays);
-      } else if (currentView === 'payments') {
-        if (tagLabel) tagLabel.textContent = 'SUPPLIER PAYMENT SETTLEMENTS HISTORY';
-        html = renderPaymentsTable(pays, totalPaid);
-      } else if (currentView === 'master') {
-        if (tagLabel) tagLabel.textContent = 'COMPREHENSIVE MASTER MATERIALS & SITE STATEMENT';
-        html = `
-          <div class="section-head">
-            <div class="section-title">1. Site-Wise Materials Summary</div>
-          </div>
-          ${renderSiteWiseSummaryTable(mats)}
-
-          <div class="section-head" style="margin-top:30px;">
-            <div class="section-title">2. Raw Material Purchases Log</div>
-          </div>
-          ${renderPurchasesTable(mats, totalMatCost)}
-
-          <div class="section-head" style="margin-top:30px;">
-            <div class="section-title">3. Supplier Balances Directory</div>
-          </div>
-          ${renderSuppliersView(mats, pays)}
-
-          <div class="section-head" style="margin-top:30px;">
-            <div class="section-title">4. Supplier Payment Settlements History</div>
-          </div>
-          ${renderPaymentsTable(pays, totalPaid)}
-        `;
-      }
-
-      container.innerHTML = html;
-    }
-
-    // 1. Raw Material Purchases Table (Exact Format from UI screenshot: DATE | MATERIAL / DESCRIPTION | SITE | SUPPLIER | COST (₹))
-    function renderPurchasesTable(mats, totalCost) {
+      // Build purchases rows
+      let purchasesRows = '';
       if (mats.length === 0) {
-        return '<div style="text-align:center; padding:40px; color:#94a3b8; font-weight:600;">No raw material purchases match the current filter.</div>';
+        purchasesRows = '<tr><td colspan="6" style="text-align:center; padding:24px; color:#94a3b8;">No material purchases recorded yet.</td></tr>';
+      } else {
+        mats.forEach((m, idx) => {
+          purchasesRows += '<tr>' +
+            '<td style="text-align:center; width:40px; color:#64748b;">' + (idx + 1) + '</td>' +
+            '<td style="font-family:monospace; font-weight:600; width:110px;">' + escapeHtml(m.date || '-') + '</td>' +
+            '<td style="font-weight:700; color:#0f172a;">' + escapeHtml(m.item || m.material || '-') + '</td>' +
+            '<td><span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px; font-weight:700; font-size:11px;">' + escapeHtml(m.project_name || m.project || 'General') + '</span></td>' +
+            '<td style="font-weight:600; color:#334155;">' + escapeHtml(m.vendor || '-') + '</td>' +
+            '<td style="text-align:right; font-family:monospace; font-weight:800; color:#dc2626;">' + formatINR(m.amount) + '</td>' +
+          '</tr>';
+        });
       }
 
-      const rows = mats.map((m, idx) => `
-        <tr>
-          <td style="text-align:center; width:40px; color:#64748b;">${idx + 1}</td>
-          <td style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight:600; width:100px;">${escapeTxt(m.date || '-')}</td>
-          <td style="font-weight:700; color:#0f172a;">${escapeTxt(m.item || '-')}</td>
-          <td style="font-weight:600; color:#475569;">${escapeTxt(m.project_name || m.project || '-')}</td>
-          <td style="font-weight:700; color:#334155;">${escapeTxt(m.vendor || 'General Supplier')}</td>
-          <td class="cost-cell">${fmtINR(m.amount)}</td>
-        </tr>
-      `).join('');
-
-      return `
-        <table style="border:1px solid #cbd5e1; border-radius:6px; overflow:hidden;">
-          <thead>
-            <tr>
-              <th style="width:40px; text-align:center;">#</th>
-              <th style="width:100px;">DATE</th>
-              <th>MATERIAL / DESCRIPTION</th>
-              <th>SITE</th>
-              <th>SUPPLIER</th>
-              <th style="text-align:right;">COST (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="5" style="text-align:right; text-transform:uppercase; font-weight:800; color:#475569;">TOTAL RAW MATERIAL PURCHASES:</td>
-              <td class="cost-cell">${fmtINR(totalCost)}</td>
-            </tr>
-          </tfoot>
-        </table>
-      `;
-    }
-
-    // 2. Site-Wise Statement View
-    function renderSiteWiseView(mats) {
-      // Group materials by site
+      // Build sitewise rows
       const siteMap = {};
-      
-      // Initialize with existing projects
-      (db.projects || []).forEach(p => {
-        siteMap[p.name] = {
-          name: p.name,
-          location: p.location || '-',
-          client: p.client || 'Direct Client',
-          materials: [],
-          totalCost: 0
-        };
-      });
-
-      // Add materials into site map
+      projects.forEach(p => { if (p.name) siteMap[p.name] = { totalCost: 0, itemsCount: 0, materials: [] }; });
       mats.forEach(m => {
-        const sName = m.project_name || m.project || 'General Site';
-        if (!siteMap[sName]) {
-          siteMap[sName] = {
-            name: sName,
-            location: '-',
-            client: 'Direct Client',
-            materials: [],
-            totalCost: 0
-          };
-        }
-        siteMap[sName].materials.push(m);
+        const sName = m.project_name || m.project || 'Unassigned / General';
+        if (!siteMap[sName]) siteMap[sName] = { totalCost: 0, itemsCount: 0, materials: [] };
         siteMap[sName].totalCost += (Number(m.amount) || 0);
+        siteMap[sName].itemsCount++;
+        siteMap[sName].materials.push(m);
       });
 
+      let sitewiseSummaryRows = '';
       const siteKeys = Object.keys(siteMap).sort();
       if (siteKeys.length === 0) {
-        return '<div style="text-align:center; padding:40px; color:#94a3b8; font-weight:600;">No site records found.</div>';
-      }
-
-      let html = renderSiteWiseSummaryTable(mats);
-
-      html += `
-        <div class="section-head" style="margin-top:28px;">
-          <div class="section-title">Site-by-Site Itemized Purchases Breakdown</div>
-        </div>
-      `;
-
-      siteKeys.forEach(sName => {
-        const sObj = siteMap[sName];
-        if (sObj.materials.length === 0 && document.getElementById('selSiteFilter') && document.getElementById('selSiteFilter').value) return;
-
-        const siteRows = sObj.materials.length === 0 
-          ? '<tr><td colspan="5" style="text-align:center; padding:12px; color:#94a3b8;">No material purchases recorded for this site yet.</td></tr>'
-          : sObj.materials.map((m, idx) => `
-            <tr>
-              <td style="text-align:center; width:40px; color:#64748b;">${idx + 1}</td>
-              <td style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight:600; width:100px;">${escapeTxt(m.date || '-')}</td>
-              <td style="font-weight:700; color:#0f172a;">${escapeTxt(m.item || '-')}</td>
-              <td style="font-weight:700; color:#334155;">${escapeTxt(m.vendor || 'General Supplier')}</td>
-              <td class="cost-cell">${fmtINR(m.amount)}</td>
-            </tr>
-          `).join('');
-
-        html += `
-          <div class="site-card-box">
-            <div class="site-card-header">
-              <div class="site-title">
-                <span>🏗️</span>
-                <span>${escapeTxt(sObj.name)}</span>
-              </div>
-              <div class="site-meta">
-                <span>Location: <strong>${escapeTxt(sObj.location)}</strong></span> • 
-                <span>Client: <strong>${escapeTxt(sObj.client)}</strong></span> • 
-                <span>Total Materials: <strong style="color:#dc2626; font-family:ui-monospace;">${fmtINR(sObj.totalCost)}</strong></span>
-              </div>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th style="width:40px; text-align:center;">#</th>
-                  <th style="width:100px;">DATE</th>
-                  <th>MATERIAL / DESCRIPTION</th>
-                  <th>SUPPLIER</th>
-                  <th style="text-align:right;">COST (₹)</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${siteRows}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colspan="4" style="text-align:right; text-transform:uppercase; font-weight:800; color:#475569;">SUBTOTAL FOR ${escapeTxt(sObj.name)}:</td>
-                  <td class="cost-cell">${fmtINR(sObj.totalCost)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        `;
-      });
-
-      return html;
-    }
-
-    // Site-Wise Summary Table
-    function renderSiteWiseSummaryTable(mats) {
-      const siteSummaryMap = {};
-      (db.projects || []).forEach(p => {
-        siteSummaryMap[p.name] = {
-          name: p.name,
-          location: p.location || '-',
-          client: p.client || 'Direct',
-          count: 0,
-          cost: 0,
-          laborCost: 0
-        };
-      });
-
-      mats.forEach(m => {
-        const sName = m.project_name || m.project || 'General Site';
-        if (!siteSummaryMap[sName]) {
-          siteSummaryMap[sName] = { name: sName, location: '-', client: 'Direct', count: 0, cost: 0, laborCost: 0 };
-        }
-        siteSummaryMap[sName].count += 1;
-        siteSummaryMap[sName].cost += (Number(m.amount) || 0);
-      });
-
-      // Calculate labour wages per site
-      (db.labor || []).forEach(l => {
-        ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(d => {
-          const dSite = l[d + '_site'] || l.site_assigned;
-          const dAmt = Number(l[d + '_amt']) || 0;
-          if (dSite && dAmt > 0 && siteSummaryMap[dSite]) {
-            siteSummaryMap[dSite].laborCost += dAmt;
-          }
-        });
-      });
-
-      const keys = Object.keys(siteSummaryMap).sort();
-      let grandMat = 0;
-      let grandLab = 0;
-      let grandTotal = 0;
-
-      const rows = keys.map((k, idx) => {
-        const item = siteSummaryMap[k];
-        const totalExp = item.cost + item.laborCost;
-        grandMat += item.cost;
-        grandLab += item.laborCost;
-        grandTotal += totalExp;
-
-        return `
-          <tr>
-            <td style="text-align:center; width:40px;">${idx + 1}</td>
-            <td style="font-weight:800; color:#0f172a;">${escapeTxt(item.name)}</td>
-            <td>${escapeTxt(item.location)} (${escapeTxt(item.client)})</td>
-            <td style="text-align:center; font-weight:700;">${item.count}</td>
-            <td class="cost-cell">${fmtINR(item.cost)}</td>
-            <td class="paid-cell">${fmtINR(item.laborCost)}</td>
-            <td style="text-align:right; font-family:ui-monospace; font-weight:900; color:#0f172a;">${fmtINR(totalExp)}</td>
-          </tr>
-        `;
-      }).join('');
-
-      return `
-        <table style="border:1px solid #cbd5e1; border-radius:6px; overflow:hidden; margin-bottom:20px;">
-          <thead>
-            <tr>
-              <th style="width:40px; text-align:center;">#</th>
-              <th>SITE / PROJECT NAME</th>
-              <th>LOCATION / CLIENT</th>
-              <th style="text-align:center;">DELIVERIES</th>
-              <th style="text-align:right;">MATERIAL COST (₹)</th>
-              <th style="text-align:right;">LABOUR WAGES (₹)</th>
-              <th style="text-align:right;">TOTAL EXPENSE (₹)</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows || '<tr><td colspan="7" style="text-align:center; padding:14px;">No site summaries available.</td></tr>'}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="4" style="text-align:right; text-transform:uppercase; font-weight:800;">GRAND TOTALS:</td>
-              <td class="cost-cell">${fmtINR(grandMat)}</td>
-              <td class="paid-cell">${fmtINR(grandLab)}</td>
-              <td style="text-align:right; font-family:ui-monospace; font-weight:900; color:#0f172a;">${fmtINR(grandTotal)}</td>
-            </tr>
-          </tfoot>
-        </table>
-      `;
-    }
-
-    // 3. Supplier Balances View
-    function renderSuppliersView(mats, pays) {
-      const suppMap = {};
-      (db.vendors || []).forEach(v => {
-        if (v.name) {
-          suppMap[v.name.toLowerCase()] = {
-            name: v.name,
-            role: v.role || v.category || 'Raw Materials',
-            bills: 0,
-            cost: 0,
-            paid: 0,
-            sites: new Set()
-          };
-        }
-      });
-
-      mats.forEach(m => {
-        const vName = m.vendor || 'General Supplier';
-        const key = vName.toLowerCase();
-        if (!suppMap[key]) {
-          suppMap[key] = { name: vName, role: m.category || 'Raw Materials', bills: 0, cost: 0, paid: 0, sites: new Set() };
-        }
-        suppMap[key].bills += 1;
-        suppMap[key].cost += (Number(m.amount) || 0);
-        if (m.project_name || m.project) suppMap[key].sites.add(m.project_name || m.project);
-      });
-
-      pays.forEach(p => {
-        const vName = p.vendor || 'General Supplier';
-        const key = vName.toLowerCase();
-        if (!suppMap[key]) {
-          suppMap[key] = { name: vName, role: 'Raw Materials', bills: 0, cost: 0, paid: 0, sites: new Set() };
-        }
-        suppMap[key].paid += (Number(p.amount) || 0);
-      });
-
-      const keys = Object.keys(suppMap).sort();
-      let grandCost = 0;
-      let grandPaid = 0;
-
-      const rows = keys.map((k, idx) => {
-        const s = suppMap[k];
-        const bal = s.cost - s.paid;
-        grandCost += s.cost;
-        grandPaid += s.paid;
-        const sitesStr = Array.from(s.sites).join(', ') || '-';
-        const isSettled = bal <= 0 && s.cost > 0;
-
-        return `
-          <tr>
-            <td style="text-align:center; width:40px;">${idx + 1}</td>
-            <td style="font-weight:800; color:#0f172a;">${escapeTxt(s.name)}</td>
-            <td>${escapeTxt(s.role)}</td>
-            <td>${escapeTxt(sitesStr)}</td>
-            <td style="text-align:center; font-weight:700;">${s.bills}</td>
-            <td class="cost-cell">${fmtINR(s.cost)}</td>
-            <td class="paid-cell">${fmtINR(s.paid)}</td>
-            <td class="bal-cell" style="color:${bal > 0 ? '#dc2626' : '#059669'};">${fmtINR(bal)}</td>
-            <td style="text-align:center;"><span class="status-badge ${isSettled ? 'status-settled' : 'status-pending'}">${isSettled ? 'Settled' : (bal > 0 ? 'Pending' : 'Active')}</span></td>
-          </tr>
-        `;
-      }).join('');
-
-      const grandBal = grandCost - grandPaid;
-
-      return `
-        <table style="border:1px solid #cbd5e1; border-radius:6px; overflow:hidden;">
-          <thead>
-            <tr>
-              <th style="width:40px; text-align:center;">#</th>
-              <th>SUPPLIER / VENDOR NAME</th>
-              <th>CATEGORY</th>
-              <th>SITES SUPPLIED</th>
-              <th style="text-align:center;">BILLS</th>
-              <th style="text-align:right;">TOTAL COST (₹)</th>
-              <th style="text-align:right;">PAID (₹)</th>
-              <th style="text-align:right;">BALANCE DUE (₹)</th>
-              <th style="text-align:center;">STATUS</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows || '<tr><td colspan="9" style="text-align:center; padding:14px;">No supplier balance records logged.</td></tr>'}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="5" style="text-align:right; text-transform:uppercase; font-weight:800;">GRAND TOTALS:</td>
-              <td class="cost-cell">${fmtINR(grandCost)}</td>
-              <td class="paid-cell">${fmtINR(grandPaid)}</td>
-              <td class="bal-cell" style="color:${grandBal > 0 ? '#dc2626' : '#059669'};">${fmtINR(grandBal)}</td>
-              <td style="text-align:center;">${grandBal <= 0 ? 'All Settled' : 'Active'}</td>
-            </tr>
-          </tfoot>
-        </table>
-      `;
-    }
-
-    // 4. Supplier Payments Table
-    function renderPaymentsTable(pays, totalPaid) {
-      if (pays.length === 0) {
-        return '<div style="text-align:center; padding:40px; color:#94a3b8; font-weight:600;">No payment transaction records logged yet.</div>';
-      }
-
-      const rows = pays.map((p, idx) => `
-        <tr>
-          <td style="text-align:center; width:40px; color:#64748b;">${idx + 1}</td>
-          <td style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight:600; width:100px;">${escapeTxt(p.date || '-')}</td>
-          <td style="font-weight:700; color:#0f172a;">${escapeTxt(p.vendor || '-')}</td>
-          <td style="font-weight:600; color:#475569;">${escapeTxt(p.project_name || '-')}</td>
-          <td class="paid-cell">${fmtINR(p.amount)}</td>
-          <td style="font-weight:600;">${escapeTxt(p.mode || 'Cash')}</td>
-          <td style="color:#64748b;">${escapeTxt(p.notes || '-')}</td>
-        </tr>
-      `).join('');
-
-      return `
-        <table style="border:1px solid #cbd5e1; border-radius:6px; overflow:hidden;">
-          <thead>
-            <tr>
-              <th style="width:40px; text-align:center;">#</th>
-              <th style="width:100px;">DATE</th>
-              <th>SUPPLIER / VENDOR</th>
-              <th>SITE</th>
-              <th style="text-align:right;">PAID AMOUNT (₹)</th>
-              <th>PAYMENT MODE</th>
-              <th>REMARKS / NOTES</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="4" style="text-align:right; text-transform:uppercase; font-weight:800; color:#475569;">TOTAL PAYMENTS SETTLED:</td>
-              <td class="paid-cell">${fmtINR(totalPaid)}</td>
-              <td colspan="2"></td>
-            </tr>
-          </tfoot>
-        </table>
-      `;
-    }
-
-    function exportActiveCsv() {
-      if (window.opener && window.opener.exportMaterialsGoogleSheets) {
-        window.opener.exportMaterialsGoogleSheets(currentView);
+        sitewiseSummaryRows = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#94a3b8;">No site data available.</td></tr>';
       } else {
-        window.print();
+        siteKeys.forEach((sName, idx) => {
+          const sObj = siteMap[sName];
+          sitewiseSummaryRows += '<tr>' +
+            '<td style="text-align:center; width:40px; color:#64748b;">' + (idx + 1) + '</td>' +
+            '<td style="font-weight:800; color:#0f172a;">' + escapeHtml(sName) + '</td>' +
+            '<td style="text-align:center; font-weight:700; color:#475569;">' + sObj.itemsCount + ' Purchases</td>' +
+            '<td style="text-align:right; font-family:monospace; font-weight:800; color:#dc2626;">' + formatINR(sObj.totalCost) + '</td>' +
+          '</tr>';
+        });
       }
-    }
 
-    window.onload = init;
-  </script>
-</body>
-</html>`;
+      // Build supplier balance rows
+      const suppMap = {};
+      vendors.forEach(v => { if (v.name) suppMap[v.name] = { phone: v.phone || '', totalBilled: 0, totalPaid: 0 }; });
+      mats.forEach(m => {
+        const v = m.vendor || 'General Supplier';
+        if (!suppMap[v]) suppMap[v] = { phone: '', totalBilled: 0, totalPaid: 0 };
+        suppMap[v].totalBilled += (Number(m.amount) || 0);
+      });
+      pays.forEach(p => {
+        const v = p.vendor || 'General Supplier';
+        if (!suppMap[v]) suppMap[v] = { phone: '', totalBilled: 0, totalPaid: 0 };
+        suppMap[v].totalPaid += (Number(p.amount) || 0);
+      });
+
+      let suppRows = '';
+      const suppKeys = Object.keys(suppMap).sort();
+      if (suppKeys.length === 0) {
+        suppRows = '<tr><td colspan="6" style="text-align:center; padding:24px; color:#94a3b8;">No supplier data available.</td></tr>';
+      } else {
+        suppKeys.forEach((sName, idx) => {
+          const sObj = suppMap[sName];
+          const bal = sObj.totalBilled - sObj.totalPaid;
+          const statusBadge = bal <= 0 
+            ? '<span style="background:#d1fae5; color:#065f46; padding:2px 8px; border-radius:12px; font-weight:800; font-size:11px;">PAID</span>'
+            : '<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:12px; font-weight:800; font-size:11px;">PENDING</span>';
+          suppRows += '<tr>' +
+            '<td style="text-align:center; width:40px; color:#64748b;">' + (idx + 1) + '</td>' +
+            '<td style="font-weight:800; color:#0f172a;">' + escapeHtml(sName) + (sObj.phone ? '<br><small style="color:#64748b; font-weight:normal;">' + escapeHtml(sObj.phone) + '</small>' : '') + '</td>' +
+            '<td style="text-align:right; font-family:monospace; font-weight:700; color:#dc2626;">' + formatINR(sObj.totalBilled) + '</td>' +
+            '<td style="text-align:right; font-family:monospace; font-weight:700; color:#059669;">' + formatINR(sObj.totalPaid) + '</td>' +
+            '<td style="text-align:right; font-family:monospace; font-weight:800; color:' + (bal > 0 ? '#d97706' : '#059669') + ';">' + formatINR(bal) + '</td>' +
+            '<td style="text-align:center;">' + statusBadge + '</td>' +
+          '</tr>';
+        });
+      }
+
+      // Build payments rows
+      let payRows = '';
+      if (pays.length === 0) {
+        payRows = '<tr><td colspan="6" style="text-align:center; padding:24px; color:#94a3b8;">No payments recorded yet.</td></tr>';
+      } else {
+        pays.forEach((p, idx) => {
+          payRows += '<tr>' +
+            '<td style="text-align:center; width:40px; color:#64748b;">' + (idx + 1) + '</td>' +
+            '<td style="font-family:monospace; font-weight:600; width:110px;">' + escapeHtml(p.date || '-') + '</td>' +
+            '<td style="font-weight:700; color:#0f172a;">' + escapeHtml(p.vendor || '-') + '</td>' +
+            '<td><span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px; font-weight:700; font-size:11px;">' + escapeHtml(p.project_name || 'General') + '</span></td>' +
+            '<td style="font-weight:600; color:#475569;">' + escapeHtml(p.mode || 'Cash') + '</td>' +
+            '<td style="text-align:right; font-family:monospace; font-weight:800; color:#059669;">' + formatINR(p.amount) + '</td>' +
+          '</tr>';
+        });
+      }
+
+      const winHtml = '<!DOCTYPE html>' +
+'<html lang="en">' +
+'<head>' +
+'  <meta charset="UTF-8">' +
+'  <title>' + escapeHtml(compName) + ' - Material Procurement & Site Statement (Google Sheets View)</title>' +
+'  <style>' +
+'    * { box-sizing: border-box; margin: 0; padding: 0; }' +
+'    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; color: #0f172a; padding: 16px; }' +
+'    .sheet-chrome { background: #0f9d58; color: white; padding: 12px 20px; border-radius: 8px 8px 0 0; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }' +
+'    .sheet-actions { display: flex; gap: 8px; }' +
+'    .btn { padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; border: none; }' +
+'    .btn-white { background: white; color: #0f9d58; }' +
+'    .btn-dark { background: #0b8043; color: white; }' +
+'    .toolbar-bar { background: #0c7a44; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }' +
+'    .tab-pills { display: flex; gap: 6px; flex-wrap: wrap; }' +
+'    .tab-pill { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.25); user-select: none; }' +
+'    .tab-pill.active { background: white; color: #0b8043; }' +
+'    .sheet-body { background: white; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 8px 8px; padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }' +
+'    .company-banner { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f9d58; padding-bottom: 14px; margin-bottom: 20px; }' +
+'    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }' +
+'    .stat-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; border-left: 4px solid #0f9d58; }' +
+'    .stat-val { font-size: 20px; font-weight: 900; margin-top: 4px; font-family: monospace; }' +
+'    table { width: 100%; border-collapse: collapse; font-size: 12px; background: white; margin-bottom: 16px; }' +
+'    th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 9px 12px; font-weight: 800; text-align: left; text-transform: uppercase; font-size: 11px; color: #334155; }' +
+'    td { border: 1px solid #e2e8f0; padding: 8px 12px; color: #1e293b; }' +
+'    tr:nth-child(even) { background: #f8fafc; }' +
+'    tfoot tr { background: #f1f5f9; font-weight: 800; }' +
+'    @media print { body { padding: 0; background: white; } .sheet-chrome, .toolbar-bar, .no-print { display: none !important; } .sheet-body { border: none; padding: 0; } @page { margin: 1.2cm; size: landscape; } }' +
+'  </style>' +
+'</head>' +
+'<body>' +
+'  <div class="sheet-chrome no-print">' +
+'    <div><h1 style="font-size:16px; font-weight:900;">📊 Google Sheets Live View • Materials & Site Statement</h1><p style="font-size:11px; opacity:0.9;">' + escapeHtml(compName) + '</p></div>' +
+'    <div class="sheet-actions">' +
+'      <button onclick="window.print()" class="btn btn-white">🖨️ Print / Save PDF</button>' +
+'      <button onclick="window.close()" class="btn btn-dark">✖ Close</button>' +
+'    </div>' +
+'  </div>' +
+'  <div class="toolbar-bar no-print">' +
+'    <div class="tab-pills">' +
+'      <div id="pill-purchases" onclick="switchSheetTab(\'purchases\')" class="tab-pill active">📋 Raw Material Purchases (' + mats.length + ')</div>' +
+'      <div id="pill-sitewise" onclick="switchSheetTab(\'sitewise\')" class="tab-pill">🏗️ Site-Wise Statement (' + siteKeys.length + ')</div>' +
+'      <div id="pill-suppliers" onclick="switchSheetTab(\'suppliers\')" class="tab-pill">👥 Supplier Balances (' + suppKeys.length + ')</div>' +
+'      <div id="pill-payments" onclick="switchSheetTab(\'payments\')" class="tab-pill">💳 Payment History (' + pays.length + ')</div>' +
+'      <div id="pill-master" onclick="switchSheetTab(\'master\')" class="tab-pill">📊 Comprehensive Master</div>' +
+'    </div>' +
+'  </div>' +
+'  <div class="sheet-body">' +
+'    <div class="company-banner">' +
+'      <div>' +
+'        <h2 style="font-size:22px; font-weight:900;">' + escapeHtml(compName) + '</h2>' +
+'        <p style="font-size:12px; color:#64748b;">' + escapeHtml(compAddress) + (compPhone ? ' • ' + escapeHtml(compPhone) : '') + '</p>' +
+'        <p style="font-size:12px; color:#0f9d58; font-weight:800; text-transform:uppercase; margin-top:4px;">RAW MATERIAL PURCHASES & SITE-WISE EXPENSES STATEMENT</p>' +
+'      </div>' +
+'      <div style="text-align:right;">' +
+'        <div style="font-size:11px; color:#64748b; font-weight:800; text-transform:uppercase;">Statement Date</div>' +
+'        <div style="font-size:14px; font-weight:800;">' + today + '</div>' +
+'        <div style="font-size:11px; color:#059669; font-weight:800; margin-top:4px;">● Live SQLite Synchronized</div>' +
+'      </div>' +
+'    </div>' +
+'    <div class="stats-bar">' +
+'      <div class="stat-box" style="border-left-color:#dc2626;"><div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Total Purchases</div><div class="stat-val" style="color:#dc2626;">' + formatINR(totalMatCost) + '</div></div>' +
+'      <div class="stat-box" style="border-left-color:#059669;"><div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Total Paid</div><div class="stat-val" style="color:#059669;">' + formatINR(totalPaid) + '</div></div>' +
+'      <div class="stat-box" style="border-left-color:#d97706;"><div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Outstanding Balance</div><div class="stat-val" style="color:' + (totalBalance > 0 ? '#dc2626' : '#059669') + ';">' + formatINR(totalBalance) + '</div></div>' +
+'      <div class="stat-box" style="border-left-color:#2563eb;"><div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Active Sites</div><div class="stat-val" style="color:#2563eb;">' + siteKeys.length + '</div></div>' +
+'    </div>' +
+'    <div id="sec-purchases" class="sheet-sec" style="display:block;">' +
+'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-bottom:8px;">1. Raw Material Purchases Log</h3>' +
+'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th style="width:110px;">DATE</th><th>MATERIAL / DESCRIPTION</th><th>SITE</th><th>SUPPLIER</th><th style="text-align:right;">COST (₹)</th></tr></thead><tbody>' + purchasesRows + '</tbody><tfoot><tr><td colspan="5" style="text-align:right;">TOTAL PURCHASES:</td><td style="text-align:right; color:#dc2626;">' + formatINR(totalMatCost) + '</td></tr></tfoot></table>' +
+'    </div>' +
+'    <div id="sec-sitewise" class="sheet-sec" style="display:none;">' +
+'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-bottom:8px;">2. Site-Wise Raw Material Expenses Statement</h3>' +
+'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th>SITE / PROJECT NAME</th><th style="text-align:center;">TOTAL PURCHASES</th><th style="text-align:right;">TOTAL MATERIAL COST (₹)</th></tr></thead><tbody>' + sitewiseSummaryRows + '</tbody><tfoot><tr><td colspan="3" style="text-align:right;">TOTAL SITE EXPENDITURES:</td><td style="text-align:right; color:#dc2626;">' + formatINR(totalMatCost) + '</td></tr></tfoot></table>' +
+'    </div>' +
+'    <div id="sec-suppliers" class="sheet-sec" style="display:none;">' +
+'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-bottom:8px;">3. Supplier Accounts & Balance Statement</h3>' +
+'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th>SUPPLIER NAME</th><th style="text-align:right;">TOTAL BILLED (₹)</th><th style="text-align:right;">TOTAL PAID (₹)</th><th style="text-align:right;">BALANCE (₹)</th><th style="text-align:center;">STATUS</th></tr></thead><tbody>' + suppRows + '</tbody><tfoot><tr><td colspan="2" style="text-align:right;">TOTALS:</td><td style="text-align:right; color:#dc2626;">' + formatINR(totalMatCost) + '</td><td style="text-align:right; color:#059669;">' + formatINR(totalPaid) + '</td><td style="text-align:right; color:' + (totalBalance > 0 ? '#dc2626' : '#059669') + ';">' + formatINR(totalBalance) + '</td><td></td></tr></tfoot></table>' +
+'    </div>' +
+'    <div id="sec-payments" class="sheet-sec" style="display:none;">' +
+'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-bottom:8px;">4. Supplier Payment Settlements History</h3>' +
+'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th style="width:110px;">DATE</th><th>PAID TO (SUPPLIER)</th><th>FOR SITE</th><th>PAYMENT MODE</th><th style="text-align:right;">AMOUNT PAID (₹)</th></tr></thead><tbody>' + payRows + '</tbody><tfoot><tr><td colspan="5" style="text-align:right;">TOTAL PAYMENTS SETTLED:</td><td style="text-align:right; color:#059669;">' + formatINR(totalPaid) + '</td></tr></tfoot></table>' +
+'    </div>' +
+'    <div id="sec-master" class="sheet-sec" style="display:none;">' +
+'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-bottom:8px;">1. Site-Wise Summary</h3>' +
+'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th>SITE / PROJECT NAME</th><th style="text-align:center;">TOTAL PURCHASES</th><th style="text-align:right;">TOTAL MATERIAL COST (₹)</th></tr></thead><tbody>' + sitewiseSummaryRows + '</tbody></table>' +
+'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-top:24px; margin-bottom:8px;">2. Itemized Purchases Log</h3>' +
+'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th style="width:110px;">DATE</th><th>MATERIAL / DESCRIPTION</th><th>SITE</th><th>SUPPLIER</th><th style="text-align:right;">COST (₹)</th></tr></thead><tbody>' + purchasesRows + '</tbody></table>' +
+'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-top:24px; margin-bottom:8px;">3. Supplier Balances</h3>' +
+'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th>SUPPLIER NAME</th><th style="text-align:right;">BILLED (₹)</th><th style="text-align:right;">PAID (₹)</th><th style="text-align:right;">BALANCE (₹)</th><th style="text-align:center;">STATUS</th></tr></thead><tbody>' + suppRows + '</tbody></table>' +
+'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-top:24px; margin-bottom:8px;">4. Payment History</h3>' +
+'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th style="width:110px;">DATE</th><th>SUPPLIER</th><th>SITE</th><th>MODE</th><th style="text-align:right;">PAID (₹)</th></tr></thead><tbody>' + payRows + '</tbody></table>' +
+'    </div>' +
+'    <div style="text-align:center; font-size:11px; color:#94a3b8; margin-top:30px; padding-top:14px; border-top:1px solid #e2e8f0;">Generated by <strong>' + escapeHtml(compName) + ' Management System</strong> on ' + today + '. Confidential Document.</div>' +
+'  </div>' +
+'  <script>' +
+'    function switchSheetTab(tab) {' +
+'      ["purchases", "sitewise", "suppliers", "payments", "master"].forEach(function(t) {' +
+'        var sec = document.getElementById("sec-" + t);' +
+'        var pill = document.getElementById("pill-" + t);' +
+'        if (sec) sec.style.display = (t === tab) ? "block" : "none";' +
+'        if (pill) { if (t === tab) pill.classList.add("active"); else pill.classList.remove("active"); }' +
+'      });' +
+'    }' +
+'    if ("' + defaultTab + '") switchSheetTab("' + defaultTab + '");' +
+'  <' + '/script>' +
+'</body>' +
+'</html>';
 
       const newWin = window.open('', '_blank');
       if (newWin) {
         newWin.document.open();
-        newWin.document.write(html);
+        newWin.document.write(winHtml);
         newWin.document.close();
       } else {
         alert('Please allow popups in your browser to view the Google Sheet statement.');
