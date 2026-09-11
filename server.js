@@ -408,8 +408,10 @@ app.post('/api/supplier-payments', (req, res) => {
 
 app.delete('/api/supplier-payments/:id', (req, res) => {
   try {
-    db.prepare('DELETE FROM supplier_payments WHERE id = ?').run(req.params.id);
-    res.json({ success: true });
+    const rawId = req.params.id;
+    const decodedId = decodeURIComponent(rawId).trim();
+    db.prepare('DELETE FROM supplier_payments WHERE id = ? OR id = ?').run(rawId, decodedId);
+    res.json({ success: true, deletedId: decodedId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

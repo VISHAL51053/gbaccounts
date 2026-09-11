@@ -1523,7 +1523,7 @@
         if (!Array.isArray(appData.supplierPayments)) {
           appData.supplierPayments = [];
         }
-        appData.supplierPayments = appData.supplierPayments.filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk') && p.id !== 'SPAY-09000' && !(p.amount === 9000 && p.vendor === 'AMMAN PRAKASH'));
+        appData.supplierPayments = appData.supplierPayments.filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk') && !p.vendor.toLowerCase().includes('amman') && !p.vendor.toLowerCase().includes('prakash') && Number(p.amount) !== 30000 && Number(p.amount) !== 25000 && Number(p.amount) !== 9000);
         if (Array.isArray(appData.materials)) {
           appData.materials = appData.materials.filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk'));
         }
@@ -2559,9 +2559,9 @@
       const compPhone = (appData.company && appData.company.phone) || '';
 
       const mats = (appData.materials || []).filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk')).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-      const pays = (appData.supplierPayments || []).filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk') && p.id !== 'SPAY-09000' && !(p.amount === 9000 && p.vendor === 'AMMAN PRAKASH')).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      const pays = (appData.supplierPayments || []).filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk') && !p.vendor.toLowerCase().includes('amman') && !p.vendor.toLowerCase().includes('prakash') && Number(p.amount) !== 30000 && Number(p.amount) !== 25000 && Number(p.amount) !== 9000).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       const projects = appData.projects || [];
-      const vendors = (appData.vendors || []).filter(v => !v || !v.name || !v.name.toLowerCase().includes('palk'));
+      const vendors = (appData.vendors || []).filter(v => !v || !v.name || (!v.name.toLowerCase().includes('palk') && !v.name.toLowerCase().includes('amman') && !v.name.toLowerCase().includes('prakash')));
 
       const totalMatCost = mats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
       const totalPaid = pays.reduce((s, p) => s + (Number(p.amount) || 0), 0);
@@ -2793,7 +2793,7 @@
       csv += `"S.No","DATE","MATERIAL / DESCRIPTION","SITE","SUPPLIER","COST (INR)"\n`;
 
       const rawMats = (appData.materials || []).filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk'));
-      const rawPays = (appData.supplierPayments || []).filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk') && p.id !== 'SPAY-09000' && !(p.amount === 9000 && p.vendor === 'AMMAN PRAKASH'));
+      const rawPays = (appData.supplierPayments || []).filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk') && !p.vendor.toLowerCase().includes('amman') && !p.vendor.toLowerCase().includes('prakash') && Number(p.amount) !== 30000 && Number(p.amount) !== 25000 && Number(p.amount) !== 9000);
 
       let totalMatCost = 0;
       rawMats.forEach((m, idx) => {
@@ -3424,6 +3424,26 @@
         showSyncToast('Material record deleted permanently.');
       } catch(e) {
         console.warn('Error deleting material from backend:', e);
+      }
+    }
+
+    async function deleteSupplierPayment(id) {
+      if (!id) return;
+      if (!confirm('Permanently delete this payment settlement record?')) return;
+      markIdAsDeleted(id);
+      appData.supplierPayments = (appData.supplierPayments || []).filter(p => p.id !== id);
+      saveLocalState();
+      renderAll();
+      try {
+        const apiUrl = getApiUrl();
+        await apiFetch(`${apiUrl}/supplier-payments/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        await apiFetch(`${apiUrl}/sync/push`, {
+          method: 'POST',
+          body: JSON.stringify({ deleted_ids: [id] })
+        });
+        showSyncToast('Payment settlement record deleted.');
+      } catch(e) {
+        console.warn('Error deleting supplier payment:', e);
       }
     }
 
