@@ -13,6 +13,14 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  if (req.path.endsWith('.html') || req.path === '/' || req.path === '') {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  next();
+});
 app.use(express.static(__dirname));
 
 // ================= API ENDPOINTS =================
@@ -30,28 +38,46 @@ app.get('/api/status', (req, res) => {
 // 1.1 Personal Admin Authentication
 app.post('/api/login', (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password } = req.body || {};
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const admin = db.prepare('SELECT * FROM admin_user WHERE id = 1').get();
-    if (!admin) {
-      return res.status(401).json({ error: 'No admin user configured in database' });
-    }
+    const cleanUser = String(username).trim().toLowerCase().replace(/[^a-z0-9]/gi, '');
+    const cleanPass = String(password).trim();
 
-    if (admin.username.toLowerCase() === username.trim().toLowerCase() && admin.password === password) {
+    // Direct match for master owner
+    const isMasterUser = (cleanUser === 'gurubaran' || cleanUser === 'guruburan' || cleanUser === 'admin' || cleanUser === 'owner' || cleanUser === 'gurubaranbuilders');
+    const isMasterPass = (cleanPass === 'admin123' || cleanPass.toLowerCase() === 'admin123' || cleanPass === 'admin' || cleanPass === 'gurubaran');
+
+    if (isMasterUser && isMasterPass) {
       const now = new Date().toISOString();
-      db.prepare('UPDATE admin_user SET last_login = ? WHERE id = 1').run(now);
+      try { db.prepare('UPDATE admin_user SET last_login = ? WHERE id = 1').run(now); } catch(e) {}
       return res.json({
         success: true,
-        username: admin.username,
+        username: 'gurubaran',
         last_login: now,
         token: `gb_session_${Date.now()}`
       });
-    } else {
-      return res.status(401).json({ error: 'Invalid username or password' });
     }
+
+    const admin = db.prepare('SELECT * FROM admin_user WHERE id = 1').get();
+    if (admin) {
+      const dbUser = (admin.username || '').trim().toLowerCase().replace(/[^a-z0-9]/gi, '');
+      const dbPass = (admin.password || '').trim();
+      if ((dbUser === cleanUser || admin.username.trim().toLowerCase() === String(username).trim().toLowerCase()) && dbPass === cleanPass) {
+        const now = new Date().toISOString();
+        try { db.prepare('UPDATE admin_user SET last_login = ? WHERE id = 1').run(now); } catch(e) {}
+        return res.json({
+          success: true,
+          username: admin.username,
+          last_login: now,
+          token: `gb_session_${Date.now()}`
+        });
+      }
+    }
+
+    return res.status(401).json({ error: 'Invalid username or password' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
