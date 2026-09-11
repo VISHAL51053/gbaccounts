@@ -1268,6 +1268,91 @@
         </div>
       </form>
     </div>
+  <!-- Modal: Edit Material Details & Amount -->
+  <div id="modalEditMaterial" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4 modal-inner max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <div class="p-2 rounded-xl bg-sky-500/20 text-sky-400">
+            <i data-lucide="edit-3" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Edit Material Delivery</h3>
+            <p class="text-[11px] text-slate-400" id="editMatSubtitle">Modify delivery details and supplied amount</p>
+          </div>
+        </div>
+        <button onclick="closeModal('modalEditMaterial')" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+
+      <form id="formEditMaterial" onsubmit="handleSaveMaterialEdit(event)" class="space-y-3.5 text-xs">
+        <input type="hidden" id="editMatId" value="" />
+        <input type="hidden" id="editMatOriginalVendor" value="" />
+        <input type="hidden" id="editMatOriginalSite" value="" />
+
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Material Supplier / Vendor *</label>
+          <input type="text" id="editMatVendor" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-amber-300 font-bold focus:outline-none focus:border-sky-500" placeholder="e.g. AMMAN PAINTS" />
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Site / Project *</label>
+          <select id="editMatProjectSelect" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-medium focus:outline-none focus:border-sky-500"></select>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Material Description / Item *</label>
+          <input type="text" id="editMatItem" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-bold focus:outline-none focus:border-sky-500" placeholder="e.g. Paint 20L / Primer / Cement" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Category</label>
+            <select id="editMatCategory" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-medium focus:outline-none focus:border-sky-500">
+              <option value="Raw Materials">Raw Materials</option>
+              <option value="Paints & Finishes">Paints & Finishes</option>
+              <option value="Cement & Sand">Cement & Sand</option>
+              <option value="Steel & Rods">Steel & Rods</option>
+              <option value="Bricks & Blocks">Bricks & Blocks</option>
+              <option value="Electrical">Electrical</option>
+              <option value="Plumbing">Plumbing</option>
+              <option value="Tiles & Granite">Tiles & Granite</option>
+              <option value="Machinery & Fuel">Machinery & Fuel</option>
+              <option value="General Supplier">General Supplier</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Delivery Date</label>
+            <input type="date" id="editMatDate" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-semibold focus:outline-none focus:border-sky-500" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-slate-400 mb-1 font-bold text-[11px] uppercase tracking-wider">Supplied Amount (₹) *</label>
+            <input type="number" id="editMatAmount" required min="0" step="any" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-emerald-400 font-mono font-black text-base focus:outline-none focus:border-sky-500" placeholder="0" />
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Bill / Voucher No.</label>
+            <input type="text" id="editMatBillNumber" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono focus:outline-none focus:border-sky-500" placeholder="e.g. INV-203" />
+          </div>
+        </div>
+
+        <!-- Deliveries sub-breakdown list for multi-item sites -->
+        <div id="editMatMultiRecordsList" class="hidden space-y-2 pt-2 border-t border-slate-800">
+          <label class="text-[11px] font-bold text-amber-400 uppercase tracking-wider block">Individual Deliveries Logged for this Site:</label>
+          <div id="editMatMultiRecordsContainer" class="max-h-36 overflow-y-auto space-y-1.5 pr-1"></div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('modalEditMaterial')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold transition-colors cursor-pointer">Cancel</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-sm transition-colors shadow-lg cursor-pointer flex items-center gap-1.5">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span>Save Changes</span>
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- ================= SQLITE API CLIENT & JAVASCRIPT ================= -->
@@ -2664,6 +2749,264 @@
       }
     }
 
+    async function deleteMaterial(id) {
+      if (!id) return;
+      if (confirm('Delete this material record from SQLite?')) {
+        if (isSQLiteOnline) {
+          try {
+            await apiFetch(`${API_URL}/materials/${encodeURIComponent(id)}`, { method: 'DELETE' });
+            await fetchFromSQLite();
+          } catch(e) {
+            console.error('Error deleting material:', e);
+          }
+        } else {
+          appData.materials = (appData.materials || []).filter(m => m.id !== id);
+          saveLocalState();
+          renderAll();
+        }
+      }
+    }
+
+    function openEditMaterialForSiteModal(suppName, siteName) {
+      const mats = (appData.materials || []).filter(m => 
+        (m.vendor || '').toLowerCase() === (suppName || '').toLowerCase() &&
+        (m.project_name || m.project || 'General Site').toLowerCase() === (siteName || '').toLowerCase()
+      );
+
+      const select = document.getElementById('editMatProjectSelect');
+      if (select) {
+        select.innerHTML = '';
+        (appData.projects || []).forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.name;
+          opt.textContent = p.name;
+          if (p.name.toLowerCase() === (siteName || '').toLowerCase()) opt.selected = true;
+          select.appendChild(opt);
+        });
+        if (!appData.projects.some(p => p.name.toLowerCase() === (siteName || '').toLowerCase())) {
+          const opt = document.createElement('option');
+          opt.value = siteName;
+          opt.textContent = siteName;
+          opt.selected = true;
+          select.prepend(opt);
+        }
+      }
+
+      document.getElementById('editMatOriginalVendor').value = suppName;
+      document.getElementById('editMatOriginalSite').value = siteName;
+      document.getElementById('editMatVendor').value = suppName;
+
+      if (mats.length === 1) {
+        const m = mats[0];
+        document.getElementById('editMatId').value = m.id;
+        document.getElementById('editMatItem').value = m.item || '';
+        document.getElementById('editMatCategory').value = m.category || 'Raw Materials';
+        document.getElementById('editMatDate').value = m.date || new Date().toISOString().split('T')[0];
+        document.getElementById('editMatAmount').value = m.amount || 0;
+        document.getElementById('editMatBillNumber').value = m.bill_number || m.billNumber || '';
+        document.getElementById('editMatMultiRecordsList').classList.add('hidden');
+        document.getElementById('editMatSubtitle').textContent = `Editing delivery for ${suppName} at ${siteName}`;
+      } else if (mats.length > 1) {
+        const m = mats[0];
+        const totalSiteAmt = mats.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+        document.getElementById('editMatId').value = mats.map(x => x.id).join(',');
+        document.getElementById('editMatItem').value = mats.map(x => x.item).join(', ');
+        document.getElementById('editMatCategory').value = m.category || 'Raw Materials';
+        document.getElementById('editMatDate').value = m.date || new Date().toISOString().split('T')[0];
+        document.getElementById('editMatAmount').value = totalSiteAmt;
+        document.getElementById('editMatBillNumber').value = m.bill_number || m.billNumber || '';
+        
+        const container = document.getElementById('editMatMultiRecordsContainer');
+        if (container) {
+          container.innerHTML = mats.map((x) => `
+            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-800/90 border border-slate-700/60">
+              <div>
+                <div class="font-bold text-white">${escapeHtml(x.item || 'Material Delivery')}</div>
+                <div class="text-[10px] text-slate-400">${x.date || ''} • ${escapeHtml(x.category || 'Raw Materials')}</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="font-mono font-bold text-emerald-400">${formatINR(x.amount)}</span>
+                <button type="button" onclick="openEditSingleMaterialModal('${x.id}')" class="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 text-[10px] font-bold cursor-pointer">Edit Single</button>
+              </div>
+            </div>
+          `).join('');
+        }
+        document.getElementById('editMatMultiRecordsList').classList.remove('hidden');
+        document.getElementById('editMatSubtitle').textContent = `${mats.length} deliveries for ${suppName} at ${siteName}`;
+      } else {
+        document.getElementById('editMatId').value = '';
+        document.getElementById('editMatItem').value = 'Raw Materials';
+        document.getElementById('editMatCategory').value = 'Raw Materials';
+        document.getElementById('editMatDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('editMatAmount').value = 0;
+        document.getElementById('editMatBillNumber').value = '';
+        document.getElementById('editMatMultiRecordsList').classList.add('hidden');
+      }
+
+      openModal('modalEditMaterial');
+      safeLucideIcons();
+    }
+
+    function openEditSingleMaterialModal(matId) {
+      const m = (appData.materials || []).find(x => x.id === matId);
+      if (!m) return;
+
+      const select = document.getElementById('editMatProjectSelect');
+      if (select) {
+        select.innerHTML = '';
+        const currentSite = m.project_name || m.project || 'General Site';
+        (appData.projects || []).forEach(p => {
+          const opt = document.createElement('option');
+          opt.value = p.name;
+          opt.textContent = p.name;
+          if (p.name.toLowerCase() === currentSite.toLowerCase()) opt.selected = true;
+          select.appendChild(opt);
+        });
+        if (!appData.projects.some(p => p.name.toLowerCase() === currentSite.toLowerCase())) {
+          const opt = document.createElement('option');
+          opt.value = currentSite;
+          opt.textContent = currentSite;
+          opt.selected = true;
+          select.prepend(opt);
+        }
+      }
+
+      document.getElementById('editMatId').value = m.id;
+      document.getElementById('editMatOriginalVendor').value = m.vendor || '';
+      document.getElementById('editMatOriginalSite').value = m.project_name || m.project || 'General Site';
+      document.getElementById('editMatVendor').value = m.vendor || '';
+      document.getElementById('editMatItem').value = m.item || '';
+      document.getElementById('editMatCategory').value = m.category || 'Raw Materials';
+      document.getElementById('editMatDate').value = m.date || new Date().toISOString().split('T')[0];
+      document.getElementById('editMatAmount').value = m.amount || 0;
+      document.getElementById('editMatBillNumber').value = m.bill_number || m.billNumber || '';
+      document.getElementById('editMatMultiRecordsList').classList.add('hidden');
+      document.getElementById('editMatSubtitle').textContent = `Editing delivery ${m.id} (${m.item})`;
+
+      openModal('modalEditMaterial');
+      safeLucideIcons();
+    }
+
+    async function handleSaveMaterialEdit(e) {
+      if (e) e.preventDefault();
+
+      const idVal = document.getElementById('editMatId').value;
+      const vendor = (document.getElementById('editMatVendor').value || '').trim();
+      const project_name = document.getElementById('editMatProjectSelect').value || 'General Site';
+      const item = (document.getElementById('editMatItem').value || '').trim();
+      const category = document.getElementById('editMatCategory').value || 'Raw Materials';
+      const date = document.getElementById('editMatDate').value || new Date().toISOString().split('T')[0];
+      const amount = Number(document.getElementById('editMatAmount').value) || 0;
+      const bill_number = (document.getElementById('editMatBillNumber').value || '').trim();
+
+      if (!vendor) {
+        alert('Please enter supplier name.');
+        return;
+      }
+      if (!item) {
+        alert('Please enter material description.');
+        return;
+      }
+      if (amount <= 0) {
+        alert('Please enter a valid amount.');
+        return;
+      }
+
+      const targetProj = (appData.projects || []).find(p => p.name.toLowerCase() === project_name.toLowerCase());
+      const project_id = targetProj ? targetProj.id : null;
+
+      try {
+        if (idVal.includes(',')) {
+          const ids = idVal.split(',');
+          const firstId = ids[0];
+          const payload = {
+            date,
+            category,
+            item,
+            project_id,
+            project_name,
+            vendor,
+            amount,
+            bill_number
+          };
+
+          if (isSQLiteOnline) {
+            await apiFetch(`${API_URL}/materials/${encodeURIComponent(firstId)}`, {
+              method: 'PUT',
+              body: JSON.stringify(payload)
+            });
+            for (let i = 1; i < ids.length; i++) {
+              await apiFetch(`${API_URL}/materials/${encodeURIComponent(ids[i])}`, { method: 'DELETE' });
+            }
+            await fetchFromSQLite();
+          } else {
+            const mat = (appData.materials || []).find(m => m.id === firstId);
+            if (mat) {
+              Object.assign(mat, payload);
+            }
+            const toDeleteIds = new Set(ids.slice(1));
+            appData.materials = (appData.materials || []).filter(m => !toDeleteIds.has(m.id));
+            saveLocalState();
+            renderAll();
+          }
+        } else if (idVal) {
+          const payload = {
+            date,
+            category,
+            item,
+            project_id,
+            project_name,
+            vendor,
+            amount,
+            bill_number
+          };
+
+          if (isSQLiteOnline) {
+            await apiFetch(`${API_URL}/materials/${encodeURIComponent(idVal)}`, {
+              method: 'PUT',
+              body: JSON.stringify(payload)
+            });
+            await fetchFromSQLite();
+          } else {
+            const mat = (appData.materials || []).find(m => m.id === idVal);
+            if (mat) {
+              Object.assign(mat, payload);
+            }
+            saveLocalState();
+            renderAll();
+          }
+        } else {
+          const payload = {
+            date,
+            category,
+            item,
+            project_id,
+            project_name,
+            vendor,
+            amount,
+            bill_number
+          };
+          if (isSQLiteOnline) {
+            await apiFetch(`${API_URL}/materials`, {
+              method: 'POST',
+              body: JSON.stringify(payload)
+            });
+            await fetchFromSQLite();
+          } else {
+            appData.materials.unshift({ id: 'MAT-' + Date.now(), ...payload });
+            saveLocalState();
+            renderAll();
+          }
+        }
+
+        closeModal('modalEditMaterial');
+        showSyncToast('✅ Material details and amount updated successfully!');
+      } catch (err) {
+        console.error('Error saving material edit:', err);
+        alert('Failed to save material changes: ' + (err.message || err));
+      }
+    }
+
     // --- Handlers: Supplier Payments (Pay Supplier for Site) ---
     function openPaySupplierSiteModal(vendor, project, totalAmount, paidAmount) {
       document.getElementById('paySuppVendor').value = vendor;
@@ -3397,7 +3740,8 @@
                               <td class="p-3.5 font-bold text-white">${m.item}</td>
                               <td class="p-3.5 text-slate-300 font-semibold">${m.project_name || m.project || '-'}</td>
                               <td class="p-3.5 font-mono font-bold text-rose-400 text-right">${formatINR(m.amount)}</td>
-                              <td class="p-3.5 text-center">
+                              <td class="p-3.5 text-center whitespace-nowrap">
+                                <button onclick="openEditSingleMaterialModal('${m.id}')" class="text-sky-400 hover:text-sky-300 text-xs font-bold px-2 py-1 rounded hover:bg-sky-500/10 cursor-pointer mr-1">Edit</button>
                                 <button onclick="deleteMaterial('${m.id}')" class="text-rose-400 hover:text-rose-300 text-xs font-bold px-2 py-1 rounded hover:bg-rose-500/10 cursor-pointer">Delete</button>
                               </td>
                             </tr>
@@ -3593,6 +3937,10 @@
                                   <button type="button" onclick="openPaySupplierSiteModal('${escapeHtml(supp.name)}', '${escapeHtml(row.siteName)}', ${row.totalAmount}, ${row.paidAmount})" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 text-xs font-bold mr-1.5 cursor-pointer transition-colors inline-flex items-center gap-1">
                                     <i data-lucide="wallet" class="w-3 h-3"></i>
                                     <span>Pay</span>
+                                  </button>
+                                  <button type="button" onclick="openEditMaterialForSiteModal('${escapeHtml(supp.name)}', '${escapeHtml(row.siteName)}')" class="px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 hover:text-sky-300 border border-sky-500/30 text-xs font-bold mr-1.5 cursor-pointer transition-colors inline-flex items-center gap-1">
+                                    <i data-lucide="edit-3" class="w-3 h-3"></i>
+                                    <span>Edit</span>
                                   </button>
                                   <button type="button" onclick="deleteMaterialsForSupplierSite('${escapeHtml(supp.name)}', '${escapeHtml(row.siteName)}')" class="text-rose-400 hover:text-rose-300 text-xs font-bold px-2 py-1 rounded hover:bg-rose-500/10 cursor-pointer">Delete</button>
                                 </td>

@@ -267,6 +267,57 @@ app.post('/api/materials', (req, res) => {
   }
 });
 
+app.put('/api/materials/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, category, item, project_id, project_name, vendor, amount, tax_amount, payment_mode, bill_number, notes } = req.body;
+    
+    const oldMat = db.prepare('SELECT * FROM materials WHERE id = ?').get(id);
+    if (!oldMat) {
+      return res.status(404).json({ error: 'Material not found' });
+    }
+
+    const newAmount = Number(amount) || 0;
+    const diff = newAmount - (Number(oldMat.amount) || 0);
+
+    const updateMat = db.transaction(() => {
+      db.prepare(`
+        UPDATE materials
+        SET date = ?, category = ?, item = ?, project_id = ?, project_name = ?, vendor = ?, amount = ?, tax_amount = ?, payment_mode = ?, bill_number = ?, notes = ?
+        WHERE id = ?
+      `).run(
+        date || oldMat.date,
+        category || oldMat.category,
+        item || oldMat.item,
+        project_id !== undefined ? project_id : oldMat.project_id,
+        project_name || oldMat.project_name,
+        vendor || oldMat.vendor,
+        newAmount,
+        tax_amount !== undefined ? tax_amount : oldMat.tax_amount,
+        payment_mode || oldMat.payment_mode,
+        bill_number || oldMat.bill_number,
+        notes !== undefined ? notes : oldMat.notes,
+        id
+      );
+
+      // Adjust project spent
+      if (diff !== 0) {
+        const pName = project_name || oldMat.project_name;
+        if (pName) {
+          db.prepare('UPDATE projects SET spent = MAX(0, spent + ?) WHERE name = ?').run(diff, pName);
+        }
+      }
+    });
+
+    updateMat();
+
+    const updated = db.prepare('SELECT * FROM materials WHERE id = ?').get(id);
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.delete('/api/materials/:id', (req, res) => {
   try {
     const mat = db.prepare('SELECT * FROM materials WHERE id = ?').get(req.params.id);
