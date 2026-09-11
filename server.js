@@ -40,7 +40,7 @@ app.post('/api/login', (req, res) => {
       return res.status(401).json({ error: 'No admin user configured in database' });
     }
 
-    if (admin.username === username.trim() && admin.password === password) {
+    if (admin.username.toLowerCase() === username.trim().toLowerCase() && admin.password === password) {
       const now = new Date().toISOString();
       db.prepare('UPDATE admin_user SET last_login = ? WHERE id = 1').run(now);
       return res.json({

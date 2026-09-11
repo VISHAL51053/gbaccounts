@@ -178,7 +178,7 @@
           </div>
         </div>
 
-        <button type="button" onclick="handleLogin(event)" id="loginSubmitBtn" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer">
+        <button type="submit" id="loginSubmitBtn" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]">
           <i data-lucide="log-in" class="w-4 h-4"></i>
           <span>Login to My Portal</span>
         </button>
@@ -4512,66 +4512,65 @@
         return;
       }
 
-      if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = `<span>Logging in...</span>`;
+      // Check master credentials for instant zero-latency login
+      const isMasterMatch = (username.toLowerCase() === 'gurubaran' && password === 'admin123');
+
+      if (isMasterMatch) {
+        localStorage.setItem('gb_auth_user', 'gurubaran');
+        sessionStorage.setItem('gb_auth_user', 'gurubaran');
+        const userBadge = document.getElementById('headerUserName');
+        if (userBadge) userBadge.textContent = 'gurubaran';
+        showAuthOverlay(false);
+        // Sync with SQLite in background
+        const apiUrl = getApiUrl();
+        apiFetch(`${apiUrl}/login`, {
+          method: 'POST',
+          body: JSON.stringify({ username, password })
+        }).catch(() => {});
+        fetchFromSQLite();
+        return;
       }
 
-      const isMatch = (username.toLowerCase() === 'gurubaran' && password === 'admin123');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span>Verifying credentials...</span>`;
+      }
 
       try {
         const apiUrl = getApiUrl();
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-        try {
-          const res = await apiFetch(`${apiUrl}/login`, {
-            method: 'POST',
-            body: JSON.stringify({ username, password }),
-            signal: controller.signal
-          });
-          clearTimeout(timeoutId);
-          if (res.ok) {
-            const data = await res.json();
-            if (data && data.success) {
-              isSQLiteOnline = true;
-              localStorage.setItem('gb_auth_user', data.username || username);
-              sessionStorage.setItem('gb_auth_user', data.username || username);
-              const userBadge = document.getElementById('headerUserName');
-              if (userBadge) userBadge.textContent = data.username || username;
-              showAuthOverlay(false);
-              fetchFromSQLite();
-              return;
-            }
+        const res = await apiFetch(`${apiUrl}/login`, {
+          method: 'POST',
+          body: JSON.stringify({ username, password }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success) {
+            isSQLiteOnline = true;
+            localStorage.setItem('gb_auth_user', data.username || username);
+            sessionStorage.setItem('gb_auth_user', data.username || username);
+            const userBadge = document.getElementById('headerUserName');
+            if (userBadge) userBadge.textContent = data.username || username;
+            showAuthOverlay(false);
+            fetchFromSQLite();
+            return;
           }
-        } catch (fetchErr) {
-          console.warn('Backend login request bypassed to local check:', fetchErr);
         }
 
-        if (isMatch) {
-          localStorage.setItem('gb_auth_user', username);
-          sessionStorage.setItem('gb_auth_user', username);
-          const userBadge = document.getElementById('headerUserName');
-          if (userBadge) userBadge.textContent = username;
-          showAuthOverlay(false);
-          loadLocalData();
-        } else {
-          if (errorDiv) {
-            errorDiv.textContent = 'Invalid username or password';
-            errorDiv.classList.remove('hidden');
-          }
+        const errData = await res.json().catch(() => ({}));
+        if (errorDiv) {
+          errorDiv.textContent = errData.error || 'Invalid username or password';
+          errorDiv.classList.remove('hidden');
         }
       } catch (err) {
         console.error('Login error:', err);
-        if (isMatch) {
-          localStorage.setItem('gb_auth_user', username);
-          sessionStorage.setItem('gb_auth_user', username);
-          const userBadge = document.getElementById('headerUserName');
-          if (userBadge) userBadge.textContent = username;
-          showAuthOverlay(false);
-          loadLocalData();
-        } else if (errorDiv) {
-          errorDiv.textContent = 'Invalid username or password';
+        if (errorDiv) {
+          errorDiv.textContent = 'Invalid username or password. Please verify and try again.';
           errorDiv.classList.remove('hidden');
         }
       } finally {
