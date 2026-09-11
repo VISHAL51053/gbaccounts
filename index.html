@@ -653,6 +653,64 @@
           </div>
         </div>
 
+        <!-- Zero-Loss Data Protection & Backup Center -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-md space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <i data-lucide="shield-check" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-white text-base m-0">Zero-Loss Data Protection & Cloud Rehydration</h3>
+              <p class="text-xs text-slate-400">Local device cache automatically restores cloud data after Git updates & server redeployments</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-800 text-xs">
+            <!-- Force Rehydrate to Cloud -->
+            <div class="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-2 flex flex-col justify-between">
+              <div>
+                <div class="font-bold text-amber-300 flex items-center gap-1.5">
+                  <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+                  <span>Push Local to Cloud</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">Re-populates cloud database from this device if server was redeployed.</p>
+              </div>
+              <button type="button" onclick="forcePushLocalToCloud()" class="w-full mt-2 py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer shadow transition-colors">
+                ⬆️ Push to Cloud Now
+              </button>
+            </div>
+
+            <!-- Download JSON Backup -->
+            <div class="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-2 flex flex-col justify-between">
+              <div>
+                <div class="font-bold text-emerald-400 flex items-center gap-1.5">
+                  <i data-lucide="download" class="w-4 h-4"></i>
+                  <span>Download Master Backup</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">Download complete JSON file snapshot to save on your PC or phone.</p>
+              </div>
+              <button type="button" onclick="downloadJsonBackup()" class="w-full mt-2 py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs cursor-pointer shadow transition-colors">
+                📥 Download JSON Backup
+              </button>
+            </div>
+
+            <!-- Restore from Backup -->
+            <div class="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-2 flex flex-col justify-between">
+              <div>
+                <div class="font-bold text-sky-400 flex items-center gap-1.5">
+                  <i data-lucide="file-up" class="w-4 h-4"></i>
+                  <span>Restore From File</span>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-1">Restore entire database from a previously downloaded JSON backup.</p>
+              </div>
+              <label class="w-full mt-2 py-2 px-3 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs cursor-pointer shadow transition-colors text-center block">
+                📂 Choose Backup File
+                <input type="file" id="jsonBackupFileInput" accept=".json" onchange="restoreJsonBackup(event)" class="hidden" />
+              </label>
+            </div>
+          </div>
+        </div>
+
         <form id="settingsForm" onsubmit="saveSettings(event)" class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-md space-y-4 text-xs">
           <div>
             <label class="block text-slate-400 mb-1 font-semibold">Company Name *</label>
@@ -1210,6 +1268,23 @@
       }
     }
 
+    function showSyncToast(msg) {
+      let toast = document.getElementById('syncToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'syncToast';
+        toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-slate-900/95 border border-emerald-500/50 text-emerald-300 text-xs font-bold shadow-2xl backdrop-blur flex items-center gap-2 transition-all duration-300 opacity-0 pointer-events-none transform translate-y-2';
+        document.body.appendChild(toast);
+      }
+      toast.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>${msg}</span>`;
+      toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-2');
+      toast.classList.add('opacity-100', 'translate-y-0');
+      setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-2');
+      }, 4000);
+    }
+
     // --- Load / Sync Data From Cloud / SQLite Database ---
     async function fetchFromSQLite() {
       API_URL = getApiUrl();
@@ -1220,33 +1295,49 @@
 
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
 
-        const [statusRes, compRes, projRes, matRes, labRes, vndRes, accRes, txnRes, suppPayRes] = await Promise.all([
-          apiFetch(`${API_URL}/status`, { signal: controller.signal }),
-          apiFetch(`${API_URL}/company`, { signal: controller.signal }),
-          apiFetch(`${API_URL}/projects`, { signal: controller.signal }),
-          apiFetch(`${API_URL}/materials`, { signal: controller.signal }),
-          apiFetch(`${API_URL}/labor`, { signal: controller.signal }),
-          apiFetch(`${API_URL}/vendors`, { signal: controller.signal }),
-          apiFetch(`${API_URL}/accounts`, { signal: controller.signal }),
-          apiFetch(`${API_URL}/transactions`, { signal: controller.signal }),
-          apiFetch(`${API_URL}/supplier-payments`, { signal: controller.signal })
-        ]);
+        // Fetch full snapshot in 1 fast query
+        const fullRes = await apiFetch(`${API_URL}/sync/full`, { signal: controller.signal });
         clearTimeout(timeoutId);
 
-        if (statusRes && statusRes.ok) {
+        if (fullRes && fullRes.ok) {
+          const serverData = await fullRes.json();
           isSQLiteOnline = true;
           updateSyncBadge(true);
 
-          if (compRes && compRes.ok) appData.company = await compRes.json();
-          if (projRes && projRes.ok) appData.projects = await projRes.json();
-          if (matRes && matRes.ok) appData.materials = await matRes.json();
-          if (labRes && labRes.ok) appData.labor = await labRes.json();
-          if (vndRes && vndRes.ok) appData.vendors = await vndRes.json();
-          if (accRes && accRes.ok) appData.accounts = await accRes.json();
-          if (txnRes && txnRes.ok) appData.transactions = await txnRes.json();
-          if (suppPayRes && suppPayRes.ok) appData.supplierPayments = await suppPayRes.json();
+          const serverCount = serverData.recordCount || 0;
+          
+          const localProjects = appData.projects || [];
+          const localMaterials = appData.materials || [];
+          const localLabor = appData.labor || [];
+          const localTxns = appData.transactions || [];
+          const localSuppPay = appData.supplierPayments || [];
+          const localCount = localProjects.length + localMaterials.length + localLabor.length + localTxns.length + localSuppPay.length;
+
+          // ZERO-DATA-LOSS AUTO REHYDRATION:
+          // If server was just redeployed (empty DB) and device has records:
+          if (serverCount === 0 && localCount > 0) {
+            console.warn('⚠️ Server database is empty after deployment. Auto-rehydrating cloud database from device cache...');
+            await apiFetch(`${API_URL}/sync/push`, {
+              method: 'POST',
+              body: JSON.stringify(appData)
+            });
+            showSyncToast('☁️ Cloud database auto-restored from device cache!');
+            saveLocalState();
+            renderAll();
+            return true;
+          }
+
+          // If server has data, safely populate appData
+          if (serverData.company && serverData.company.name) appData.company = serverData.company;
+          if (Array.isArray(serverData.projects)) appData.projects = serverData.projects;
+          if (Array.isArray(serverData.materials)) appData.materials = serverData.materials;
+          if (Array.isArray(serverData.labor)) appData.labor = serverData.labor;
+          if (Array.isArray(serverData.vendors)) appData.vendors = serverData.vendors;
+          if (Array.isArray(serverData.accounts)) appData.accounts = serverData.accounts;
+          if (Array.isArray(serverData.transactions)) appData.transactions = serverData.transactions;
+          if (Array.isArray(serverData.supplierPayments)) appData.supplierPayments = serverData.supplierPayments;
 
           saveLocalState();
           renderAll();
@@ -1261,13 +1352,89 @@
       }
     }
 
+    async function forcePushLocalToCloud() {
+      if (!confirm('Push all local device records to the cloud database? (Recommended after Git updates)')) return;
+      try {
+        API_URL = getApiUrl();
+        const res = await apiFetch(`${API_URL}/sync/push`, {
+          method: 'POST',
+          body: JSON.stringify(appData)
+        });
+        if (res && res.ok) {
+          const out = await res.json();
+          alert(`✅ Cloud Database Successfully Rehydrated!\n${out.recordCount || 0} total records synchronized into SQLite.`);
+          fetchFromSQLite();
+        } else {
+          alert('Could not push to cloud. Check internet connection and API URL.');
+        }
+      } catch (err) {
+        alert('Push failed: ' + (err.message || err));
+      }
+    }
+
+    function downloadJsonBackup() {
+      const today = new Date().toISOString().split('T')[0];
+      const backupObj = {
+        exportedAt: new Date().toISOString(),
+        appName: 'GURUBARAN BUILDERS Accounts ERP',
+        version: '2.0',
+        data: appData
+      };
+      const jsonStr = JSON.stringify(backupObj, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `GBAccounts_Master_Backup_${today}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      showSyncToast('📥 Master backup JSON downloaded successfully!');
+    }
+
+    function restoreJsonBackup(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          const dataToRestore = parsed.data || parsed;
+          if (!dataToRestore || typeof dataToRestore !== 'object') {
+            throw new Error('Invalid backup file format');
+          }
+
+          if (confirm(`Restore database from "${file.name}"? This will update your sites, labour roster, and materials.`)) {
+            appData = { ...appData, ...dataToRestore };
+            saveLocalState();
+            renderAll();
+
+            if (isSQLiteOnline) {
+              await apiFetch(`${API_URL}/sync/push`, {
+                method: 'POST',
+                body: JSON.stringify(appData)
+              });
+              await fetchFromSQLite();
+            }
+
+            alert('✅ Backup restored successfully to both device and SQLite cloud database!');
+          }
+        } catch (err) {
+          alert('Failed to restore backup: ' + (err.message || err));
+        } finally {
+          event.target.value = '';
+        }
+      };
+      reader.readAsText(file);
+    }
+
     function saveCloudSyncUrl() {
       const urlInput = document.getElementById('cloudSyncUrlInput');
       if (urlInput && urlInput.value.trim()) {
         let val = urlInput.value.trim().replace(/\/+$/, '');
         if (!val.endsWith('/api') && !val.includes('/api/')) {
           val += '/api';
-          urlInput.value = val;
         }
         localStorage.setItem('gb_cloud_url', val);
         API_URL = getApiUrl();

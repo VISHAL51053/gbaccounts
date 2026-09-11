@@ -806,7 +806,331 @@ app.delete('/api/transactions/:id', (req, res) => {
   }
 });
 
-// 8. Database Backup Snapshot
+// 8. Bulk Sync, Auto-Rehydration & Cloud Backup
+app.get('/api/sync/full', (req, res) => {
+  try {
+    const company = db.prepare('SELECT * FROM company_profile WHERE id = 1').get() || {};
+    const projects = db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
+    const materials = db.prepare('SELECT * FROM materials ORDER BY date DESC, created_at DESC').all();
+    const labor = db.prepare("SELECT * FROM labor_roster ORDER BY CASE WHEN role = 'Ma' THEN 1 WHEN role = 'Mm' THEN 2 ELSE 3 END, name ASC").all();
+    const vendors = db.prepare('SELECT * FROM vendors ORDER BY name ASC').all();
+    const accounts = db.prepare('SELECT * FROM accounts').all();
+    const transactions = db.prepare('SELECT * FROM transactions ORDER BY date DESC, created_at DESC').all();
+    const supplierPayments = db.prepare('SELECT * FROM supplier_payments ORDER BY date DESC, created_at DESC').all();
+
+    const recordCount = projects.length + materials.length + labor.length + transactions.length + supplierPayments.length;
+
+    res.json({
+      success: true,
+      company,
+      projects,
+      materials,
+      labor,
+      vendors,
+      accounts,
+      transactions,
+      supplierPayments,
+      recordCount
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/sync/push', (req, res) => {
+  try {
+    const { company, projects, materials, labor, vendors, accounts, transactions, supplierPayments } = req.body;
+
+    const syncTransaction = db.transaction(() => {
+      // 1. Company Profile
+      if (company && typeof company === 'object' && company.name) {
+        db.prepare(`
+          INSERT INTO company_profile (id, name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms)
+          VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            tagline = excluded.tagline,
+            gstin = excluded.gstin,
+            pan = excluded.pan,
+            phone = excluded.phone,
+            email = excluded.email,
+            website = excluded.website,
+            address = excluded.address,
+            bank_name = excluded.bank_name,
+            account_name = excluded.account_name,
+            account_number = excluded.account_number,
+            ifsc_code = excluded.ifsc_code,
+            branch = excluded.branch,
+            terms = excluded.terms
+        `).run(
+          company.name || 'GURUBARAN BUILDERS',
+          company.tagline || '',
+          company.gstin || '',
+          company.pan || '',
+          company.phone || '',
+          company.email || '',
+          company.website || '',
+          company.address || '',
+          company.bank_name || '',
+          company.account_name || '',
+          company.account_number || '',
+          company.ifsc_code || '',
+          company.branch || '',
+          company.terms || ''
+        );
+      }
+
+      // 2. Projects
+      if (Array.isArray(projects)) {
+        const stmt = db.prepare(`
+          INSERT INTO projects (id, name, client, client_phone, location, type, total_area_sqft, budget, spent, progress, status, supervisor, start_date, estimated_completion, notes, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            client = excluded.client,
+            client_phone = excluded.client_phone,
+            location = excluded.location,
+            type = excluded.type,
+            total_area_sqft = excluded.total_area_sqft,
+            budget = excluded.budget,
+            spent = excluded.spent,
+            progress = excluded.progress,
+            status = excluded.status,
+            supervisor = excluded.supervisor,
+            notes = excluded.notes
+        `);
+        for (const p of projects) {
+          if (!p.id || !p.name) continue;
+          stmt.run(
+            p.id,
+            p.name,
+            p.client || 'Direct Client',
+            p.client_phone || '',
+            p.location || 'Site Location',
+            p.type || 'Residential',
+            Number(p.total_area_sqft) || 0,
+            Number(p.budget) || 0,
+            Number(p.spent) || 0,
+            Number(p.progress) || 10,
+            p.status || 'In Progress',
+            p.supervisor || 'Civil Engg',
+            p.start_date || '',
+            p.estimated_completion || '',
+            p.notes || '',
+            p.created_at || new Date().toISOString()
+          );
+        }
+      }
+
+      // 3. Raw Materials
+      if (Array.isArray(materials)) {
+        const stmt = db.prepare(`
+          INSERT INTO materials (id, date, category, item, project_id, project_name, vendor, amount, tax_amount, payment_mode, bill_number, notes, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            date = excluded.date,
+            category = excluded.category,
+            item = excluded.item,
+            project_id = excluded.project_id,
+            project_name = excluded.project_name,
+            vendor = excluded.vendor,
+            amount = excluded.amount,
+            tax_amount = excluded.tax_amount,
+            payment_mode = excluded.payment_mode,
+            bill_number = excluded.bill_number,
+            notes = excluded.notes
+        `);
+        for (const m of materials) {
+          if (!m.id || !m.item) continue;
+          stmt.run(
+            m.id,
+            m.date || new Date().toISOString().split('T')[0],
+            m.category || 'Raw Materials',
+            m.item,
+            m.project_id || null,
+            m.project_name || m.project || 'General Site',
+            m.vendor || 'Supplier',
+            Number(m.amount) || 0,
+            Number(m.tax_amount) || 0,
+            m.payment_mode || 'Cash in Hand',
+            m.bill_number || m.billNumber || `VCH-${m.id}`,
+            m.notes || '',
+            m.created_at || new Date().toISOString()
+          );
+        }
+      }
+
+      // 4. Labor Roster
+      if (Array.isArray(labor)) {
+        const stmt = db.prepare(`
+          INSERT INTO labor_roster (
+            id, name, role, daily_rate, phone, site_assigned, day_name, duty, total_amount, days_present, advance_paid, status,
+            mon_duty, mon_amt, mon_site,
+            tue_duty, tue_amt, tue_site,
+            wed_duty, wed_amt, wed_site,
+            thu_duty, thu_amt, thu_site,
+            fri_duty, fri_amt, fri_site,
+            sat_duty, sat_amt, sat_site,
+            sun_duty, sun_amt, sun_site,
+            week_label, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            role = excluded.role,
+            daily_rate = excluded.daily_rate,
+            phone = excluded.phone,
+            site_assigned = excluded.site_assigned,
+            day_name = excluded.day_name,
+            duty = excluded.duty,
+            total_amount = excluded.total_amount,
+            days_present = excluded.days_present,
+            advance_paid = excluded.advance_paid,
+            status = excluded.status,
+            mon_duty = excluded.mon_duty, mon_amt = excluded.mon_amt, mon_site = excluded.mon_site,
+            tue_duty = excluded.tue_duty, tue_amt = excluded.tue_amt, tue_site = excluded.tue_site,
+            wed_duty = excluded.wed_duty, wed_amt = excluded.wed_amt, wed_site = excluded.wed_site,
+            thu_duty = excluded.thu_duty, thu_amt = excluded.thu_amt, thu_site = excluded.thu_site,
+            fri_duty = excluded.fri_duty, fri_amt = excluded.fri_amt, fri_site = excluded.fri_site,
+            sat_duty = excluded.sat_duty, sat_amt = excluded.sat_amt, sat_site = excluded.sat_site,
+            sun_duty = excluded.sun_duty, sun_amt = excluded.sun_amt, sun_site = excluded.sun_site,
+            week_label = excluded.week_label
+        `);
+        for (const l of labor) {
+          if (!l.id || !l.name) continue;
+          stmt.run(
+            l.id,
+            l.name,
+            l.role || 'Ma',
+            Number(l.daily_rate) || (l.role === 'Mm' ? 750 : 950),
+            l.phone || '',
+            l.site_assigned || 'General Site',
+            l.day_name || 'Monday',
+            l.duty || '-',
+            Number(l.total_amount) || 0,
+            Number(l.days_present) || 0,
+            Number(l.advance_paid) || 0,
+            l.status || 'Active',
+            l.mon_duty || '-', Number(l.mon_amt) || 0, l.mon_site || l.site_assigned || '',
+            l.tue_duty || '-', Number(l.tue_amt) || 0, l.tue_site || l.site_assigned || '',
+            l.wed_duty || '-', Number(l.wed_amt) || 0, l.wed_site || l.site_assigned || '',
+            l.thu_duty || '-', Number(l.thu_amt) || 0, l.thu_site || l.site_assigned || '',
+            l.fri_duty || '-', Number(l.fri_amt) || 0, l.fri_site || l.site_assigned || '',
+            l.sat_duty || '-', Number(l.sat_amt) || 0, l.sat_site || l.site_assigned || '',
+            l.sun_duty || '-', Number(l.sun_amt) || 0, l.sun_site || l.site_assigned || '',
+            l.week_label || '',
+            l.created_at || new Date().toISOString()
+          );
+        }
+      }
+
+      // 5. Vendors
+      if (Array.isArray(vendors)) {
+        const stmt = db.prepare(`
+          INSERT INTO vendors (id, name, contact_person, phone, category, gstin, address, balance_due, role, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            contact_person = excluded.contact_person,
+            phone = excluded.phone,
+            category = excluded.category,
+            gstin = excluded.gstin,
+            address = excluded.address,
+            balance_due = excluded.balance_due,
+            role = excluded.role
+        `);
+        for (const v of vendors) {
+          if (!v.id || !v.name) continue;
+          stmt.run(
+            v.id,
+            v.name,
+            v.contact_person || '',
+            v.phone || '',
+            v.category || v.role || 'Raw Materials',
+            v.gstin || '',
+            v.address || '',
+            Number(v.balance_due) || 0,
+            v.role || v.category || 'Raw Materials',
+            v.created_at || new Date().toISOString()
+          );
+        }
+      }
+
+      // 6. Transactions
+      if (Array.isArray(transactions)) {
+        const stmt = db.prepare(`
+          INSERT INTO transactions (id, date, type, account_id, account_name, category, amount, party, project, reference, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            date = excluded.date,
+            type = excluded.type,
+            category = excluded.category,
+            amount = excluded.amount,
+            party = excluded.party,
+            project = excluded.project,
+            reference = excluded.reference
+        `);
+        for (const t of transactions) {
+          if (!t.id || !t.amount) continue;
+          stmt.run(
+            t.id,
+            t.date || new Date().toISOString().split('T')[0],
+            t.type || 'Expense',
+            t.account_id || 'ACC-01',
+            t.account_name || 'Primary Bank Current Account',
+            t.category || 'General',
+            Number(t.amount) || 0,
+            t.party || 'Self',
+            t.project || 'General / HQ',
+            t.reference || 'Cash',
+            t.created_at || new Date().toISOString()
+          );
+        }
+      }
+
+      // 7. Supplier Payments
+      if (Array.isArray(supplierPayments)) {
+        const stmt = db.prepare(`
+          INSERT INTO supplier_payments (id, vendor, project_name, amount, date, payment_mode, notes, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            vendor = excluded.vendor,
+            project_name = excluded.project_name,
+            amount = excluded.amount,
+            date = excluded.date,
+            payment_mode = excluded.payment_mode,
+            notes = excluded.notes
+        `);
+        for (const p of supplierPayments) {
+          if (!p.id || !p.amount) continue;
+          stmt.run(
+            p.id,
+            p.vendor || 'Supplier',
+            p.project_name || 'General Site',
+            Number(p.amount) || 0,
+            p.date || new Date().toISOString().split('T')[0],
+            p.payment_mode || 'Cash in Hand',
+            p.notes || '',
+            p.created_at || new Date().toISOString()
+          );
+        }
+      }
+    });
+
+    syncTransaction();
+
+    const count = (projects ? projects.length : 0) + (materials ? materials.length : 0) + (labor ? labor.length : 0) + (transactions ? transactions.length : 0) + (supplierPayments ? supplierPayments.length : 0);
+
+    res.json({
+      success: true,
+      recordCount: count,
+      message: 'All application data rehydrated and synchronized into SQLite database successfully.'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 9. Database Backup Snapshot (Download .db file)
 app.get('/api/backup', (req, res) => {
   try {
     const backupDir = path.join(__dirname, 'database', 'backups');
@@ -827,7 +1151,7 @@ app.get('/api/backup', (req, res) => {
   }
 });
 
-// 9. Reset All Database Records (Fresh Start)
+// 10. Reset All Database Records (Fresh Start)
 app.post('/api/reset', (req, res) => {
   try {
     db.exec(`
@@ -836,9 +1160,10 @@ app.post('/api/reset', (req, res) => {
       DELETE FROM labor_roster;
       DELETE FROM vendors;
       DELETE FROM transactions;
+      DELETE FROM supplier_payments;
       UPDATE accounts SET balance = 0;
     `);
-    res.json({ success: true, message: 'All site and accounts data reset.' });
+    res.json({ success: true, message: 'All site, labor, materials and accounts data reset.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
