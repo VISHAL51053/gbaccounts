@@ -371,11 +371,22 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 class="text-2xl font-black text-white m-0">Construction Sites & Projects</h2>
-            <p class="text-xs text-slate-400"></p>
+            <p class="text-xs text-slate-400">Track raw materials and labour costs per site</p>
           </div>
-          <button onclick="openModal('modalProject')" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-md">
-            + Add New Site
-          </button>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="openMaterialsGoogleSheetView('sitewise')" class="px-3.5 py-2 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/70 text-emerald-300 font-bold text-xs border border-emerald-500/40 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="table" class="w-4 h-4 text-emerald-400"></i>
+              <span>Site-Wise Google Sheet</span>
+            </button>
+            <button onclick="exportMaterialsGoogleSheets('sitewise')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>Download CSV</span>
+            </button>
+            <button onclick="openModal('modalProject')" class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>+ Add Site</span>
+            </button>
+          </div>
         </div>
 
         <div id="allProjectsList" class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -390,9 +401,13 @@
             <h2 class="text-2xl font-black text-white m-0">Materials Payment</h2>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <button onclick="openMaterialsGoogleSheetView()" class="px-3.5 py-2 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/70 text-emerald-300 font-bold text-xs border border-emerald-500/40 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+            <button onclick="openMaterialsGoogleSheetView('purchases')" class="px-3.5 py-2 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/70 text-emerald-300 font-bold text-xs border border-emerald-500/40 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
               <i data-lucide="table" class="w-4 h-4 text-emerald-400"></i>
               <span>Live Google Sheet</span>
+            </button>
+            <button onclick="openMaterialsGoogleSheetView('sitewise')" class="px-3.5 py-2 rounded-xl bg-cyan-950/50 hover:bg-cyan-900/70 text-cyan-300 font-bold text-xs border border-cyan-500/40 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="building" class="w-4 h-4 text-cyan-400"></i>
+              <span>Site-Wise Statement</span>
             </button>
             <button onclick="exportMaterialsGoogleSheets()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
               <i data-lucide="download" class="w-4 h-4"></i>
@@ -449,9 +464,13 @@
             <h2 class="text-2xl font-black text-white m-0">Material Entry</h2>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <button onclick="openMaterialsGoogleSheetView()" class="px-3.5 py-2 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/70 text-emerald-300 font-bold text-xs border border-emerald-500/40 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+            <button onclick="openMaterialsGoogleSheetView('purchases')" class="px-3.5 py-2 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/70 text-emerald-300 font-bold text-xs border border-emerald-500/40 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
               <i data-lucide="table" class="w-4 h-4 text-emerald-400"></i>
               <span>Live Google Sheet</span>
+            </button>
+            <button onclick="openMaterialsGoogleSheetView('sitewise')" class="px-3.5 py-2 rounded-xl bg-cyan-950/50 hover:bg-cyan-900/70 text-cyan-300 font-bold text-xs border border-cyan-500/40 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="building" class="w-4 h-4 text-cyan-400"></i>
+              <span>Site-Wise Statement</span>
             </button>
             <button onclick="exportMaterialsGoogleSheets()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
               <i data-lucide="download" class="w-4 h-4"></i>
@@ -2211,257 +2230,756 @@
       }
     }
 
-    function openMaterialsGoogleSheetView() {
+    function openMaterialsGoogleSheetView(defaultTab = 'purchases', filterSite = '') {
       const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       const compName = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
       const compAddress = (appData.company && appData.company.address) || 'Chennai, Tamil Nadu';
       const compPhone = (appData.company && appData.company.phone) || '';
+      const compEmail = (appData.company && appData.company.email) || '';
 
-      const suppliersList = [];
-      const seenVendorNames = new Set();
-      (appData.vendors || []).forEach(v => {
-        if (v.name && !seenVendorNames.has(v.name.toLowerCase())) {
-          seenVendorNames.add(v.name.toLowerCase());
-          suppliersList.push({ id: v.id, name: v.name, role: v.role || v.category || 'Raw Materials' });
-        }
+      const rawMaterials = appData.materials || [];
+      const rawProjects = appData.projects || [];
+      const rawVendors = appData.vendors || [];
+      const rawPayments = appData.supplierPayments || [];
+      const rawLabor = appData.labor || [];
+
+      // Collect all unique sites
+      const allSitesSet = new Set();
+      rawProjects.forEach(p => { if (p.name) allSitesSet.add(p.name); });
+      rawMaterials.forEach(m => {
+        const sName = m.project_name || m.project;
+        if (sName) allSitesSet.add(sName);
       });
-      (appData.materials || []).forEach(m => {
-        const vName = m.vendor || 'General Supplier';
-        if (vName && !seenVendorNames.has(vName.toLowerCase())) {
-          seenVendorNames.add(vName.toLowerCase());
-          suppliersList.push({ id: 'VND-' + encodeURIComponent(vName), name: vName, role: m.category || 'Raw Materials' });
-        }
+      const siteNamesList = Array.from(allSitesSet).sort();
+
+      // Collect all unique suppliers
+      const allSuppliersSet = new Set();
+      rawVendors.forEach(v => { if (v.name) allSuppliersSet.add(v.name); });
+      rawMaterials.forEach(m => { if (m.vendor) allSuppliersSet.add(m.vendor); });
+      const supplierNamesList = Array.from(allSuppliersSet).sort();
+
+      const serializedData = JSON.stringify({
+        materials: rawMaterials,
+        projects: rawProjects,
+        vendors: rawVendors,
+        payments: rawPayments,
+        labor: rawLabor,
+        company: appData.company || { name: compName, address: compAddress, phone: compPhone, email: compEmail },
+        initialTab: defaultTab,
+        initialSite: filterSite,
+        todayDate: today
       });
-
-      const totalAllMatCost = (appData.materials || []).reduce((s, m) => s + (Number(m.amount) || 0), 0);
-      const totalAllSuppPaid = (appData.supplierPayments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
-      const totalAllSuppBalance = totalAllMatCost - totalAllSuppPaid;
-
-      const supplierSummaryRows = suppliersList.map((supp, idx) => {
-        const suppMats = (appData.materials || []).filter(m => (m.vendor || '').toLowerCase() === supp.name.toLowerCase());
-        const totalCost = suppMats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
-        
-        let suppPaid = 0;
-        (appData.supplierPayments || []).forEach(p => {
-          if ((p.vendor || '').toLowerCase() === supp.name.toLowerCase()) {
-            suppPaid += (Number(p.amount) || 0);
-          }
-        });
-        const suppBalance = totalCost - suppPaid;
-        const sites = Array.from(new Set(suppMats.map(m => m.project_name || m.project || 'General Site'))).join(', ') || '-';
-        const status = suppBalance <= 0 ? 'Settled' : 'Pending';
-
-        return `
-          <tr>
-            <td style="text-align:center;">${idx + 1}</td>
-            <td style="font-weight:bold;">${escapeHtml(supp.name)}</td>
-            <td>${escapeHtml(supp.role)}</td>
-            <td>${escapeHtml(sites)}</td>
-            <td style="text-align:center;">${suppMats.length}</td>
-            <td style="text-align:right; font-family:monospace; font-weight:bold;">${formatINR(totalCost)}</td>
-            <td style="text-align:right; font-family:monospace; font-weight:bold; color:#059669;">${formatINR(suppPaid)}</td>
-            <td style="text-align:right; font-family:monospace; font-weight:bold; color:${suppBalance > 0 ? '#dc2626' : '#059669'};">${formatINR(suppBalance)}</td>
-            <td style="text-align:center;"><span style="display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold; background:${suppBalance <= 0 ? '#d1fae5; color:#065f46' : '#fee2e2; color:#991b1b'};">${status}</span></td>
-          </tr>
-        `;
-      }).join('');
-
-      const materialRows = (appData.materials || []).map((m, idx) => `
-        <tr>
-          <td style="text-align:center;">${idx + 1}</td>
-          <td>${m.date || '-'}</td>
-          <td style="font-weight:600;">${escapeHtml(m.vendor || 'General Supplier')}</td>
-          <td>${escapeHtml(m.project_name || m.project || '-')}</td>
-          <td style="font-weight:600;">${escapeHtml(m.item || '-')}</td>
-          <td>${escapeHtml(m.category || '-')}</td>
-          <td style="text-align:right; font-family:monospace; font-weight:bold; color:#dc2626;">${formatINR(m.amount)}</td>
-        </tr>
-      `).join('');
-
-      const paymentRows = (appData.supplierPayments || []).map((p, idx) => `
-        <tr>
-          <td style="text-align:center;">${idx + 1}</td>
-          <td>${p.date || '-'}</td>
-          <td style="font-weight:600;">${escapeHtml(p.vendor || '-')}</td>
-          <td>${escapeHtml(p.project_name || '-')}</td>
-          <td style="text-align:right; font-family:monospace; font-weight:bold; color:#059669;">${formatINR(p.amount)}</td>
-          <td>${escapeHtml(p.mode || 'Cash')}</td>
-          <td>${escapeHtml(p.notes || '-')}</td>
-        </tr>
-      `).join('');
 
       const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>${escapeHtml(compName)} - Material Payment Google Sheet</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(compName)} - Material Purchases & Site Statement Google Sheet</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f8fafc; color: #1e293b; padding: 20px; }
-    .sheet-header { background: #0f9d58; color: white; padding: 14px 20px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; }
-    .sheet-title { font-size: 18px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
-    .sheet-actions { display: flex; gap: 8px; }
-    .btn { padding: 7px 14px; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f1f5f9; color: #0f172a; padding: 16px; }
+    
+    /* Google Sheet App Bar */
+    .sheet-chrome { background: #0f9d58; color: white; padding: 12px 20px; border-radius: 8px 8px 0 0; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); }
+    .sheet-brand { display: flex; align-items: center; gap: 10px; }
+    .sheet-brand h1 { font-size: 17px; font-weight: 900; letter-spacing: -0.02em; }
+    .sheet-brand p { font-size: 11px; opacity: 0.88; font-weight: 500; }
+    .sheet-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    
+    .btn { padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; }
     .btn-white { background: white; color: #0f9d58; }
-    .btn-white:hover { background: #f1f5f9; }
-    .btn-dark { background: #0b8043; color: white; }
+    .btn-white:hover { background: #f8fafc; }
+    .btn-dark { background: #0b8043; color: white; border: 1px solid rgba(255,255,255,0.25); }
     .btn-dark:hover { background: #086a37; }
-    .sheet-body { background: white; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 8px 8px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
-    .company-banner { display: flex; justify-content: space-between; border-bottom: 2px solid #0f9d58; padding-bottom: 14px; margin-bottom: 20px; }
-    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
-    .stat-box { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; }
-    .stat-label { font-size: 11px; text-transform: uppercase; font-weight: bold; color: #64748b; }
-    .stat-val { font-size: 20px; font-weight: 800; margin-top: 4px; font-family: monospace; }
-    .section-title { font-size: 14px; font-weight: bold; text-transform: uppercase; color: #0f9d58; margin: 24px 0 10px; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }
-    th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px 10px; font-weight: bold; text-align: left; text-transform: uppercase; font-size: 11px; color: #475569; }
-    td { border: 1px solid #e2e8f0; padding: 8px 10px; }
+    
+    /* Toolbar & Tab Bar */
+    .toolbar-bar { background: #0c7a44; color: white; padding: 10px 20px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; border-bottom: 2px solid #086a37; }
+    .tab-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tab-pill { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.25); transition: all 0.2s; user-select: none; }
+    .tab-pill.active { background: white; color: #0b8043; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+    
+    .filter-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .filter-label { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .filter-select, .search-input { padding: 5px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.5); font-size: 12px; background: white; color: #0f172a; font-weight: 600; outline: none; }
+    .search-input { width: 150px; }
+
+    /* Sheet Content */
+    .sheet-body { background: white; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 8px 8px; padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+    
+    /* Letterhead */
+    .company-banner { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f9d58; padding-bottom: 14px; margin-bottom: 20px; }
+    .comp-title { font-size: 22px; font-weight: 900; color: #0f172a; }
+    .comp-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+    .statement-tag { font-size: 12px; color: #0f9d58; font-weight: 800; text-transform: uppercase; margin-top: 4px; }
+    
+    /* Stats Bar */
+    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; border-left: 4px solid #0f9d58; }
+    .stat-box.red { border-left-color: #ef4444; }
+    .stat-box.green { border-left-color: #10b981; }
+    .stat-box.amber { border-left-color: #f59e0b; }
+    .stat-box.blue { border-left-color: #3b82f6; }
+    .stat-label { font-size: 11px; text-transform: uppercase; font-weight: 800; color: #64748b; letter-spacing: 0.5px; }
+    .stat-val { font-size: 20px; font-weight: 900; margin-top: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+
+    /* Tables */
+    .section-head { display: flex; justify-content: space-between; align-items: center; margin: 24px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #0f9d58; }
+    .section-title { font-size: 14px; font-weight: 800; text-transform: uppercase; color: #0f9d58; display: flex; align-items: center; gap: 8px; }
+    .section-badge { font-size: 11px; background: #e2e8f0; color: #475569; padding: 2px 8px; border-radius: 12px; font-weight: 700; }
+    
+    .site-card-box { border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 24px; overflow: hidden; }
+    .site-card-header { background: #f1f5f9; border-bottom: 1px solid #cbd5e1; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; }
+    .site-title { font-size: 14px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 6px; }
+    .site-meta { font-size: 12px; color: #64748b; }
+    
+    table { width: 100%; border-collapse: collapse; font-size: 12px; background: white; margin-bottom: 16px; }
+    th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 9px 12px; font-weight: 800; text-align: left; text-transform: uppercase; font-size: 11px; color: #334155; letter-spacing: 0.3px; }
+    td { border: 1px solid #e2e8f0; padding: 8px 12px; color: #1e293b; }
     tr:nth-child(even) { background: #f8fafc; }
     tr:hover { background: #f1f5f9; }
-    .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 24px; padding-top: 14px; border-top: 1px solid #e2e8f0; }
+    tfoot tr { background: #f1f5f9; font-weight: 800; }
+    
+    .cost-cell { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 800; color: #dc2626; }
+    .paid-cell { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 800; color: #059669; }
+    .bal-cell { text-align: right; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight: 800; color: #d97706; }
+    
+    .status-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    .status-settled { background: #d1fae5; color: #065f46; }
+    .status-pending { background: #fee2e2; color: #991b1b; }
+    
+    .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 30px; padding-top: 14px; border-top: 1px solid #e2e8f0; }
+
+    /* Print Optimization */
     @media print {
       body { padding: 0; background: white; }
-      .sheet-header, .sheet-actions, .no-print { display: none !important; }
+      .sheet-chrome, .toolbar-bar, .no-print { display: none !important; }
       .sheet-body { border: none; box-shadow: none; padding: 0; }
       th { background: #e2e8f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       tr:nth-child(even) { background: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      @page { margin: 1.5cm; size: landscape; }
+      .stat-box { border-left-width: 4px !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .status-settled { background: #d1fae5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .status-pending { background: #fee2e2 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { margin: 1.2cm; size: landscape; }
     }
   </style>
 </head>
 <body>
-  <div class="sheet-header no-print">
-    <div class="sheet-title">
-      <span>📊 Google Sheets Live View • Material Payment Directory</span>
+  <!-- Top Bar -->
+  <div class="sheet-chrome no-print">
+    <div class="sheet-brand">
+      <span>📊</span>
+      <div>
+        <h1>Google Sheets Live View • Material Procurement & Site Statement</h1>
+        <p>${escapeHtml(compName)} Management ERP</p>
+      </div>
     </div>
     <div class="sheet-actions">
       <button onclick="window.print()" class="btn btn-white">🖨️ Print / Save PDF</button>
-      <button onclick="window.opener ? window.opener.exportMaterialsGoogleSheets() : window.print()" class="btn btn-dark">📥 Download CSV</button>
+      <button onclick="exportActiveCsv()" class="btn btn-dark">📥 Download CSV</button>
       <button onclick="window.close()" class="btn btn-dark">✖ Close</button>
     </div>
   </div>
 
+  <!-- Toolbar & Filters -->
+  <div class="toolbar-bar no-print">
+    <div class="tab-pills">
+      <div id="pill-purchases" onclick="switchView('purchases')" class="tab-pill">📋 Raw Material Purchases</div>
+      <div id="pill-sitewise" onclick="switchView('sitewise')" class="tab-pill">🏗️ Site-Wise Statement</div>
+      <div id="pill-suppliers" onclick="switchView('suppliers')" class="tab-pill">👥 Supplier Balances</div>
+      <div id="pill-payments" onclick="switchView('payments')" class="tab-pill">💳 Payment History</div>
+      <div id="pill-master" onclick="switchView('master')" class="tab-pill">📊 Master Statement</div>
+    </div>
+    <div class="filter-controls">
+      <span class="filter-label">Filter Site:</span>
+      <select id="selSiteFilter" onchange="applyFilters()" class="filter-select">
+        <option value="">All Sites (${siteNamesList.length})</option>
+        ${siteNamesList.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
+      </select>
+
+      <span class="filter-label">Supplier:</span>
+      <select id="selSupplierFilter" onchange="applyFilters()" class="filter-select">
+        <option value="">All Suppliers (${supplierNamesList.length})</option>
+        ${supplierNamesList.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
+      </select>
+
+      <input type="text" id="txtSearch" oninput="applyFilters()" placeholder="Search..." class="search-input" />
+    </div>
+  </div>
+
+  <!-- Main Sheet Body -->
   <div class="sheet-body">
+    <!-- Letterhead -->
     <div class="company-banner">
       <div>
-        <h1 style="font-size:22px; color:#0f172a; font-weight:900;">${escapeHtml(compName)}</h1>
-        <p style="font-size:12px; color:#64748b; margin-top:2px;">${escapeHtml(compAddress)} ${compPhone ? '• Phone: ' + escapeHtml(compPhone) : ''}</p>
-        <p style="font-size:12px; color:#0f9d58; font-weight:bold; margin-top:4px;">OFFICIAL MATERIALS PROCUREMENT & PAYMENT MASTER STATEMENT</p>
+        <div class="comp-title">${escapeHtml(compName)}</div>
+        <div class="comp-sub">${escapeHtml(compAddress)} ${compPhone ? '• Ph: ' + escapeHtml(compPhone) : ''}</div>
+        <div id="lblStatementTag" class="statement-tag">RAW MATERIAL PURCHASES & SITE-WISE EXPENSES MASTER STATEMENT</div>
       </div>
       <div style="text-align:right;">
-        <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:bold;">Statement Date</div>
-        <div style="font-size:14px; font-weight:bold; color:#0f172a;">${today}</div>
-        <div style="font-size:11px; color:#059669; font-weight:bold; margin-top:4px;">● Upto-Date Synchronized</div>
+        <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:800;">Statement Date</div>
+        <div style="font-size:14px; font-weight:800; color:#0f172a;">${today}</div>
+        <div style="font-size:11px; color:#059669; font-weight:800; margin-top:4px;">● Live SQLite Sync</div>
       </div>
     </div>
 
+    <!-- Dynamic Metrics Cards -->
     <div class="stats-bar">
-      <div class="stat-box">
+      <div class="stat-box red">
         <div class="stat-label">Total Material Purchases</div>
-        <div class="stat-val" style="color:#dc2626;">${formatINR(totalAllMatCost)}</div>
+        <div id="kpiTotalPurchases" class="stat-val" style="color:#dc2626;">₹0</div>
       </div>
-      <div class="stat-box">
+      <div class="stat-box green">
         <div class="stat-label">Total Amount Paid</div>
-        <div class="stat-val" style="color:#059669;">${formatINR(totalAllSuppPaid)}</div>
+        <div id="kpiTotalPaid" class="stat-val" style="color:#059669;">₹0</div>
       </div>
-      <div class="stat-box">
+      <div class="stat-box amber">
         <div class="stat-label">Total Outstanding Balance</div>
-        <div class="stat-val" style="color:#d97706;">${formatINR(totalAllSuppBalance)}</div>
+        <div id="kpiTotalBalance" class="stat-val" style="color:#d97706;">₹0</div>
       </div>
-      <div class="stat-box">
-        <div class="stat-label">Registered Suppliers</div>
-        <div class="stat-val" style="color:#2563eb;">${suppliersList.length}</div>
+      <div class="stat-box blue">
+        <div class="stat-label">Active Sites</div>
+        <div id="kpiActiveSites" class="stat-val" style="color:#2563eb;">0</div>
       </div>
       <div class="stat-box">
         <div class="stat-label">Deliveries Logged</div>
-        <div class="stat-val" style="color:#0f172a;">${(appData.materials || []).length}</div>
+        <div id="kpiDeliveriesCount" class="stat-val" style="color:#0f172a;">0</div>
       </div>
     </div>
 
-    <div class="section-title">1. Supplier Accounts & Payment Balance Summary</div>
-    <table>
-      <thead>
-        <tr>
-          <th style="width:40px; text-align:center;">S.No</th>
-          <th>Supplier / Vendor Name</th>
-          <th>Category</th>
-          <th>Sites Supplied</th>
-          <th style="text-align:center;">Bills</th>
-          <th style="text-align:right;">Total Cost (₹)</th>
-          <th style="text-align:right;">Paid (₹)</th>
-          <th style="text-align:right;">Balance Due (₹)</th>
-          <th style="text-align:center;">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${supplierSummaryRows || '<tr><td colspan="9" style="text-align:center; padding:16px; color:#94a3b8;">No supplier records logged yet.</td></tr>'}
-      </tbody>
-      <tfoot>
-        <tr style="background:#f1f5f9; font-weight:bold; font-size:12px;">
-          <td colspan="5" style="text-align:right; text-transform:uppercase;">Grand Totals:</td>
-          <td style="text-align:right; font-family:monospace; color:#dc2626;">${formatINR(totalAllMatCost)}</td>
-          <td style="text-align:right; font-family:monospace; color:#059669;">${formatINR(totalAllSuppPaid)}</td>
-          <td style="text-align:right; font-family:monospace; color:${totalAllSuppBalance > 0 ? '#dc2626' : '#059669'};">${formatINR(totalAllSuppBalance)}</td>
-          <td style="text-align:center;">${totalAllSuppBalance <= 0 ? 'All Settled' : 'Active'}</td>
-        </tr>
-      </tfoot>
-    </table>
-
-    <div class="section-title">2. Itemized Raw Material Purchases & Delivery Log</div>
-    <table>
-      <thead>
-        <tr>
-          <th style="width:40px; text-align:center;">S.No</th>
-          <th style="width:90px;">Date</th>
-          <th>Supplier</th>
-          <th>Project / Site</th>
-          <th>Material / Description</th>
-          <th>Category</th>
-          <th style="text-align:right;">Amount (₹)</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${materialRows || '<tr><td colspan="7" style="text-align:center; padding:16px; color:#94a3b8;">No material purchases recorded yet.</td></tr>'}
-      </tbody>
-      <tfoot>
-        <tr style="background:#f1f5f9; font-weight:bold;">
-          <td colspan="6" style="text-align:right; text-transform:uppercase;">Total Material Value:</td>
-          <td style="text-align:right; font-family:monospace; color:#dc2626;">${formatINR(totalAllMatCost)}</td>
-        </tr>
-      </tfoot>
-    </table>
-
-    ${paymentRows ? `
-      <div class="section-title">3. Supplier Payment Transactions History</div>
-      <table>
-        <thead>
-          <tr>
-            <th style="width:40px; text-align:center;">S.No</th>
-            <th style="width:90px;">Date</th>
-            <th>Supplier</th>
-            <th>Site</th>
-            <th style="text-align:right;">Paid Amount (₹)</th>
-            <th>Mode</th>
-            <th>Remarks / Notes</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${paymentRows}
-        </tbody>
-        <tfoot>
-          <tr style="background:#f1f5f9; font-weight:bold;">
-            <td colspan="4" style="text-align:right; text-transform:uppercase;">Total Payments Settled:</td>
-            <td style="text-align:right; font-family:monospace; color:#059669;">${formatINR(totalAllSuppPaid)}</td>
-            <td colspan="2"></td>
-          </tr>
-        </tfoot>
-      </table>
-    ` : ''}
+    <!-- Content Sections Container -->
+    <div id="sheetContentContainer">
+      <!-- Injected dynamically by JS -->
+    </div>
 
     <div class="footer">
-      Generated automatically by <strong>${escapeHtml(compName)} Management ERP System</strong> on ${today}. Confidential & Proprietary.
+      Generated automatically by <strong>${escapeHtml(compName)} ERP System</strong> on ${today}. Confidential & Proprietary Document.
     </div>
   </div>
+
+  <script>
+    const db = ${serializedData};
+    let currentView = db.initialTab || 'purchases';
+
+    function fmtINR(val) {
+      const num = Number(val) || 0;
+      return '₹' + num.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+    }
+
+    function escapeTxt(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function init() {
+      if (db.initialSite) {
+        const sel = document.getElementById('selSiteFilter');
+        if (sel) sel.value = db.initialSite;
+      }
+      switchView(currentView);
+    }
+
+    function switchView(viewName) {
+      currentView = viewName;
+      ['purchases', 'sitewise', 'suppliers', 'payments', 'master'].forEach(t => {
+        const pill = document.getElementById('pill-' + t);
+        if (pill) {
+          if (t === viewName) pill.classList.add('active');
+          else pill.classList.remove('active');
+        }
+      });
+      renderView();
+    }
+
+    function applyFilters() {
+      renderView();
+    }
+
+    function getFilteredData() {
+      const siteFilter = (document.getElementById('selSiteFilter') ? document.getElementById('selSiteFilter').value : '').trim().toLowerCase();
+      const suppFilter = (document.getElementById('selSupplierFilter') ? document.getElementById('selSupplierFilter').value : '').trim().toLowerCase();
+      const search = (document.getElementById('txtSearch') ? document.getElementById('txtSearch').value : '').trim().toLowerCase();
+
+      let mats = db.materials || [];
+      let pays = db.payments || [];
+
+      if (siteFilter) {
+        mats = mats.filter(m => ((m.project_name || m.project || '').toLowerCase() === siteFilter));
+        pays = pays.filter(p => ((p.project_name || '').toLowerCase() === siteFilter));
+      }
+
+      if (suppFilter) {
+        mats = mats.filter(m => ((m.vendor || '').toLowerCase() === suppFilter));
+        pays = pays.filter(p => ((p.vendor || '').toLowerCase() === suppFilter));
+      }
+
+      if (search) {
+        mats = mats.filter(m => (
+          (m.item || '').toLowerCase().includes(search) ||
+          (m.vendor || '').toLowerCase().includes(search) ||
+          (m.project_name || m.project || '').toLowerCase().includes(search) ||
+          (m.category || '').toLowerCase().includes(search) ||
+          (m.date || '').toLowerCase().includes(search)
+        ));
+        pays = pays.filter(p => (
+          (p.vendor || '').toLowerCase().includes(search) ||
+          (p.project_name || '').toLowerCase().includes(search) ||
+          (p.mode || '').toLowerCase().includes(search) ||
+          (p.notes || '').toLowerCase().includes(search) ||
+          (p.date || '').toLowerCase().includes(search)
+        ));
+      }
+
+      return { mats, pays };
+    }
+
+    function renderView() {
+      const { mats, pays } = getFilteredData();
+      const container = document.getElementById('sheetContentContainer');
+      const tagLabel = document.getElementById('lblStatementTag');
+
+      const totalMatCost = mats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+      const totalPaid = pays.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+      const totalBalance = totalMatCost - totalPaid;
+
+      // Unique sites in filtered mats
+      const activeSitesSet = new Set();
+      mats.forEach(m => {
+        const s = m.project_name || m.project;
+        if (s) activeSitesSet.add(s);
+      });
+
+      // Update KPI Boxes
+      document.getElementById('kpiTotalPurchases').textContent = fmtINR(totalMatCost);
+      document.getElementById('kpiTotalPaid').textContent = fmtINR(totalPaid);
+      document.getElementById('kpiTotalBalance').textContent = fmtINR(totalBalance);
+      document.getElementById('kpiTotalBalance').style.color = totalBalance > 0 ? '#dc2626' : '#059669';
+      document.getElementById('kpiActiveSites').textContent = activeSitesSet.size || (db.projects || []).length;
+      document.getElementById('kpiDeliveriesCount').textContent = mats.length;
+
+      let html = '';
+
+      if (currentView === 'purchases') {
+        if (tagLabel) tagLabel.textContent = 'RAW MATERIAL PURCHASES MASTER LOG';
+        html = renderPurchasesTable(mats, totalMatCost);
+      } else if (currentView === 'sitewise') {
+        if (tagLabel) tagLabel.textContent = 'SITE-WISE RAW MATERIAL & EXPENSES STATEMENT';
+        html = renderSiteWiseView(mats);
+      } else if (currentView === 'suppliers') {
+        if (tagLabel) tagLabel.textContent = 'SUPPLIER ACCOUNTS & PAYMENT BALANCE STATEMENT';
+        html = renderSuppliersView(mats, pays);
+      } else if (currentView === 'payments') {
+        if (tagLabel) tagLabel.textContent = 'SUPPLIER PAYMENT SETTLEMENTS HISTORY';
+        html = renderPaymentsTable(pays, totalPaid);
+      } else if (currentView === 'master') {
+        if (tagLabel) tagLabel.textContent = 'COMPREHENSIVE MASTER MATERIALS & SITE STATEMENT';
+        html = `
+          <div class="section-head">
+            <div class="section-title">1. Site-Wise Materials Summary</div>
+          </div>
+          ${renderSiteWiseSummaryTable(mats)}
+
+          <div class="section-head" style="margin-top:30px;">
+            <div class="section-title">2. Raw Material Purchases Log</div>
+          </div>
+          ${renderPurchasesTable(mats, totalMatCost)}
+
+          <div class="section-head" style="margin-top:30px;">
+            <div class="section-title">3. Supplier Balances Directory</div>
+          </div>
+          ${renderSuppliersView(mats, pays)}
+
+          <div class="section-head" style="margin-top:30px;">
+            <div class="section-title">4. Supplier Payment Settlements History</div>
+          </div>
+          ${renderPaymentsTable(pays, totalPaid)}
+        `;
+      }
+
+      container.innerHTML = html;
+    }
+
+    // 1. Raw Material Purchases Table (Exact Format from UI screenshot: DATE | MATERIAL / DESCRIPTION | SITE | SUPPLIER | COST (₹))
+    function renderPurchasesTable(mats, totalCost) {
+      if (mats.length === 0) {
+        return '<div style="text-align:center; padding:40px; color:#94a3b8; font-weight:600;">No raw material purchases match the current filter.</div>';
+      }
+
+      const rows = mats.map((m, idx) => `
+        <tr>
+          <td style="text-align:center; width:40px; color:#64748b;">${idx + 1}</td>
+          <td style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight:600; width:100px;">${escapeTxt(m.date || '-')}</td>
+          <td style="font-weight:700; color:#0f172a;">${escapeTxt(m.item || '-')}</td>
+          <td style="font-weight:600; color:#475569;">${escapeTxt(m.project_name || m.project || '-')}</td>
+          <td style="font-weight:700; color:#334155;">${escapeTxt(m.vendor || 'General Supplier')}</td>
+          <td class="cost-cell">${fmtINR(m.amount)}</td>
+        </tr>
+      `).join('');
+
+      return `
+        <table style="border:1px solid #cbd5e1; border-radius:6px; overflow:hidden;">
+          <thead>
+            <tr>
+              <th style="width:40px; text-align:center;">#</th>
+              <th style="width:100px;">DATE</th>
+              <th>MATERIAL / DESCRIPTION</th>
+              <th>SITE</th>
+              <th>SUPPLIER</th>
+              <th style="text-align:right;">COST (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="5" style="text-align:right; text-transform:uppercase; font-weight:800; color:#475569;">TOTAL RAW MATERIAL PURCHASES:</td>
+              <td class="cost-cell">${fmtINR(totalCost)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      `;
+    }
+
+    // 2. Site-Wise Statement View
+    function renderSiteWiseView(mats) {
+      // Group materials by site
+      const siteMap = {};
+      
+      // Initialize with existing projects
+      (db.projects || []).forEach(p => {
+        siteMap[p.name] = {
+          name: p.name,
+          location: p.location || '-',
+          client: p.client || 'Direct Client',
+          materials: [],
+          totalCost: 0
+        };
+      });
+
+      // Add materials into site map
+      mats.forEach(m => {
+        const sName = m.project_name || m.project || 'General Site';
+        if (!siteMap[sName]) {
+          siteMap[sName] = {
+            name: sName,
+            location: '-',
+            client: 'Direct Client',
+            materials: [],
+            totalCost: 0
+          };
+        }
+        siteMap[sName].materials.push(m);
+        siteMap[sName].totalCost += (Number(m.amount) || 0);
+      });
+
+      const siteKeys = Object.keys(siteMap).sort();
+      if (siteKeys.length === 0) {
+        return '<div style="text-align:center; padding:40px; color:#94a3b8; font-weight:600;">No site records found.</div>';
+      }
+
+      let html = renderSiteWiseSummaryTable(mats);
+
+      html += `
+        <div class="section-head" style="margin-top:28px;">
+          <div class="section-title">Site-by-Site Itemized Purchases Breakdown</div>
+        </div>
+      `;
+
+      siteKeys.forEach(sName => {
+        const sObj = siteMap[sName];
+        if (sObj.materials.length === 0 && document.getElementById('selSiteFilter') && document.getElementById('selSiteFilter').value) return;
+
+        const siteRows = sObj.materials.length === 0 
+          ? '<tr><td colspan="5" style="text-align:center; padding:12px; color:#94a3b8;">No material purchases recorded for this site yet.</td></tr>'
+          : sObj.materials.map((m, idx) => `
+            <tr>
+              <td style="text-align:center; width:40px; color:#64748b;">${idx + 1}</td>
+              <td style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight:600; width:100px;">${escapeTxt(m.date || '-')}</td>
+              <td style="font-weight:700; color:#0f172a;">${escapeTxt(m.item || '-')}</td>
+              <td style="font-weight:700; color:#334155;">${escapeTxt(m.vendor || 'General Supplier')}</td>
+              <td class="cost-cell">${fmtINR(m.amount)}</td>
+            </tr>
+          `).join('');
+
+        html += `
+          <div class="site-card-box">
+            <div class="site-card-header">
+              <div class="site-title">
+                <span>🏗️</span>
+                <span>${escapeTxt(sObj.name)}</span>
+              </div>
+              <div class="site-meta">
+                <span>Location: <strong>${escapeTxt(sObj.location)}</strong></span> • 
+                <span>Client: <strong>${escapeTxt(sObj.client)}</strong></span> • 
+                <span>Total Materials: <strong style="color:#dc2626; font-family:ui-monospace;">${fmtINR(sObj.totalCost)}</strong></span>
+              </div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th style="width:40px; text-align:center;">#</th>
+                  <th style="width:100px;">DATE</th>
+                  <th>MATERIAL / DESCRIPTION</th>
+                  <th>SUPPLIER</th>
+                  <th style="text-align:right;">COST (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${siteRows}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="4" style="text-align:right; text-transform:uppercase; font-weight:800; color:#475569;">SUBTOTAL FOR ${escapeTxt(sObj.name)}:</td>
+                  <td class="cost-cell">${fmtINR(sObj.totalCost)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        `;
+      });
+
+      return html;
+    }
+
+    // Site-Wise Summary Table
+    function renderSiteWiseSummaryTable(mats) {
+      const siteSummaryMap = {};
+      (db.projects || []).forEach(p => {
+        siteSummaryMap[p.name] = {
+          name: p.name,
+          location: p.location || '-',
+          client: p.client || 'Direct',
+          count: 0,
+          cost: 0,
+          laborCost: 0
+        };
+      });
+
+      mats.forEach(m => {
+        const sName = m.project_name || m.project || 'General Site';
+        if (!siteSummaryMap[sName]) {
+          siteSummaryMap[sName] = { name: sName, location: '-', client: 'Direct', count: 0, cost: 0, laborCost: 0 };
+        }
+        siteSummaryMap[sName].count += 1;
+        siteSummaryMap[sName].cost += (Number(m.amount) || 0);
+      });
+
+      // Calculate labour wages per site
+      (db.labor || []).forEach(l => {
+        ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(d => {
+          const dSite = l[d + '_site'] || l.site_assigned;
+          const dAmt = Number(l[d + '_amt']) || 0;
+          if (dSite && dAmt > 0 && siteSummaryMap[dSite]) {
+            siteSummaryMap[dSite].laborCost += dAmt;
+          }
+        });
+      });
+
+      const keys = Object.keys(siteSummaryMap).sort();
+      let grandMat = 0;
+      let grandLab = 0;
+      let grandTotal = 0;
+
+      const rows = keys.map((k, idx) => {
+        const item = siteSummaryMap[k];
+        const totalExp = item.cost + item.laborCost;
+        grandMat += item.cost;
+        grandLab += item.laborCost;
+        grandTotal += totalExp;
+
+        return `
+          <tr>
+            <td style="text-align:center; width:40px;">${idx + 1}</td>
+            <td style="font-weight:800; color:#0f172a;">${escapeTxt(item.name)}</td>
+            <td>${escapeTxt(item.location)} (${escapeTxt(item.client)})</td>
+            <td style="text-align:center; font-weight:700;">${item.count}</td>
+            <td class="cost-cell">${fmtINR(item.cost)}</td>
+            <td class="paid-cell">${fmtINR(item.laborCost)}</td>
+            <td style="text-align:right; font-family:ui-monospace; font-weight:900; color:#0f172a;">${fmtINR(totalExp)}</td>
+          </tr>
+        `;
+      }).join('');
+
+      return `
+        <table style="border:1px solid #cbd5e1; border-radius:6px; overflow:hidden; margin-bottom:20px;">
+          <thead>
+            <tr>
+              <th style="width:40px; text-align:center;">#</th>
+              <th>SITE / PROJECT NAME</th>
+              <th>LOCATION / CLIENT</th>
+              <th style="text-align:center;">DELIVERIES</th>
+              <th style="text-align:right;">MATERIAL COST (₹)</th>
+              <th style="text-align:right;">LABOUR WAGES (₹)</th>
+              <th style="text-align:right;">TOTAL EXPENSE (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="7" style="text-align:center; padding:14px;">No site summaries available.</td></tr>'}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4" style="text-align:right; text-transform:uppercase; font-weight:800;">GRAND TOTALS:</td>
+              <td class="cost-cell">${fmtINR(grandMat)}</td>
+              <td class="paid-cell">${fmtINR(grandLab)}</td>
+              <td style="text-align:right; font-family:ui-monospace; font-weight:900; color:#0f172a;">${fmtINR(grandTotal)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      `;
+    }
+
+    // 3. Supplier Balances View
+    function renderSuppliersView(mats, pays) {
+      const suppMap = {};
+      (db.vendors || []).forEach(v => {
+        if (v.name) {
+          suppMap[v.name.toLowerCase()] = {
+            name: v.name,
+            role: v.role || v.category || 'Raw Materials',
+            bills: 0,
+            cost: 0,
+            paid: 0,
+            sites: new Set()
+          };
+        }
+      });
+
+      mats.forEach(m => {
+        const vName = m.vendor || 'General Supplier';
+        const key = vName.toLowerCase();
+        if (!suppMap[key]) {
+          suppMap[key] = { name: vName, role: m.category || 'Raw Materials', bills: 0, cost: 0, paid: 0, sites: new Set() };
+        }
+        suppMap[key].bills += 1;
+        suppMap[key].cost += (Number(m.amount) || 0);
+        if (m.project_name || m.project) suppMap[key].sites.add(m.project_name || m.project);
+      });
+
+      pays.forEach(p => {
+        const vName = p.vendor || 'General Supplier';
+        const key = vName.toLowerCase();
+        if (!suppMap[key]) {
+          suppMap[key] = { name: vName, role: 'Raw Materials', bills: 0, cost: 0, paid: 0, sites: new Set() };
+        }
+        suppMap[key].paid += (Number(p.amount) || 0);
+      });
+
+      const keys = Object.keys(suppMap).sort();
+      let grandCost = 0;
+      let grandPaid = 0;
+
+      const rows = keys.map((k, idx) => {
+        const s = suppMap[k];
+        const bal = s.cost - s.paid;
+        grandCost += s.cost;
+        grandPaid += s.paid;
+        const sitesStr = Array.from(s.sites).join(', ') || '-';
+        const isSettled = bal <= 0 && s.cost > 0;
+
+        return `
+          <tr>
+            <td style="text-align:center; width:40px;">${idx + 1}</td>
+            <td style="font-weight:800; color:#0f172a;">${escapeTxt(s.name)}</td>
+            <td>${escapeTxt(s.role)}</td>
+            <td>${escapeTxt(sitesStr)}</td>
+            <td style="text-align:center; font-weight:700;">${s.bills}</td>
+            <td class="cost-cell">${fmtINR(s.cost)}</td>
+            <td class="paid-cell">${fmtINR(s.paid)}</td>
+            <td class="bal-cell" style="color:${bal > 0 ? '#dc2626' : '#059669'};">${fmtINR(bal)}</td>
+            <td style="text-align:center;"><span class="status-badge ${isSettled ? 'status-settled' : 'status-pending'}">${isSettled ? 'Settled' : (bal > 0 ? 'Pending' : 'Active')}</span></td>
+          </tr>
+        `;
+      }).join('');
+
+      const grandBal = grandCost - grandPaid;
+
+      return `
+        <table style="border:1px solid #cbd5e1; border-radius:6px; overflow:hidden;">
+          <thead>
+            <tr>
+              <th style="width:40px; text-align:center;">#</th>
+              <th>SUPPLIER / VENDOR NAME</th>
+              <th>CATEGORY</th>
+              <th>SITES SUPPLIED</th>
+              <th style="text-align:center;">BILLS</th>
+              <th style="text-align:right;">TOTAL COST (₹)</th>
+              <th style="text-align:right;">PAID (₹)</th>
+              <th style="text-align:right;">BALANCE DUE (₹)</th>
+              <th style="text-align:center;">STATUS</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || '<tr><td colspan="9" style="text-align:center; padding:14px;">No supplier balance records logged.</td></tr>'}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="5" style="text-align:right; text-transform:uppercase; font-weight:800;">GRAND TOTALS:</td>
+              <td class="cost-cell">${fmtINR(grandCost)}</td>
+              <td class="paid-cell">${fmtINR(grandPaid)}</td>
+              <td class="bal-cell" style="color:${grandBal > 0 ? '#dc2626' : '#059669'};">${fmtINR(grandBal)}</td>
+              <td style="text-align:center;">${grandBal <= 0 ? 'All Settled' : 'Active'}</td>
+            </tr>
+          </tfoot>
+        </table>
+      `;
+    }
+
+    // 4. Supplier Payments Table
+    function renderPaymentsTable(pays, totalPaid) {
+      if (pays.length === 0) {
+        return '<div style="text-align:center; padding:40px; color:#94a3b8; font-weight:600;">No payment transaction records logged yet.</div>';
+      }
+
+      const rows = pays.map((p, idx) => `
+        <tr>
+          <td style="text-align:center; width:40px; color:#64748b;">${idx + 1}</td>
+          <td style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-weight:600; width:100px;">${escapeTxt(p.date || '-')}</td>
+          <td style="font-weight:700; color:#0f172a;">${escapeTxt(p.vendor || '-')}</td>
+          <td style="font-weight:600; color:#475569;">${escapeTxt(p.project_name || '-')}</td>
+          <td class="paid-cell">${fmtINR(p.amount)}</td>
+          <td style="font-weight:600;">${escapeTxt(p.mode || 'Cash')}</td>
+          <td style="color:#64748b;">${escapeTxt(p.notes || '-')}</td>
+        </tr>
+      `).join('');
+
+      return `
+        <table style="border:1px solid #cbd5e1; border-radius:6px; overflow:hidden;">
+          <thead>
+            <tr>
+              <th style="width:40px; text-align:center;">#</th>
+              <th style="width:100px;">DATE</th>
+              <th>SUPPLIER / VENDOR</th>
+              <th>SITE</th>
+              <th style="text-align:right;">PAID AMOUNT (₹)</th>
+              <th>PAYMENT MODE</th>
+              <th>REMARKS / NOTES</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="4" style="text-align:right; text-transform:uppercase; font-weight:800; color:#475569;">TOTAL PAYMENTS SETTLED:</td>
+              <td class="paid-cell">${fmtINR(totalPaid)}</td>
+              <td colspan="2"></td>
+            </tr>
+          </tfoot>
+        </table>
+      `;
+    }
+
+    function exportActiveCsv() {
+      if (window.opener && window.opener.exportMaterialsGoogleSheets) {
+        window.opener.exportMaterialsGoogleSheets(currentView);
+      } else {
+        window.print();
+      }
+    }
+
+    window.onload = init;
+  </script>
 </body>
 </html>`;
 
@@ -2471,17 +2989,68 @@
         newWin.document.write(html);
         newWin.document.close();
       } else {
-        alert('Please allow popups to view the Google Sheet statement.');
+        alert('Please allow popups in your browser to view the Google Sheet statement.');
       }
     }
 
-    function exportMaterialsGoogleSheets() {
+    function exportMaterialsGoogleSheets(exportMode = 'all') {
       const today = new Date().toISOString().split('T')[0];
       const compName = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
 
-      let csv = `"${compName} - Up-to-Date Material Purchases & Payment Directory (${today})"\n\n`;
+      let csv = `"${compName} - Up-to-Date Material Purchases & Site-Wise Statement (${today})"\n\n`;
       
-      csv += `"=== SUPPLIER ACCOUNTS & PAYMENT SUMMARY ==="\n`;
+      // 1. RAW MATERIAL PURCHASES LOG (Exact format: DATE | MATERIAL / DESCRIPTION | SITE | SUPPLIER | COST)
+      csv += `"=== 1. RAW MATERIAL PURCHASES MASTER LOG ==="\n`;
+      csv += `"S.No","DATE","MATERIAL / DESCRIPTION","SITE","SUPPLIER","COST (INR)"\n`;
+
+      let totalMatCost = 0;
+      (appData.materials || []).forEach((m, idx) => {
+        const amt = Number(m.amount) || 0;
+        totalMatCost += amt;
+        csv += `"${idx + 1}","${m.date || ''}","${(m.item || '').replace(/"/g, '""')}","${(m.project_name || m.project || '').replace(/"/g, '""')}","${(m.vendor || '').replace(/"/g, '""')}","${amt}"\n`;
+      });
+      csv += `"","","","TOTAL MATERIAL COST:","","${totalMatCost}"\n\n`;
+
+      // 2. SITE-WISE SUMMARY & EXPENSES STATEMENT
+      csv += `"=== 2. SITE-WISE MATERIAL SUMMARY STATEMENT ==="\n`;
+      csv += `"S.No","SITE / PROJECT NAME","LOCATION / CLIENT","DELIVERIES COUNT","TOTAL MATERIAL COST (INR)"\n`;
+
+      const siteMap = {};
+      (appData.projects || []).forEach(p => {
+        siteMap[p.name] = { name: p.name, loc: `${p.location || '-'} (${p.client || 'Direct'})`, count: 0, cost: 0, items: [] };
+      });
+      (appData.materials || []).forEach(m => {
+        const sName = m.project_name || m.project || 'General Site';
+        if (!siteMap[sName]) {
+          siteMap[sName] = { name: sName, loc: '-', count: 0, cost: 0, items: [] };
+        }
+        siteMap[sName].count += 1;
+        const amt = Number(m.amount) || 0;
+        siteMap[sName].cost += amt;
+        siteMap[sName].items.push(m);
+      });
+
+      let sIdx = 1;
+      for (const k in siteMap) {
+        csv += `"${sIdx++}","${k.replace(/"/g, '""')}","${siteMap[k].loc.replace(/"/g, '""')}","${siteMap[k].count}","${siteMap[k].cost}"\n`;
+      }
+      csv += `"","","TOTAL ALL SITES:","","${totalMatCost}"\n\n`;
+
+      // 3. SITE-BY-SITE DETAILED DELIVERIES
+      csv += `"=== 3. SITE-WISE DETAILED MATERIAL DELIVERIES BREAKDOWN ==="\n`;
+      for (const k in siteMap) {
+        if (siteMap[k].items.length > 0) {
+          csv += `"[SITE: ${k.replace(/"/g, '""')}]"\n`;
+          csv += `"S.No","DATE","MATERIAL / DESCRIPTION","SUPPLIER","COST (INR)"\n`;
+          siteMap[k].items.forEach((m, idx) => {
+            csv += `"${idx + 1}","${m.date || ''}","${(m.item || '').replace(/"/g, '""')}","${(m.vendor || '').replace(/"/g, '""')}","${m.amount || 0}"\n`;
+          });
+          csv += `"","","","Site Subtotal:","${siteMap[k].cost}"\n\n`;
+        }
+      }
+
+      // 4. SUPPLIER ACCOUNTS & PAYMENT SUMMARY
+      csv += `"=== 4. SUPPLIER ACCOUNTS & PAYMENT SUMMARY ==="\n`;
       csv += `"S.No","Supplier Name","Category","Total Cost (INR)","Total Paid (INR)","Balance Due (INR)","Status"\n`;
 
       const suppliersList = [];
@@ -2500,57 +3069,49 @@
         }
       });
 
-      let grandCost = 0;
-      let grandPaid = 0;
+      let grandSuppCost = 0;
+      let grandSuppPaid = 0;
 
       suppliersList.forEach((supp, idx) => {
         const suppMats = (appData.materials || []).filter(m => (m.vendor || '').toLowerCase() === supp.name.toLowerCase());
-        const totalCost = suppMats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+        const suppCost = suppMats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
         let suppPaid = 0;
         (appData.supplierPayments || []).forEach(p => {
           if ((p.vendor || '').toLowerCase() === supp.name.toLowerCase()) {
             suppPaid += (Number(p.amount) || 0);
           }
         });
-        const suppBalance = totalCost - suppPaid;
-        grandCost += totalCost;
-        grandPaid += suppPaid;
+        const suppBalance = suppCost - suppPaid;
+        grandSuppCost += suppCost;
+        grandSuppPaid += suppPaid;
 
-        csv += `"${idx + 1}","${(supp.name || '').replace(/"/g, '""')}","${(supp.role || '').replace(/"/g, '""')}","${totalCost}","${suppPaid}","${suppBalance}","${suppBalance <= 0 ? 'Settled' : 'Pending'}"\n`;
+        csv += `"${idx + 1}","${(supp.name || '').replace(/"/g, '""')}","${(supp.role || '').replace(/"/g, '""')}","${suppCost}","${suppPaid}","${suppBalance}","${suppBalance <= 0 ? 'Settled' : 'Pending'}"\n`;
       });
 
-      const grandBalance = grandCost - grandPaid;
-      csv += `"","TOTALS:","","${grandCost}","${grandPaid}","${grandBalance}",""\n\n`;
+      const grandSuppBalance = grandSuppCost - grandSuppPaid;
+      csv += `"","TOTALS:","","${grandSuppCost}","${grandSuppPaid}","${grandSuppBalance}",""\n\n`;
 
-      csv += `"=== ITEMIZED MATERIAL PURCHASES & DELIVERIES LOG ==="\n`;
-      csv += `"S.No","Date","Supplier / Vendor","Project / Site","Material / Item","Category","Amount (INR)"\n`;
-
-      (appData.materials || []).forEach((m, idx) => {
-        csv += `"${idx + 1}","${m.date || ''}","${(m.vendor || '').replace(/"/g, '""')}","${(m.project_name || m.project || '').replace(/"/g, '""')}","${(m.item || '').replace(/"/g, '""')}","${(m.category || '').replace(/"/g, '""')}","${m.amount || 0}"\n`;
-      });
-
-      csv += `"","","","","","Total Material Cost:","${grandCost}"\n\n`;
-
+      // 5. PAYMENT SETTLEMENTS LOG
       if ((appData.supplierPayments || []).length > 0) {
-        csv += `"=== SUPPLIER PAYMENT SETTLEMENTS LOG ==="\n`;
+        csv += `"=== 5. SUPPLIER PAYMENT SETTLEMENTS LOG ==="\n`;
         csv += `"S.No","Date","Supplier / Vendor","Project / Site","Paid Amount (INR)","Payment Mode","Remarks"\n`;
         (appData.supplierPayments || []).forEach((p, idx) => {
           csv += `"${idx + 1}","${p.date || ''}","${(p.vendor || '').replace(/"/g, '""')}","${(p.project_name || '').replace(/"/g, '""')}","${p.amount || 0}","${(p.mode || 'Cash').replace(/"/g, '""')}","${(p.notes || '').replace(/"/g, '""')}"\n`;
         });
-        csv += `"","","","Total Payments Paid:","${grandPaid}","",""\n`;
+        csv += `"","","","Total Payments Paid:","${grandSuppPaid}","",""\n`;
       }
 
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      link.setAttribute('download', `GURUBARAN_BUILDERS_Materials_Payment_UptoDate_${today}.csv`);
+      link.setAttribute('download', `GURUBARAN_BUILDERS_Materials_SiteStatement_${today}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     }
 
     function printMaterialsPaymentStatement() {
-      openMaterialsGoogleSheetView();
+      openMaterialsGoogleSheetView('purchases');
     }
 
     function shareWeeklyLabourWhatsApp() {
