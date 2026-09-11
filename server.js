@@ -880,7 +880,7 @@ app.delete(['/api/labor/history/:id', '/api/labour/history/:id'], (req, res) => 
   try {
     const { id } = req.params;
     const decoded = decodeURIComponent(id).trim();
-    db.prepare('DELETE FROM labor_weekly_history WHERE id = ? OR week_label = ?').run(decoded, decoded);
+    db.prepare('DELETE FROM labor_weekly_history WHERE id = ? OR week_label = ? OR id LIKE ?').run(decoded, decoded, `%${decoded}%`);
     res.json({ success: true, message: 'Archived week deleted from history.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1368,9 +1368,24 @@ app.get('/api/sync/full', (req, res) => {
 
 app.post('/api/sync/push', (req, res) => {
   try {
-    const { company, projects, materials, labor, vendors, accounts, transactions, supplierPayments, laborWeeklyHistory } = req.body;
+    const { company, projects, materials, labor, vendors, accounts, transactions, supplierPayments, laborWeeklyHistory, deleted_ids } = req.body;
 
     const syncTransaction = db.transaction(() => {
+      // 0. Purge explicitly deleted IDs across all tables
+      if (Array.isArray(deleted_ids) && deleted_ids.length > 0) {
+        for (const delId of deleted_ids) {
+          if (!delId) continue;
+          const cleanId = String(delId).trim();
+          db.prepare('DELETE FROM labor_weekly_history WHERE id = ? OR week_label = ?').run(cleanId, cleanId);
+          db.prepare('DELETE FROM projects WHERE id = ? OR name = ?').run(cleanId, cleanId);
+          db.prepare('DELETE FROM materials WHERE id = ?').run(cleanId);
+          db.prepare('DELETE FROM labor_roster WHERE id = ? OR name = ?').run(cleanId, cleanId);
+          db.prepare('DELETE FROM transactions WHERE id = ?').run(cleanId);
+          db.prepare('DELETE FROM supplier_payments WHERE id = ?').run(cleanId);
+          db.prepare('DELETE FROM vendors WHERE id = ? OR name = ?').run(cleanId, cleanId);
+        }
+      }
+
       // 1. Company Profile
       if (company && typeof company === 'object' && company.name) {
         db.prepare(`

@@ -1527,13 +1527,46 @@
       }, 4000);
     }
 
+    // --- Persistent Deleted Items Registry (Prevents resurrecting deleted records during background sync) ---
+    function getDeletedIds() {
+      try {
+        const stored = localStorage.getItem('gb_deleted_ids');
+        return new Set(stored ? JSON.parse(stored) : []);
+      } catch (e) {
+        return new Set();
+      }
+    }
+
+    function markIdAsDeleted(id) {
+      if (!id) return;
+      try {
+        const set = getDeletedIds();
+        const str = String(id).trim();
+        set.add(str);
+        localStorage.setItem('gb_deleted_ids', JSON.stringify(Array.from(set)));
+      } catch (e) {
+        console.warn('Failed to save deleted ID:', e);
+      }
+    }
+
+    function isItemDeleted(item) {
+      if (!item) return false;
+      const set = getDeletedIds();
+      if (item.id && set.has(String(item.id).trim())) return true;
+      if (item.name && set.has(String(item.name).trim())) return true;
+      if (item.week_label && set.has(String(item.week_label).trim())) return true;
+      return false;
+    }
+
     function mergeById(localArr, serverArr) {
       const map = new Map();
       (serverArr || []).forEach(item => {
-        if (item && item.id) map.set(item.id, item);
+        if (item && item.id && !isItemDeleted(item)) {
+          map.set(item.id, item);
+        }
       });
       (localArr || []).forEach(item => {
-        if (item && item.id) {
+        if (item && item.id && !isItemDeleted(item)) {
           if (!map.has(item.id)) {
             map.set(item.id, item);
           }
@@ -1545,11 +1578,15 @@
     function mergeVendors(localVendors, serverVendors) {
       const map = new Map();
       (serverVendors || []).forEach(v => {
-        if (v && v.name) map.set(v.name.toLowerCase(), v);
+        if (v && v.name && !isItemDeleted(v) && !isItemDeleted({ id: v.name })) {
+          map.set(v.name.toLowerCase(), v);
+        }
       });
       (localVendors || []).forEach(v => {
-        if (v && v.name && !map.has(v.name.toLowerCase())) {
-          map.set(v.name.toLowerCase(), v);
+        if (v && v.name && !isItemDeleted(v) && !isItemDeleted({ id: v.name })) {
+          if (!map.has(v.name.toLowerCase())) {
+            map.set(v.name.toLowerCase(), v);
+          }
         }
       });
       return Array.from(map.values());
@@ -1576,21 +1613,22 @@
           isSQLiteOnline = true;
           updateSyncBadge(true);
 
-          const serverProjects = serverData.projects || [];
-          const serverMaterials = serverData.materials || [];
-          const serverLabor = serverData.labor || [];
-          const serverTxns = serverData.transactions || [];
-          const serverSuppPay = serverData.supplierPayments || [];
-          const serverVendors = serverData.vendors || [];
-          const serverLaborHistory = serverData.laborWeeklyHistory || [];
+          const deletedIdsArray = Array.from(getDeletedIds());
+          const serverProjects = (serverData.projects || []).filter(p => !isItemDeleted(p));
+          const serverMaterials = (serverData.materials || []).filter(m => !isItemDeleted(m));
+          const serverLabor = (serverData.labor || []).filter(l => !isItemDeleted(l));
+          const serverTxns = (serverData.transactions || []).filter(t => !isItemDeleted(t));
+          const serverSuppPay = (serverData.supplierPayments || []).filter(s => !isItemDeleted(s));
+          const serverVendors = (serverData.vendors || []).filter(v => !isItemDeleted(v) && !isItemDeleted({ id: v.name }));
+          const serverLaborHistory = (serverData.laborWeeklyHistory || []).filter(h => !isItemDeleted(h));
 
-          const localProjects = appData.projects || [];
-          const localMaterials = appData.materials || [];
-          const localLabor = appData.labor || [];
-          const localTxns = appData.transactions || [];
-          const localSuppPay = appData.supplierPayments || [];
-          const localVendors = appData.vendors || [];
-          const localLaborHistory = appData.laborWeeklyHistory || [];
+          const localProjects = (appData.projects || []).filter(p => !isItemDeleted(p));
+          const localMaterials = (appData.materials || []).filter(m => !isItemDeleted(m));
+          const localLabor = (appData.labor || []).filter(l => !isItemDeleted(l));
+          const localTxns = (appData.transactions || []).filter(t => !isItemDeleted(t));
+          const localSuppPay = (appData.supplierPayments || []).filter(s => !isItemDeleted(s));
+          const localVendors = (appData.vendors || []).filter(v => !isItemDeleted(v) && !isItemDeleted({ id: v.name }));
+          const localLaborHistory = (appData.laborWeeklyHistory || []).filter(h => !isItemDeleted(h));
 
           // Perform Bidirectional Union Merge (Zero-Loss across Git deploys & devices)
           const mergedProjects = mergeById(localProjects, serverProjects);
@@ -1608,7 +1646,8 @@
             mergedLabor.length > serverLabor.length ||
             mergedTxns.length > serverTxns.length ||
             mergedSuppPay.length > serverSuppPay.length ||
-            mergedLaborHistory.length > serverLaborHistory.length
+            mergedLaborHistory.length > serverLaborHistory.length ||
+            deletedIdsArray.length > 0
           );
 
           if (serverData.company && serverData.company.name) {
@@ -1628,14 +1667,11 @@
           saveLocalState();
           renderAll();
 
-          // If the server was missing any records from this device, push the merged dataset back to the cloud
+          // If the server was missing any records or has deleted items to purge, push back to cloud
           if (hasNewLocalRecords) {
-            console.log('🔄 Uploading local merged records to server to ensure 100% cloud sync...');
             apiFetch(`${API_URL}/sync/push`, {
               method: 'POST',
-              body: JSON.stringify(appData)
-            }).then(() => {
-              showSyncToast('☁️ Cloud database synchronized with all device records!');
+              body: JSON.stringify({ ...appData, deleted_ids: deletedIdsArray })
             }).catch(e => console.warn('Background sync push warning:', e));
           }
 
@@ -1990,13 +2026,15 @@
       }
     }
 
-    // --- Handlers: Delete Project from SQLite ---
     async function deleteProject(id, name) {
       const displayName = name || id || 'Site';
       if (!confirm(`Are you sure you want to delete site "${displayName}"?`)) return;
 
       const targetId = id || '';
       const targetName = (name || '').trim();
+
+      if (targetId) markIdAsDeleted(targetId);
+      if (targetName) markIdAsDeleted(targetName);
 
       // Filter out locally immediately
       appData.projects = (appData.projects || []).filter(p => {
@@ -2010,15 +2048,11 @@
       populateProjectDropdowns();
 
       try {
-        if (isSQLiteOnline) {
-          const deleteKey = targetId || targetName;
-          await apiFetch(`${API_URL}/projects/${encodeURIComponent(deleteKey)}`, { method: 'DELETE' });
-          await fetchFromSQLite();
-        }
-        showSyncToast(`Site "${displayName}" deleted successfully.`);
+        const deleteKey = targetId || targetName;
+        await apiFetch(`${getApiUrl()}/projects/${encodeURIComponent(deleteKey)}`, { method: 'DELETE' });
+        showSyncToast(`Site "${displayName}" deleted permanently.`);
       } catch (err) {
-        console.error('Failed to delete project from SQLite:', err);
-        alert('Failed to delete site: ' + (err.message || err));
+        console.warn('Failed to delete project from SQLite backend:', err);
       }
     }
 
@@ -2233,18 +2267,17 @@
     }
 
     async function deleteLabor(id) {
-      if (confirm('Delete this labour record from SQLite?')) {
-        appData.labor = (appData.labor || []).filter(l => l.id !== id);
-        saveLocalState();
-        renderAll();
-        try {
-          if (isSQLiteOnline) {
-            await apiFetch(`${API_URL}/labor/${encodeURIComponent(id)}`, { method: 'DELETE' });
-            await fetchFromSQLite();
-          }
-        } catch (err) {
-          console.error(err);
-        }
+      if (!id) return;
+      if (!confirm('Delete this labour record from SQLite?')) return;
+      markIdAsDeleted(id);
+      appData.labor = (appData.labor || []).filter(l => l.id !== id);
+      saveLocalState();
+      renderAll();
+      try {
+        await apiFetch(`${getApiUrl()}/labor/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        showSyncToast('Labour record deleted permanently.');
+      } catch (err) {
+        console.warn('Backend delete labor offline:', err);
       }
     }
 
@@ -2538,22 +2571,24 @@
       const item = (appData.laborWeeklyHistory || []).find(h => h.id === id);
       const label = (item && item.week_label) ? item.week_label : (item ? `Week Ending ${item.week_ending}` : id);
 
-      if (!confirm(`Are you sure you want to delete "${label}" from history?`)) return;
+      if (!confirm(`Are you sure you want to permanently delete "${label}" from history?`)) return;
 
-      // Immediately purge from memory and local storage
-      appData.laborWeeklyHistory = (appData.laborWeeklyHistory || []).filter(h => h.id !== id);
+      // 1. Mark as permanently deleted tombstone so background polling will never resurrect it
+      markIdAsDeleted(id);
+      if (item && item.week_label) markIdAsDeleted(item.week_label);
+
+      // 2. Immediately purge from memory and local storage
+      appData.laborWeeklyHistory = (appData.laborWeeklyHistory || []).filter(h => h.id !== id && (!item || h.week_label !== item.week_label));
       saveLocalState();
       renderAll();
 
+      // 3. Send DELETE to SQLite / Cloud backend
       try {
-        if (isSQLiteOnline) {
-          await apiFetch(`${API_URL}/labor/history/${encodeURIComponent(id)}`, { method: 'DELETE' });
-          await fetchFromSQLite();
-        }
-        showSyncToast(`"${label}" deleted from history.`);
+        const targetUrl = `${getApiUrl()}/labor/history/${encodeURIComponent(id)}`;
+        await apiFetch(targetUrl, { method: 'DELETE' });
+        showSyncToast(`"${label}" permanently deleted.`);
       } catch (err) {
-        console.error('Error deleting history record:', err);
-        alert('Error deleting: ' + (err.message || err));
+        console.warn('Backend delete error/offline:', err);
       }
     }
 
@@ -2784,19 +2819,16 @@
 
     async function deleteMaterial(id) {
       if (!id) return;
-      if (confirm('Delete this material record from SQLite?')) {
-        if (isSQLiteOnline) {
-          try {
-            await apiFetch(`${API_URL}/materials/${encodeURIComponent(id)}`, { method: 'DELETE' });
-            await fetchFromSQLite();
-          } catch(e) {
-            console.error('Error deleting material:', e);
-          }
-        } else {
-          appData.materials = (appData.materials || []).filter(m => m.id !== id);
-          saveLocalState();
-          renderAll();
-        }
+      if (!confirm('Delete this material record from SQLite?')) return;
+      markIdAsDeleted(id);
+      appData.materials = (appData.materials || []).filter(m => m.id !== id);
+      saveLocalState();
+      renderAll();
+      try {
+        await apiFetch(`${getApiUrl()}/materials/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        showSyncToast('Material record deleted permanently.');
+      } catch(e) {
+        console.warn('Error deleting material from backend:', e);
       }
     }
 
@@ -3328,14 +3360,17 @@
     }
 
     async function deleteTransaction(id) {
-      if (confirm('Delete this transaction record from SQLite?')) {
-        if (isSQLiteOnline) {
-          await apiFetch(`${API_URL}/transactions/${id}`, { method: 'DELETE' });
-          await fetchFromSQLite();
-        } else {
-          appData.transactions = appData.transactions.filter(t => t.id !== id);
-          renderAll();
-        }
+      if (!id) return;
+      if (!confirm('Delete this transaction record from SQLite?')) return;
+      markIdAsDeleted(id);
+      appData.transactions = (appData.transactions || []).filter(t => t.id !== id);
+      saveLocalState();
+      renderAll();
+      try {
+        await apiFetch(`${getApiUrl()}/transactions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        showSyncToast('Transaction deleted permanently.');
+      } catch (err) {
+        console.warn('Backend delete transaction offline:', err);
       }
     }
 
@@ -4380,17 +4415,6 @@
       safeLucideIcons();
     }
 
-    async function deleteMaterial(id) {
-      if (confirm('Delete this material record from SQLite?')) {
-        if (isSQLiteOnline) {
-          await fetch(`${API_URL}/materials/${id}`, { method: 'DELETE' });
-          await fetchFromSQLite();
-        } else {
-          appData.materials = (appData.materials || []).filter(m => m.id !== id);
-          renderAll();
-        }
-      }
-    }
 
     // Initial boot & Auto-Reconnect lifecycle
     window.addEventListener('DOMContentLoaded', () => {
