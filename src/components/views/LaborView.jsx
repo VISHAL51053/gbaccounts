@@ -127,79 +127,90 @@ export const LaborView = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 font-medium">
-              {laborRoster.map((worker) => {
-                const assignedProj = projects.find(p => p.id === worker.siteAssigned);
-                const grossEarned = worker.daysPresentThisMonth * worker.dailyRate;
-                const netPayable = Math.max(0, grossEarned - (worker.advancePaid || 0));
+              {laborRoster.length === 0 ? (
+                <tr>
+                  <td colSpan="9" className="py-8 text-center text-slate-400 text-sm">
+                    No labour records found. Click <strong>"+ Add Labour"</strong> to enroll workers.
+                  </td>
+                </tr>
+              ) : (
+                laborRoster.map((worker, index) => {
+                  const assignedProj = projects.find(p => p.id === worker.siteAssigned);
+                  const grossEarned = worker.daysPresentThisMonth * worker.dailyRate;
+                  const netPayable = Math.max(0, grossEarned - (worker.advancePaid || 0));
 
-                return (
-                  <tr key={worker.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-white text-sm">{worker.name}</div>
-                      <div className="text-[11px] text-slate-400 font-mono">{worker.id} • {worker.phone}</div>
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                        {worker.role}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-300">{assignedProj ? assignedProj.name : 'General HQ'}</td>
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-200 text-right">{formatINR(worker.dailyRate)}/day</td>
-                    <td className="py-3.5 px-4 text-center font-bold text-white">
-                      <div className="inline-flex items-center gap-1.5 bg-slate-800 px-2 py-0.5 rounded-md border border-slate-700">
-                        <span>{worker.daysPresentThisMonth}</span>
+                  return (
+                    <tr key={worker.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-white text-sm">
+                          <span className="text-amber-400 font-mono mr-1.5">{index + 1}.</span>
+                          {worker.name}
+                        </div>
+                        <div className="text-[11px] text-slate-400 font-mono">{worker.id} • {worker.phone}</div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                          {worker.role}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-slate-300">{assignedProj ? assignedProj.name : 'General HQ'}</td>
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-200 text-right">{formatINR(worker.dailyRate)}/day</td>
+                      <td className="py-3.5 px-4 text-center font-bold text-white">
+                        <div className="inline-flex items-center gap-1.5 bg-slate-800 px-2 py-0.5 rounded-md border border-slate-700">
+                          <span>{worker.daysPresentThisMonth}</span>
+                          <button 
+                            onClick={() => {
+                              const newDays = prompt(`Update attendance days for ${worker.name}:`, worker.daysPresentThisMonth);
+                              if (newDays !== null) updateLabor(worker.id, { daysPresentThisMonth: parseInt(newDays) || 0 });
+                            }}
+                            className="text-[10px] text-amber-400 hover:underline cursor-pointer"
+                          >
+                            edit
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono text-slate-300 text-right">{formatINR(grossEarned)}</td>
+                      <td className="py-3.5 px-4 font-mono text-rose-400 text-right">
+                        {formatINR(worker.advancePaid || 0)}
                         <button 
                           onClick={() => {
-                            const newDays = prompt(`Update attendance days for ${worker.name}:`, worker.daysPresentThisMonth);
-                            if (newDays !== null) updateLabor(worker.id, { daysPresentThisMonth: parseInt(newDays) || 0 });
+                            const adv = prompt(`Add Advance Amount for ${worker.name}:`, '1000');
+                            if (adv !== null) {
+                              const addVal = parseInt(adv) || 0;
+                              updateLabor(worker.id, { advancePaid: (worker.advancePaid || 0) + addVal });
+                            }
                           }}
-                          className="text-[10px] text-amber-400 hover:underline cursor-pointer"
+                          className="block text-[10px] text-amber-400 hover:underline cursor-pointer ml-auto"
                         >
-                          edit
+                          + advance
                         </button>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 font-mono text-slate-300 text-right">{formatINR(grossEarned)}</td>
-                    <td className="py-3.5 px-4 font-mono text-rose-400 text-right">
-                      {formatINR(worker.advancePaid || 0)}
-                      <button 
-                        onClick={() => {
-                          const adv = prompt(`Add Advance Amount for ${worker.name}:`, '1000');
-                          if (adv !== null) {
-                            const addVal = parseInt(adv) || 0;
-                            updateLabor(worker.id, { advancePaid: (worker.advancePaid || 0) + addVal });
-                          }
-                        }}
-                        className="block text-[10px] text-amber-400 hover:underline cursor-pointer ml-auto"
-                      >
-                        + advance
-                      </button>
-                    </td>
-                    <td className="py-3.5 px-4 font-mono font-bold text-emerald-400 text-right text-sm">
-                      {formatINR(netPayable)}
-                    </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleDisburseWage(worker)}
-                          disabled={netPayable <= 0}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-slate-950 font-bold text-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                        >
-                          Disburse Wage
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm(`Remove worker ${worker.name}?`)) deleteLabor(worker.id);
-                          }}
-                          className="p-1 rounded-lg bg-slate-800 text-rose-400 hover:bg-rose-950 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="py-3.5 px-4 font-mono font-bold text-emerald-400 text-right text-sm">
+                        {formatINR(netPayable)}
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleDisburseWage(worker)}
+                            disabled={netPayable <= 0}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-slate-950 font-bold text-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            Disburse Wage
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Remove worker ${worker.name}?`)) deleteLabor(worker.id);
+                            }}
+                            className="p-1 rounded-lg bg-slate-800 text-rose-400 hover:bg-rose-950 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
