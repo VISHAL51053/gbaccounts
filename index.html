@@ -386,6 +386,20 @@
           <div>
             <h2 class="text-2xl font-black text-white m-0">Materials Payment</h2>
           </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="openMaterialsGoogleSheetView()" class="px-3.5 py-2 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/70 text-emerald-300 font-bold text-xs border border-emerald-500/40 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="table" class="w-4 h-4 text-emerald-400"></i>
+              <span>Live Google Sheet</span>
+            </button>
+            <button onclick="exportMaterialsGoogleSheets()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>Download CSV</span>
+            </button>
+            <button onclick="printMaterialsPaymentStatement()" class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="printer" class="w-4 h-4"></i>
+              <span>Print Statement</span>
+            </button>
+          </div>
         </div>
 
         <!-- KPI Metrics Summary for Materials by Supplier -->
@@ -431,7 +445,15 @@
           <div>
             <h2 class="text-2xl font-black text-white m-0">Material Entry</h2>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="openMaterialsGoogleSheetView()" class="px-3.5 py-2 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/70 text-emerald-300 font-bold text-xs border border-emerald-500/40 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="table" class="w-4 h-4 text-emerald-400"></i>
+              <span>Live Google Sheet</span>
+            </button>
+            <button onclick="exportMaterialsGoogleSheets()" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>Download CSV</span>
+            </button>
             <button onclick="openModal('modalVendor')" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-md flex items-center gap-1.5 cursor-pointer transition-colors">
               <i data-lucide="folder-plus" class="w-4 h-4"></i>
               <span>+ Add Material Supplier</span>
@@ -2351,8 +2373,486 @@
     }
 
     function openLabourGoogleSheetView() {
-      const url = `${getApiUrl()}/labor/sheet`;
-      window.open(url, '_blank');
+      const summary = getLabourWeeklySummary();
+      const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const compName = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
+      const compAddress = (appData.company && appData.company.address) || 'Chennai, Tamil Nadu';
+
+      const rowsHtml = summary.rows.map(r => `
+        <tr>
+          <td style="text-align:center;">${r.index}</td>
+          <td style="font-weight:bold;">${escapeHtml(r.name)}</td>
+          <td style="text-align:center;"><span style="display:inline-block; padding:2px 8px; border-radius:10px; font-weight:bold; font-size:11px; background:${r.role === 'Ma' ? '#fef3c7; color:#92400e' : '#e0f2fe; color:#0369a1'};">${r.role}</span></td>
+          <td style="text-align:center;">${r.duties['Mon'] || '-'}</td>
+          <td style="text-align:center;">${r.duties['Tue'] || '-'}</td>
+          <td style="text-align:center;">${r.duties['Wed'] || '-'}</td>
+          <td style="text-align:center;">${r.duties['Thu'] || '-'}</td>
+          <td style="text-align:center;">${r.duties['Fri'] || '-'}</td>
+          <td style="text-align:center;">${r.duties['Sat'] || '-'}</td>
+          <td style="text-align:center;">${r.duties['Sun'] || '-'}</td>
+          <td style="text-align:center; font-weight:bold;">${r.days}</td>
+          <td style="text-align:right; font-family:monospace; font-weight:bold; color:#059669;">${formatINR(r.amount)}</td>
+        </tr>
+      `).join('');
+
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(compName)} - Weekly Labour Attendance Google Sheet</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f8fafc; color: #1e293b; padding: 20px; }
+    .sheet-header { background: #0f9d58; color: white; padding: 14px 20px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; }
+    .sheet-title { font-size: 18px; font-weight: bold; }
+    .sheet-actions { display: flex; gap: 8px; }
+    .btn { padding: 7px 14px; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; border: none; }
+    .btn-white { background: white; color: #0f9d58; }
+    .btn-dark { background: #0b8043; color: white; }
+    .sheet-body { background: white; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 8px 8px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    .company-banner { display: flex; justify-content: space-between; border-bottom: 2px solid #0f9d58; padding-bottom: 14px; margin-bottom: 20px; }
+    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-box { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; }
+    .stat-label { font-size: 11px; text-transform: uppercase; font-weight: bold; color: #64748b; }
+    .stat-val { font-size: 20px; font-weight: 800; margin-top: 4px; font-family: monospace; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }
+    th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px 10px; font-weight: bold; text-transform: uppercase; font-size: 11px; color: #475569; }
+    td { border: 1px solid #e2e8f0; padding: 8px 10px; }
+    tr:nth-child(even) { background: #f8fafc; }
+    @media print {
+      body { padding: 0; background: white; }
+      .sheet-header, .sheet-actions, .no-print { display: none !important; }
+      .sheet-body { border: none; box-shadow: none; padding: 0; }
+      th { background: #e2e8f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { margin: 1.5cm; size: landscape; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet-header no-print">
+    <div class="sheet-title">📊 Google Sheets Live View • Labour Attendance</div>
+    <div class="sheet-actions">
+      <button onclick="window.print()" class="btn btn-white">🖨️ Print / Save PDF</button>
+      <button onclick="window.opener ? window.opener.exportLabourGoogleSheets() : window.print()" class="btn btn-dark">📥 Download CSV</button>
+      <button onclick="window.close()" class="btn btn-dark">✖ Close</button>
+    </div>
+  </div>
+  <div class="sheet-body">
+    <div class="company-banner">
+      <div>
+        <h1 style="font-size:22px; color:#0f172a; font-weight:900;">${escapeHtml(compName)}</h1>
+        <p style="font-size:12px; color:#64748b;">${escapeHtml(compAddress)}</p>
+        <p style="font-size:12px; color:#0f9d58; font-weight:bold; margin-top:4px;">WEEKLY LABOUR ATTENDANCE & WAGES MASTER SHEET</p>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:bold;">Date</div>
+        <div style="font-size:14px; font-weight:bold;">${today}</div>
+      </div>
+    </div>
+    <div class="stats-bar">
+      <div class="stat-box">
+        <div class="stat-label">Total Labour Wages</div>
+        <div class="stat-val" style="color:#059669;">${formatINR(summary.grandTotal)}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Active Workers</div>
+        <div class="stat-val" style="color:#2563eb;">${summary.totalWorkers}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Total Shifts / Days</div>
+        <div class="stat-val" style="color:#d97706;">${summary.totalDaysAll} Days</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Masons (Ma)</div>
+        <div class="stat-val" style="color:#92400e;">${summary.maRows.length}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Helpers (Mm)</div>
+        <div class="stat-val" style="color:#0369a1;">${summary.mmRows.length}</div>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px; text-align:center;">S.No</th>
+          <th>Worker Name</th>
+          <th style="text-align:center;">Role</th>
+          <th style="text-align:center;">Mon</th>
+          <th style="text-align:center;">Tue</th>
+          <th style="text-align:center;">Wed</th>
+          <th style="text-align:center;">Thu</th>
+          <th style="text-align:center;">Fri</th>
+          <th style="text-align:center;">Sat</th>
+          <th style="text-align:center;">Sun</th>
+          <th style="text-align:center;">Days</th>
+          <th style="text-align:right;">Weekly Wage (₹)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml || '<tr><td colspan="12" style="text-align:center; padding:16px;">No labour records.</td></tr>'}
+      </tbody>
+      <tfoot>
+        <tr style="background:#f1f5f9; font-weight:bold;">
+          <td colspan="10" style="text-align:right; text-transform:uppercase;">Grand Total Wages:</td>
+          <td style="text-align:center;">${summary.totalDaysAll}</td>
+          <td style="text-align:right; font-family:monospace; color:#059669;">${formatINR(summary.grandTotal)}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</body>
+</html>`;
+
+      const newWin = window.open('', '_blank');
+      if (newWin) {
+        newWin.document.open();
+        newWin.document.write(html);
+        newWin.document.close();
+      } else {
+        alert('Please allow popups to view the Google Sheet statement.');
+      }
+    }
+
+    function openMaterialsGoogleSheetView() {
+      const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const compName = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
+      const compAddress = (appData.company && appData.company.address) || 'Chennai, Tamil Nadu';
+      const compPhone = (appData.company && appData.company.phone) || '';
+
+      const suppliersList = [];
+      const seenVendorNames = new Set();
+      (appData.vendors || []).forEach(v => {
+        if (v.name && !seenVendorNames.has(v.name.toLowerCase())) {
+          seenVendorNames.add(v.name.toLowerCase());
+          suppliersList.push({ id: v.id, name: v.name, role: v.role || v.category || 'Raw Materials' });
+        }
+      });
+      (appData.materials || []).forEach(m => {
+        const vName = m.vendor || 'General Supplier';
+        if (vName && !seenVendorNames.has(vName.toLowerCase())) {
+          seenVendorNames.add(vName.toLowerCase());
+          suppliersList.push({ id: 'VND-' + encodeURIComponent(vName), name: vName, role: m.category || 'Raw Materials' });
+        }
+      });
+
+      const totalAllMatCost = (appData.materials || []).reduce((s, m) => s + (Number(m.amount) || 0), 0);
+      const totalAllSuppPaid = (appData.supplierPayments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+      const totalAllSuppBalance = totalAllMatCost - totalAllSuppPaid;
+
+      const supplierSummaryRows = suppliersList.map((supp, idx) => {
+        const suppMats = (appData.materials || []).filter(m => (m.vendor || '').toLowerCase() === supp.name.toLowerCase());
+        const totalCost = suppMats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+        
+        let suppPaid = 0;
+        (appData.supplierPayments || []).forEach(p => {
+          if ((p.vendor || '').toLowerCase() === supp.name.toLowerCase()) {
+            suppPaid += (Number(p.amount) || 0);
+          }
+        });
+        const suppBalance = totalCost - suppPaid;
+        const sites = Array.from(new Set(suppMats.map(m => m.project_name || m.project || 'General Site'))).join(', ') || '-';
+        const status = suppBalance <= 0 ? 'Settled' : 'Pending';
+
+        return `
+          <tr>
+            <td style="text-align:center;">${idx + 1}</td>
+            <td style="font-weight:bold;">${escapeHtml(supp.name)}</td>
+            <td>${escapeHtml(supp.role)}</td>
+            <td>${escapeHtml(sites)}</td>
+            <td style="text-align:center;">${suppMats.length}</td>
+            <td style="text-align:right; font-family:monospace; font-weight:bold;">${formatINR(totalCost)}</td>
+            <td style="text-align:right; font-family:monospace; font-weight:bold; color:#059669;">${formatINR(suppPaid)}</td>
+            <td style="text-align:right; font-family:monospace; font-weight:bold; color:${suppBalance > 0 ? '#dc2626' : '#059669'};">${formatINR(suppBalance)}</td>
+            <td style="text-align:center;"><span style="display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold; background:${suppBalance <= 0 ? '#d1fae5; color:#065f46' : '#fee2e2; color:#991b1b'};">${status}</span></td>
+          </tr>
+        `;
+      }).join('');
+
+      const materialRows = (appData.materials || []).map((m, idx) => `
+        <tr>
+          <td style="text-align:center;">${idx + 1}</td>
+          <td>${m.date || '-'}</td>
+          <td style="font-weight:600;">${escapeHtml(m.vendor || 'General Supplier')}</td>
+          <td>${escapeHtml(m.project_name || m.project || '-')}</td>
+          <td style="font-weight:600;">${escapeHtml(m.item || '-')}</td>
+          <td>${escapeHtml(m.category || '-')}</td>
+          <td style="text-align:right; font-family:monospace; font-weight:bold; color:#dc2626;">${formatINR(m.amount)}</td>
+        </tr>
+      `).join('');
+
+      const paymentRows = (appData.supplierPayments || []).map((p, idx) => `
+        <tr>
+          <td style="text-align:center;">${idx + 1}</td>
+          <td>${p.date || '-'}</td>
+          <td style="font-weight:600;">${escapeHtml(p.vendor || '-')}</td>
+          <td>${escapeHtml(p.project_name || '-')}</td>
+          <td style="text-align:right; font-family:monospace; font-weight:bold; color:#059669;">${formatINR(p.amount)}</td>
+          <td>${escapeHtml(p.mode || 'Cash')}</td>
+          <td>${escapeHtml(p.notes || '-')}</td>
+        </tr>
+      `).join('');
+
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(compName)} - Material Payment Google Sheet</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f8fafc; color: #1e293b; padding: 20px; }
+    .sheet-header { background: #0f9d58; color: white; padding: 14px 20px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; }
+    .sheet-title { font-size: 18px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+    .sheet-actions { display: flex; gap: 8px; }
+    .btn { padding: 7px 14px; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-white { background: white; color: #0f9d58; }
+    .btn-white:hover { background: #f1f5f9; }
+    .btn-dark { background: #0b8043; color: white; }
+    .btn-dark:hover { background: #086a37; }
+    .sheet-body { background: white; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 8px 8px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    .company-banner { display: flex; justify-content: space-between; border-bottom: 2px solid #0f9d58; padding-bottom: 14px; margin-bottom: 20px; }
+    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-box { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; }
+    .stat-label { font-size: 11px; text-transform: uppercase; font-weight: bold; color: #64748b; }
+    .stat-val { font-size: 20px; font-weight: 800; margin-top: 4px; font-family: monospace; }
+    .section-title { font-size: 14px; font-weight: bold; text-transform: uppercase; color: #0f9d58; margin: 24px 0 10px; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }
+    th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px 10px; font-weight: bold; text-align: left; text-transform: uppercase; font-size: 11px; color: #475569; }
+    td { border: 1px solid #e2e8f0; padding: 8px 10px; }
+    tr:nth-child(even) { background: #f8fafc; }
+    tr:hover { background: #f1f5f9; }
+    .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 24px; padding-top: 14px; border-top: 1px solid #e2e8f0; }
+    @media print {
+      body { padding: 0; background: white; }
+      .sheet-header, .sheet-actions, .no-print { display: none !important; }
+      .sheet-body { border: none; box-shadow: none; padding: 0; }
+      th { background: #e2e8f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      tr:nth-child(even) { background: #f8fafc !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { margin: 1.5cm; size: landscape; }
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet-header no-print">
+    <div class="sheet-title">
+      <span>📊 Google Sheets Live View • Material Payment Directory</span>
+    </div>
+    <div class="sheet-actions">
+      <button onclick="window.print()" class="btn btn-white">🖨️ Print / Save PDF</button>
+      <button onclick="window.opener ? window.opener.exportMaterialsGoogleSheets() : window.print()" class="btn btn-dark">📥 Download CSV</button>
+      <button onclick="window.close()" class="btn btn-dark">✖ Close</button>
+    </div>
+  </div>
+
+  <div class="sheet-body">
+    <div class="company-banner">
+      <div>
+        <h1 style="font-size:22px; color:#0f172a; font-weight:900;">${escapeHtml(compName)}</h1>
+        <p style="font-size:12px; color:#64748b; margin-top:2px;">${escapeHtml(compAddress)} ${compPhone ? '• Phone: ' + escapeHtml(compPhone) : ''}</p>
+        <p style="font-size:12px; color:#0f9d58; font-weight:bold; margin-top:4px;">OFFICIAL MATERIALS PROCUREMENT & PAYMENT MASTER STATEMENT</p>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:bold;">Statement Date</div>
+        <div style="font-size:14px; font-weight:bold; color:#0f172a;">${today}</div>
+        <div style="font-size:11px; color:#059669; font-weight:bold; margin-top:4px;">● Upto-Date Synchronized</div>
+      </div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-box">
+        <div class="stat-label">Total Material Purchases</div>
+        <div class="stat-val" style="color:#dc2626;">${formatINR(totalAllMatCost)}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Total Amount Paid</div>
+        <div class="stat-val" style="color:#059669;">${formatINR(totalAllSuppPaid)}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Total Outstanding Balance</div>
+        <div class="stat-val" style="color:#d97706;">${formatINR(totalAllSuppBalance)}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Registered Suppliers</div>
+        <div class="stat-val" style="color:#2563eb;">${suppliersList.length}</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Deliveries Logged</div>
+        <div class="stat-val" style="color:#0f172a;">${(appData.materials || []).length}</div>
+      </div>
+    </div>
+
+    <div class="section-title">1. Supplier Accounts & Payment Balance Summary</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px; text-align:center;">S.No</th>
+          <th>Supplier / Vendor Name</th>
+          <th>Category</th>
+          <th>Sites Supplied</th>
+          <th style="text-align:center;">Bills</th>
+          <th style="text-align:right;">Total Cost (₹)</th>
+          <th style="text-align:right;">Paid (₹)</th>
+          <th style="text-align:right;">Balance Due (₹)</th>
+          <th style="text-align:center;">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${supplierSummaryRows || '<tr><td colspan="9" style="text-align:center; padding:16px; color:#94a3b8;">No supplier records logged yet.</td></tr>'}
+      </tbody>
+      <tfoot>
+        <tr style="background:#f1f5f9; font-weight:bold; font-size:12px;">
+          <td colspan="5" style="text-align:right; text-transform:uppercase;">Grand Totals:</td>
+          <td style="text-align:right; font-family:monospace; color:#dc2626;">${formatINR(totalAllMatCost)}</td>
+          <td style="text-align:right; font-family:monospace; color:#059669;">${formatINR(totalAllSuppPaid)}</td>
+          <td style="text-align:right; font-family:monospace; color:${totalAllSuppBalance > 0 ? '#dc2626' : '#059669'};">${formatINR(totalAllSuppBalance)}</td>
+          <td style="text-align:center;">${totalAllSuppBalance <= 0 ? 'All Settled' : 'Active'}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="section-title">2. Itemized Raw Material Purchases & Delivery Log</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:40px; text-align:center;">S.No</th>
+          <th style="width:90px;">Date</th>
+          <th>Supplier</th>
+          <th>Project / Site</th>
+          <th>Material / Description</th>
+          <th>Category</th>
+          <th style="text-align:right;">Amount (₹)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${materialRows || '<tr><td colspan="7" style="text-align:center; padding:16px; color:#94a3b8;">No material purchases recorded yet.</td></tr>'}
+      </tbody>
+      <tfoot>
+        <tr style="background:#f1f5f9; font-weight:bold;">
+          <td colspan="6" style="text-align:right; text-transform:uppercase;">Total Material Value:</td>
+          <td style="text-align:right; font-family:monospace; color:#dc2626;">${formatINR(totalAllMatCost)}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    ${paymentRows ? `
+      <div class="section-title">3. Supplier Payment Transactions History</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:40px; text-align:center;">S.No</th>
+            <th style="width:90px;">Date</th>
+            <th>Supplier</th>
+            <th>Site</th>
+            <th style="text-align:right;">Paid Amount (₹)</th>
+            <th>Mode</th>
+            <th>Remarks / Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${paymentRows}
+        </tbody>
+        <tfoot>
+          <tr style="background:#f1f5f9; font-weight:bold;">
+            <td colspan="4" style="text-align:right; text-transform:uppercase;">Total Payments Settled:</td>
+            <td style="text-align:right; font-family:monospace; color:#059669;">${formatINR(totalAllSuppPaid)}</td>
+            <td colspan="2"></td>
+          </tr>
+        </tfoot>
+      </table>
+    ` : ''}
+
+    <div class="footer">
+      Generated automatically by <strong>${escapeHtml(compName)} Management ERP System</strong> on ${today}. Confidential & Proprietary.
+    </div>
+  </div>
+</body>
+</html>`;
+
+      const newWin = window.open('', '_blank');
+      if (newWin) {
+        newWin.document.open();
+        newWin.document.write(html);
+        newWin.document.close();
+      } else {
+        alert('Please allow popups to view the Google Sheet statement.');
+      }
+    }
+
+    function exportMaterialsGoogleSheets() {
+      const today = new Date().toISOString().split('T')[0];
+      const compName = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
+
+      let csv = `"${compName} - Up-to-Date Material Purchases & Payment Directory (${today})"\n\n`;
+      
+      csv += `"=== SUPPLIER ACCOUNTS & PAYMENT SUMMARY ==="\n`;
+      csv += `"S.No","Supplier Name","Category","Total Cost (INR)","Total Paid (INR)","Balance Due (INR)","Status"\n`;
+
+      const suppliersList = [];
+      const seenVendorNames = new Set();
+      (appData.vendors || []).forEach(v => {
+        if (v.name && !seenVendorNames.has(v.name.toLowerCase())) {
+          seenVendorNames.add(v.name.toLowerCase());
+          suppliersList.push({ name: v.name, role: v.role || v.category || 'Raw Materials' });
+        }
+      });
+      (appData.materials || []).forEach(m => {
+        const vName = m.vendor || 'General Supplier';
+        if (vName && !seenVendorNames.has(vName.toLowerCase())) {
+          seenVendorNames.add(vName.toLowerCase());
+          suppliersList.push({ name: vName, role: m.category || 'Raw Materials' });
+        }
+      });
+
+      let grandCost = 0;
+      let grandPaid = 0;
+
+      suppliersList.forEach((supp, idx) => {
+        const suppMats = (appData.materials || []).filter(m => (m.vendor || '').toLowerCase() === supp.name.toLowerCase());
+        const totalCost = suppMats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+        let suppPaid = 0;
+        (appData.supplierPayments || []).forEach(p => {
+          if ((p.vendor || '').toLowerCase() === supp.name.toLowerCase()) {
+            suppPaid += (Number(p.amount) || 0);
+          }
+        });
+        const suppBalance = totalCost - suppPaid;
+        grandCost += totalCost;
+        grandPaid += suppPaid;
+
+        csv += `"${idx + 1}","${(supp.name || '').replace(/"/g, '""')}","${(supp.role || '').replace(/"/g, '""')}","${totalCost}","${suppPaid}","${suppBalance}","${suppBalance <= 0 ? 'Settled' : 'Pending'}"\n`;
+      });
+
+      const grandBalance = grandCost - grandPaid;
+      csv += `"","TOTALS:","","${grandCost}","${grandPaid}","${grandBalance}",""\n\n`;
+
+      csv += `"=== ITEMIZED MATERIAL PURCHASES & DELIVERIES LOG ==="\n`;
+      csv += `"S.No","Date","Supplier / Vendor","Project / Site","Material / Item","Category","Amount (INR)"\n`;
+
+      (appData.materials || []).forEach((m, idx) => {
+        csv += `"${idx + 1}","${m.date || ''}","${(m.vendor || '').replace(/"/g, '""')}","${(m.project_name || m.project || '').replace(/"/g, '""')}","${(m.item || '').replace(/"/g, '""')}","${(m.category || '').replace(/"/g, '""')}","${m.amount || 0}"\n`;
+      });
+
+      csv += `"","","","","","Total Material Cost:","${grandCost}"\n\n`;
+
+      if ((appData.supplierPayments || []).length > 0) {
+        csv += `"=== SUPPLIER PAYMENT SETTLEMENTS LOG ==="\n`;
+        csv += `"S.No","Date","Supplier / Vendor","Project / Site","Paid Amount (INR)","Payment Mode","Remarks"\n`;
+        (appData.supplierPayments || []).forEach((p, idx) => {
+          csv += `"${idx + 1}","${p.date || ''}","${(p.vendor || '').replace(/"/g, '""')}","${(p.project_name || '').replace(/"/g, '""')}","${p.amount || 0}","${(p.mode || 'Cash').replace(/"/g, '""')}","${(p.notes || '').replace(/"/g, '""')}"\n`;
+        });
+        csv += `"","","","Total Payments Paid:","${grandPaid}","",""\n`;
+      }
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.setAttribute('download', `GURUBARAN_BUILDERS_Materials_Payment_UptoDate_${today}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function printMaterialsPaymentStatement() {
+      openMaterialsGoogleSheetView();
     }
 
     function shareWeeklyLabourWhatsApp() {
