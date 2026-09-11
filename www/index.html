@@ -1669,7 +1669,7 @@
 
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
         // Fetch full snapshot in 1 fast query
         const fullRes = await apiFetch(`${API_URL}/sync/full`, { signal: controller.signal });
@@ -1680,67 +1680,27 @@
           isSQLiteOnline = true;
           updateSyncBadge(true);
 
-          const deletedIdsArray = Array.from(getDeletedIds());
-          const serverProjects = (serverData.projects || []).filter(p => !isItemDeleted(p));
-          const serverMaterials = (serverData.materials || []).filter(m => !isItemDeleted(m));
-          const serverLabor = (serverData.labor || []).filter(l => !isItemDeleted(l));
-          const serverTxns = (serverData.transactions || []).filter(t => !isItemDeleted(t));
-          const serverSuppPay = (serverData.supplierPayments || []).filter(s => !isItemDeleted(s));
-          const serverVendors = (serverData.vendors || []).filter(v => !isItemDeleted(v) && !isItemDeleted({ id: v.name }));
-          const serverLaborHistory = (serverData.laborWeeklyHistory || []).filter(h => !isItemDeleted(h));
-
-          const localProjects = (appData.projects || []).filter(p => !isItemDeleted(p));
-          const localMaterials = (appData.materials || []).filter(m => !isItemDeleted(m));
-          const localLabor = (appData.labor || []).filter(l => !isItemDeleted(l));
-          const localTxns = (appData.transactions || []).filter(t => !isItemDeleted(t));
-          const localSuppPay = (appData.supplierPayments || []).filter(s => !isItemDeleted(s));
-          const localVendors = (appData.vendors || []).filter(v => !isItemDeleted(v) && !isItemDeleted({ id: v.name }));
-          const localLaborHistory = (appData.laborWeeklyHistory || []).filter(h => !isItemDeleted(h));
-
-          // Perform Bidirectional Union Merge (Zero-Loss across Git deploys & devices)
-          const mergedProjects = mergeById(localProjects, serverProjects);
-          const mergedMaterials = mergeById(localMaterials, serverMaterials);
-          const mergedLabor = mergeById(localLabor, serverLabor);
-          const mergedTxns = mergeById(localTxns, serverTxns);
-          const mergedSuppPay = mergeById(localSuppPay, serverSuppPay);
-          const mergedVendors = mergeVendors(localVendors, serverVendors);
-          const mergedLaborHistory = mergeById(localLaborHistory, serverLaborHistory);
-
-          // Check if device has records that the server is missing
-          const hasNewLocalRecords = (
-            mergedProjects.length > serverProjects.length ||
-            mergedMaterials.length > serverMaterials.length ||
-            mergedLabor.length > serverLabor.length ||
-            mergedTxns.length > serverTxns.length ||
-            mergedSuppPay.length > serverSuppPay.length ||
-            mergedLaborHistory.length > serverLaborHistory.length ||
-            deletedIdsArray.length > 0
-          );
-
           if (serverData.company && serverData.company.name) {
             appData.company = serverData.company;
           }
-          appData.projects = mergedProjects;
-          appData.materials = mergedMaterials;
-          appData.labor = mergedLabor;
-          appData.vendors = mergedVendors;
+          appData.projects = Array.isArray(serverData.projects) ? serverData.projects : [];
+          appData.materials = Array.isArray(serverData.materials) ? serverData.materials : [];
+          appData.labor = Array.isArray(serverData.labor) ? serverData.labor : [];
+          appData.vendors = Array.isArray(serverData.vendors) ? serverData.vendors : [];
           if (Array.isArray(serverData.accounts) && serverData.accounts.length > 0) {
             appData.accounts = serverData.accounts;
           }
-          appData.transactions = mergedTxns;
-          appData.supplierPayments = mergedSuppPay;
-          appData.laborWeeklyHistory = mergedLaborHistory;
+          appData.transactions = Array.isArray(serverData.transactions) ? serverData.transactions : [];
+          appData.supplierPayments = Array.isArray(serverData.supplierPayments) ? serverData.supplierPayments : [];
+          appData.laborWeeklyHistory = Array.isArray(serverData.laborWeeklyHistory) ? serverData.laborWeeklyHistory : [];
+
+          // Clean up demo residues if any
+          appData.materials = appData.materials.filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk'));
+          appData.supplierPayments = appData.supplierPayments.filter(p => !p || !p.vendor || (!p.vendor.toLowerCase().includes('palk') && !p.vendor.toLowerCase().includes('amman') && !p.vendor.toLowerCase().includes('prakash') && Number(p.amount) !== 9000 && Number(p.amount) !== 30000 && Number(p.amount) !== 25000 && Number(p.amount) !== 39000));
+          appData.vendors = appData.vendors.filter(v => !v || !v.name || !v.name.toLowerCase().includes('palk'));
 
           saveLocalState();
           renderAll();
-
-          // If the server was missing any records or has deleted items to purge, push back to cloud
-          if (hasNewLocalRecords) {
-            apiFetch(`${API_URL}/sync/push`, {
-              method: 'POST',
-              body: JSON.stringify({ ...appData, deleted_ids: deletedIdsArray })
-            }).catch(e => console.warn('Background sync push warning:', e));
-          }
 
           return true;
         }

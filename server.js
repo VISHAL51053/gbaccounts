@@ -1398,9 +1398,19 @@ app.get('/api/sync/full', (req, res) => {
 
 app.post('/api/sync/push', (req, res) => {
   try {
-    const { company, projects, materials, labor, vendors, accounts, transactions, supplierPayments, laborWeeklyHistory, deleted_ids } = req.body;
+    const { company, projects, materials, labor, vendors, accounts, transactions, supplierPayments, laborWeeklyHistory, deleted_ids, replace } = req.body;
 
     const syncTransaction = db.transaction(() => {
+      if (replace === true) {
+        db.prepare('DELETE FROM materials').run();
+        db.prepare('DELETE FROM supplier_payments').run();
+        db.prepare('DELETE FROM transactions').run();
+        db.prepare('DELETE FROM labor_roster').run();
+        db.prepare('DELETE FROM vendors').run();
+        db.prepare('DELETE FROM projects').run();
+        db.prepare('DELETE FROM labor_weekly_history').run();
+      }
+
       // 0. Purge explicitly deleted IDs across all tables
       if (Array.isArray(deleted_ids) && deleted_ids.length > 0) {
         for (const delId of deleted_ids) {
@@ -1408,7 +1418,7 @@ app.post('/api/sync/push', (req, res) => {
           const cleanId = String(delId).trim();
           db.prepare('DELETE FROM labor_weekly_history WHERE id = ? OR week_label = ?').run(cleanId, cleanId);
           db.prepare('DELETE FROM projects WHERE id = ? OR name = ?').run(cleanId, cleanId);
-          db.prepare('DELETE FROM materials WHERE id = ?').run(cleanId);
+          db.prepare('DELETE FROM materials WHERE id = ? OR bill_number = ?').run(cleanId, cleanId);
           db.prepare('DELETE FROM labor_roster WHERE id = ? OR name = ?').run(cleanId, cleanId);
           db.prepare('DELETE FROM transactions WHERE id = ?').run(cleanId);
           db.prepare('DELETE FROM supplier_payments WHERE id = ?').run(cleanId);
