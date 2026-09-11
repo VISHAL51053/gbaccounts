@@ -1538,15 +1538,11 @@
         if (!Array.isArray(appData.supplierPayments)) {
           appData.supplierPayments = [];
         }
-        appData.supplierPayments = appData.supplierPayments.filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk') && !p.vendor.toLowerCase().includes('amman') && !p.vendor.toLowerCase().includes('prakash') && Number(p.amount) !== 39000 && Number(p.amount) !== 30000 && Number(p.amount) !== 25000 && Number(p.amount) !== 9000);
-        if (Array.isArray(appData.materials)) {
-          appData.materials = appData.materials.filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk'));
+        if (!Array.isArray(appData.materials)) {
+          appData.materials = [];
         }
-        if (Array.isArray(appData.vendors)) {
-          appData.vendors = appData.vendors.filter(v => !v || !v.name || !v.name.toLowerCase().includes('palk'));
-        }
-        if ((!appData.materials || appData.materials.length === 0) && (!appData.vendors || appData.vendors.length === 0)) {
-          appData.supplierPayments = [];
+        if (!Array.isArray(appData.vendors)) {
+          appData.vendors = [];
         }
         saveLocalState();
       } catch (err) {
@@ -1735,11 +1731,6 @@
           appData.transactions = serverTxns;
           appData.supplierPayments = serverSuppPay;
           appData.laborWeeklyHistory = serverLaborHistory;
-
-          // Clean up demo residues if any
-          appData.materials = appData.materials.filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk'));
-          appData.supplierPayments = appData.supplierPayments.filter(p => !p || !p.vendor || (!p.vendor.toLowerCase().includes('palk') && !p.vendor.toLowerCase().includes('amman') && !p.vendor.toLowerCase().includes('prakash') && Number(p.amount) !== 9000 && Number(p.amount) !== 30000 && Number(p.amount) !== 25000 && Number(p.amount) !== 39000));
-          appData.vendors = appData.vendors.filter(v => !v || !v.name || !v.name.toLowerCase().includes('palk'));
 
           saveLocalState();
           renderAll();
@@ -2563,10 +2554,10 @@
       const compAddress = (appData.company && appData.company.address) || 'Chennai, Tamil Nadu';
       const compPhone = (appData.company && appData.company.phone) || '';
 
-      const mats = (appData.materials || []).filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk')).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-      const pays = (appData.supplierPayments || []).filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk') && !p.vendor.toLowerCase().includes('amman') && !p.vendor.toLowerCase().includes('prakash') && Number(p.amount) !== 30000 && Number(p.amount) !== 25000 && Number(p.amount) !== 9000).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      const mats = (appData.materials || []).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      const pays = (appData.supplierPayments || []).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       const projects = appData.projects || [];
-      const vendors = (appData.vendors || []).filter(v => !v || !v.name || (!v.name.toLowerCase().includes('palk') && !v.name.toLowerCase().includes('amman') && !v.name.toLowerCase().includes('prakash')));
+      const vendors = appData.vendors || [];
 
       const totalMatCost = mats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
       const totalPaid = pays.reduce((s, p) => s + (Number(p.amount) || 0), 0);
@@ -2797,8 +2788,8 @@
       csv += `"=== 1. RAW MATERIAL PURCHASES MASTER LOG ==="\n`;
       csv += `"S.No","DATE","MATERIAL / DESCRIPTION","SITE","SUPPLIER","COST (INR)"\n`;
 
-      const rawMats = (appData.materials || []).filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk'));
-      const rawPays = (appData.supplierPayments || []).filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk') && !p.vendor.toLowerCase().includes('amman') && !p.vendor.toLowerCase().includes('prakash') && Number(p.amount) !== 30000 && Number(p.amount) !== 25000 && Number(p.amount) !== 9000);
+      const rawMats = (appData.materials || []).slice();
+      const rawPays = (appData.supplierPayments || []).slice();
 
       let totalMatCost = 0;
       rawMats.forEach((m, idx) => {
@@ -2852,7 +2843,7 @@
 
       const suppliersList = [];
       const seenVendorNames = new Set();
-      (appData.vendors || []).filter(v => !v || !v.name || !v.name.toLowerCase().includes('palk')).forEach(v => {
+      (appData.vendors || []).forEach(v => {
         if (v.name && !seenVendorNames.has(v.name.toLowerCase())) {
           seenVendorNames.add(v.name.toLowerCase());
           suppliersList.push({ name: v.name, role: v.role || v.category || 'Raw Materials' });

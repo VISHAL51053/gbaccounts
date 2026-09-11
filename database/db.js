@@ -212,11 +212,6 @@ try { db.exec(`ALTER TABLE labor_roster ADD COLUMN sun_site TEXT DEFAULT ''`); }
 // Safe migrations for vendors table
 try { db.exec(`ALTER TABLE vendors ADD COLUMN role TEXT DEFAULT 'Raw Materials'`); } catch(e) {}
 
-// Automatic cleanup for test / demo records
-try { db.prepare("DELETE FROM supplier_payments WHERE LOWER(vendor) LIKE '%palk%' OR LOWER(vendor) LIKE '%amman%' OR LOWER(vendor) LIKE '%prakash%' OR amount = 9000").run(); } catch(e) {}
-try { db.prepare("DELETE FROM materials WHERE LOWER(vendor) LIKE '%palk%'").run(); } catch(e) {}
-try { db.prepare("DELETE FROM vendors WHERE LOWER(name) LIKE '%palk%'").run(); } catch(e) {}
-
 // Seed default personal owner credentials
 const checkAdmin = db.prepare('SELECT id, username FROM admin_user WHERE id = 1').get();
 if (!checkAdmin) {
@@ -295,10 +290,12 @@ if (checkVendors.count === 0) {
   const defaultVendors = [
     ['VND-1', 'SRIDEVI STEELS', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
     ['VND-2', 'AMMAN PAINTS', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
-    ['VND-3', 'SEKAR KAASI', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
-    ['VND-4', 'GRIL MOHAN', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
-    ['VND-5', 'BRICK MURUGESH', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
-    ['VND-6', 'ELECT AATHI', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials']
+    ['VND-3', 'AMMAN PRAKASH', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
+    ['VND-4', 'PALLKARAR', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
+    ['VND-5', 'SEKAR KAASI', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
+    ['VND-6', 'GRIL MOHAN', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
+    ['VND-7', 'BRICK MURUGESH', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
+    ['VND-8', 'ELECT AATHI', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials']
   ];
   for (const v of defaultVendors) {
     vStmt.run(...v);
@@ -314,7 +311,12 @@ if (checkMats.count === 0) {
     ['MAT-75392', '2026-09-11', 'Raw Materials', 'Cement 20 Bags', 'PRJ-563', 'Site RV', 'SRIDEVI STEELS', 6400, 0, 'Cash in Hand', 'VCH-MAT-75392', ''],
     ['MAT-10519', '2026-09-11', 'Raw Materials', 'Paint', 'PRJ-957', 'Site S1', 'AMMAN PAINTS', 15087, 0, 'Cash in Hand', 'VCH-MAT-10519', ''],
     ['MAT-13727', '2026-09-11', 'Raw Materials', 'Paint ', 'PRJ-907', 'Site RK6', 'AMMAN PAINTS', 6650, 0, 'Cash in Hand', 'VCH-MAT-13727', ''],
-    ['MAT-95488', '2026-09-11', 'Raw Materials', 'Paint ', 'PRJ-918', 'Site R1', 'AMMAN PAINTS', 26759, 0, 'Cash in Hand', 'VCH-MAT-95488', ''],
+    ['MAT-95488', '2026-09-11', 'Raw Materials', 'Paint ', 'PRJ-918', 'Site R1', 'AMMAN PRAKASH', 26759, 0, 'Cash in Hand', 'VCH-MAT-95488', ''],
+    ['MAT-44673', '2026-09-11', 'Raw Materials', 'M sand', 'PRJ-930', 'Site P1', 'PALLKARAR', 12000, 0, 'Cash in Hand', 'VCH-MAT-44673', ''],
+    ['MAT-27817', '2026-09-11', 'Raw Materials', 'M sand', 'PRJ-563', 'Site RV', 'PALLKARAR', 13000, 0, 'Cash in Hand', 'VCH-MAT-27817', ''],
+    ['MAT-94776', '2026-09-11', 'Raw Materials', 'M sand ', 'PRJ-918', 'Site R1', 'PALLKARAR', 14000, 0, 'Cash in Hand', 'VCH-MAT-94776', ''],
+    ['MAT-77438', '2026-09-11', 'Raw Materials', 'M sand ', 'PRJ-957', 'Site S1', 'PALLKARAR', 5000, 0, 'Cash in Hand', 'VCH-MAT-77438', ''],
+    ['MAT-55381', '2026-09-11', 'Raw Materials', 'M sand ', 'PRJ-907', 'Site RK6', 'PALLKARAR', 50500, 0, 'Cash in Hand', 'VCH-MAT-55381', ''],
     ['MAT-01891', '2026-09-11', 'Raw Materials', 'M sand', 'PRJ-907', 'Site RK6', 'SEKAR KAASI', 38000, 0, 'Cash in Hand', 'VCH-MAT-01891', ''],
     ['MAT-51198', '2026-09-11', 'Raw Materials', 'Gurder', 'PRJ-957', 'Site S1', 'GRIL MOHAN', 27924, 0, 'Cash in Hand', 'VCH-MAT-51198', ''],
     ['MAT-20824', '2026-09-11', 'Raw Materials', 'Gate work ', 'PRJ-635', 'Site AP', 'GRIL MOHAN', 57186, 0, 'Cash in Hand', 'VCH-MAT-20824', ''],
