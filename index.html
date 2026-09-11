@@ -3334,6 +3334,8 @@
           suppFoldersContainer.innerHTML = suppliersList.map(supp => {
             const suppMats = (appData.materials || []).filter(m => (m.vendor || '').toLowerCase() === supp.name.toLowerCase());
             const totalCost = suppMats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+            const suppTotalPaid = (appData.supplierPayments || []).filter(p => (p.vendor || '').toLowerCase() === supp.name.toLowerCase()).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+            const suppTotalBalance = totalCost - suppTotalPaid;
 
             return `
               <div class="bg-slate-900/90 border border-slate-800 rounded-2xl shadow-md overflow-hidden transition-all hover:border-slate-700">
@@ -3346,8 +3348,8 @@
                       </div>
                       <div>
                         <div class="flex items-center gap-2">
-                          <span class="font-extrabold text-white text-base tracking-tight">${supp.name}</span>
-                          <span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold">${supp.role}</span>
+                          <span class="font-extrabold text-white text-base tracking-tight">${escapeHtml(supp.name)}</span>
+                          <span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold">${escapeHtml(supp.role)}</span>
                         </div>
                         <p class="text-xs text-slate-400 mt-0.5">${suppMats.length} delivery record(s) logged</p>
                       </div>
@@ -3355,7 +3357,8 @@
                     <div class="flex items-center gap-3 self-end sm:self-auto">
                       <div class="text-right">
                         <div class="text-[10px] uppercase font-bold text-slate-400">Total Supplied</div>
-                        <div class="font-mono font-black text-rose-400 text-base">${formatINR(totalCost)}</div>
+                        <div class="font-mono font-black ${suppTotalBalance <= 0 && totalCost > 0 ? 'text-emerald-400' : 'text-rose-400'} text-base">${formatINR(suppTotalBalance)}</div>
+                        ${suppTotalPaid > 0 ? `<div class="text-[10px] text-slate-400 font-normal">Paid: <span class="text-emerald-400 font-bold">${formatINR(suppTotalPaid)}</span> / ${formatINR(totalCost)}</div>` : ''}
                       </div>
                       <button type="button" onclick="event.stopPropagation(); openModalMaterialForSupplier('${escapeHtml(supp.name)}', '${escapeHtml(supp.role)}')" class="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow transition-colors flex items-center gap-1 cursor-pointer">
                         <i data-lucide="plus" class="w-3.5 h-3.5"></i>
@@ -3443,8 +3446,10 @@
         });
 
         const totalAllMatCost = (appData.materials || []).reduce((s, m) => s + (Number(m.amount) || 0), 0);
+        const totalAllSuppPaid = (appData.supplierPayments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+        const totalAllSuppBalance = totalAllMatCost - totalAllSuppPaid;
         if (document.getElementById('matDirTotalCost')) {
-          document.getElementById('matDirTotalCost').textContent = formatINR(totalAllMatCost);
+          document.getElementById('matDirTotalCost').textContent = formatINR(totalAllSuppBalance);
         }
         if (document.getElementById('matDirSuppliersCount')) {
           document.getElementById('matDirSuppliersCount').textContent = suppliersList.length;
@@ -3534,7 +3539,8 @@
                     <div class="flex items-center gap-3 self-end sm:self-auto">
                       <div class="text-right">
                         <div class="text-[10px] uppercase font-bold text-slate-400">Total Supplied</div>
-                        <div class="font-mono font-black text-rose-400 text-base">${formatINR(totalCost)}</div>
+                        <div class="font-mono font-black ${suppTotalBalance <= 0 && totalCost > 0 ? 'text-emerald-400' : 'text-rose-400'} text-base">${formatINR(suppTotalBalance)}</div>
+                        ${suppTotalPaid > 0 ? `<div class="text-[10px] text-slate-400 font-normal">Paid: <span class="text-emerald-400 font-bold">${formatINR(suppTotalPaid)}</span> / ${formatINR(totalCost)}</div>` : ''}
                       </div>
                       <button type="button" onclick="event.stopPropagation(); openModalMaterialForSupplier('${escapeHtml(supp.name)}', '${escapeHtml(supp.role)}')" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow transition-colors flex items-center gap-1 cursor-pointer">
                         <i data-lucide="plus" class="w-3.5 h-3.5"></i>
@@ -3758,20 +3764,23 @@
         vndList.innerHTML = appData.vendors.map(v => {
           const suppMats = (appData.materials || []).filter(m => (m.vendor || '').toLowerCase() === v.name.toLowerCase());
           const totalCost = suppMats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+          const suppPaid = (appData.supplierPayments || []).filter(p => (p.vendor || '').toLowerCase() === v.name.toLowerCase()).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+          const suppBalance = totalCost - suppPaid;
           return `
             <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3 hover:border-slate-700 transition-all shadow-md">
               <div class="flex justify-between items-start font-bold text-white text-base">
                 <div>
                   <div class="flex items-center gap-2">
                     <i data-lucide="truck" class="w-4 h-4 text-amber-400"></i>
-                    <span>${v.name}</span>
+                    <span>${escapeHtml(v.name)}</span>
                   </div>
-                  <span class="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">${v.role || v.category || 'Supplier'}</span>
+                  <span class="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">${escapeHtml(v.role || v.category || 'Supplier')}</span>
                 </div>
                 <div class="flex items-center gap-2">
                   <div class="text-right">
                     <span class="text-[10px] uppercase font-bold text-slate-400 block">Total Supplied</span>
-                    <span class="text-rose-400 font-mono font-bold">${formatINR(totalCost)}</span>
+                    <span class="${suppBalance <= 0 && totalCost > 0 ? 'text-emerald-400' : 'text-rose-400'} font-mono font-bold">${formatINR(suppBalance)}</span>
+                    ${suppPaid > 0 ? `<div class="text-[10px] text-slate-400 font-normal">Paid: <span class="text-emerald-400 font-bold">${formatINR(suppPaid)}</span> / ${formatINR(totalCost)}</div>` : ''}
                   </div>
                   <button onclick="deleteSupplierFolder('${v.id}', '${escapeHtml(v.name)}', true)" title="Delete Supplier" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 cursor-pointer transition-colors">
                     <i data-lucide="trash-2" class="w-4 h-4"></i>
