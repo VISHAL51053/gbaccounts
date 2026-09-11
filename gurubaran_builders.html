@@ -3339,19 +3339,25 @@
       }
     }
 
-    // Initial boot
+    // Initial boot & Auto-Reconnect lifecycle
     window.addEventListener('DOMContentLoaded', () => {
       loadLocalData();
       checkAuth();
-      fetchFromSQLite();
       safeLucideIcons();
 
-      // Auto background cloud sync every 20 seconds
-      setInterval(() => {
-        if (localStorage.getItem('gb_auth_user')) {
-          fetchFromSQLite();
+      // Attempt immediate cloud sync
+      fetchFromSQLite().then(connected => {
+        if (!connected) {
+          // If server is spinning up (Render cold start), retry at 3s and 8s
+          setTimeout(() => fetchFromSQLite(), 3000);
+          setTimeout(() => fetchFromSQLite(), 8000);
         }
-      }, 20000);
+      });
+
+      // Continuous 24/7 background cloud sync every 10 seconds
+      setInterval(() => {
+        fetchFromSQLite();
+      }, 10000);
     });
   </script>
 </body>
