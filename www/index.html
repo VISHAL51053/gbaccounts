@@ -1285,6 +1285,34 @@
       }, 4000);
     }
 
+    function mergeById(localArr, serverArr) {
+      const map = new Map();
+      (serverArr || []).forEach(item => {
+        if (item && item.id) map.set(item.id, item);
+      });
+      (localArr || []).forEach(item => {
+        if (item && item.id) {
+          if (!map.has(item.id)) {
+            map.set(item.id, item);
+          }
+        }
+      });
+      return Array.from(map.values());
+    }
+
+    function mergeVendors(localVendors, serverVendors) {
+      const map = new Map();
+      (serverVendors || []).forEach(v => {
+        if (v && v.name) map.set(v.name.toLowerCase(), v);
+      });
+      (localVendors || []).forEach(v => {
+        if (v && v.name && !map.has(v.name.toLowerCase())) {
+          map.set(v.name.toLowerCase(), v);
+        }
+      });
+      return Array.from(map.values());
+    }
+
     // --- Load / Sync Data From Cloud / SQLite Database ---
     async function fetchFromSQLite() {
       API_URL = getApiUrl();
@@ -1306,41 +1334,64 @@
           isSQLiteOnline = true;
           updateSyncBadge(true);
 
-          const serverCount = serverData.recordCount || 0;
-          
+          const serverProjects = serverData.projects || [];
+          const serverMaterials = serverData.materials || [];
+          const serverLabor = serverData.labor || [];
+          const serverTxns = serverData.transactions || [];
+          const serverSuppPay = serverData.supplierPayments || [];
+          const serverVendors = serverData.vendors || [];
+
           const localProjects = appData.projects || [];
           const localMaterials = appData.materials || [];
           const localLabor = appData.labor || [];
           const localTxns = appData.transactions || [];
           const localSuppPay = appData.supplierPayments || [];
-          const localCount = localProjects.length + localMaterials.length + localLabor.length + localTxns.length + localSuppPay.length;
+          const localVendors = appData.vendors || [];
 
-          // ZERO-DATA-LOSS AUTO REHYDRATION:
-          // If server was just redeployed (empty DB) and device has records:
-          if (serverCount === 0 && localCount > 0) {
-            console.warn('⚠️ Server database is empty after deployment. Auto-rehydrating cloud database from device cache...');
-            await apiFetch(`${API_URL}/sync/push`, {
-              method: 'POST',
-              body: JSON.stringify(appData)
-            });
-            showSyncToast('☁️ Cloud database auto-restored from device cache!');
-            saveLocalState();
-            renderAll();
-            return true;
+          // Perform Bidirectional Union Merge (Zero-Loss across Git deploys & devices)
+          const mergedProjects = mergeById(localProjects, serverProjects);
+          const mergedMaterials = mergeById(localMaterials, serverMaterials);
+          const mergedLabor = mergeById(localLabor, serverLabor);
+          const mergedTxns = mergeById(localTxns, serverTxns);
+          const mergedSuppPay = mergeById(localSuppPay, serverSuppPay);
+          const mergedVendors = mergeVendors(localVendors, serverVendors);
+
+          // Check if device has records that the server is missing
+          const hasNewLocalRecords = (
+            mergedProjects.length > serverProjects.length ||
+            mergedMaterials.length > serverMaterials.length ||
+            mergedLabor.length > serverLabor.length ||
+            mergedTxns.length > serverTxns.length ||
+            mergedSuppPay.length > serverSuppPay.length
+          );
+
+          if (serverData.company && serverData.company.name) {
+            appData.company = serverData.company;
           }
-
-          // If server has data, safely populate appData
-          if (serverData.company && serverData.company.name) appData.company = serverData.company;
-          if (Array.isArray(serverData.projects)) appData.projects = serverData.projects;
-          if (Array.isArray(serverData.materials)) appData.materials = serverData.materials;
-          if (Array.isArray(serverData.labor)) appData.labor = serverData.labor;
-          if (Array.isArray(serverData.vendors)) appData.vendors = serverData.vendors;
-          if (Array.isArray(serverData.accounts)) appData.accounts = serverData.accounts;
-          if (Array.isArray(serverData.transactions)) appData.transactions = serverData.transactions;
-          if (Array.isArray(serverData.supplierPayments)) appData.supplierPayments = serverData.supplierPayments;
+          appData.projects = mergedProjects;
+          appData.materials = mergedMaterials;
+          appData.labor = mergedLabor;
+          appData.vendors = mergedVendors;
+          if (Array.isArray(serverData.accounts) && serverData.accounts.length > 0) {
+            appData.accounts = serverData.accounts;
+          }
+          appData.transactions = mergedTxns;
+          appData.supplierPayments = mergedSuppPay;
 
           saveLocalState();
           renderAll();
+
+          // If the server was missing any records from this device, push the merged dataset back to the cloud
+          if (hasNewLocalRecords) {
+            console.log('🔄 Uploading local merged records to server to ensure 100% cloud sync...');
+            apiFetch(`${API_URL}/sync/push`, {
+              method: 'POST',
+              body: JSON.stringify(appData)
+            }).then(() => {
+              showSyncToast('☁️ Cloud database synchronized with all device records!');
+            }).catch(e => console.warn('Background sync push warning:', e));
+          }
+
           return true;
         }
       } catch (err) {
