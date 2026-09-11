@@ -1874,19 +1874,33 @@
 
     // --- Handlers: Delete Project from SQLite ---
     async function deleteProject(id, name) {
-      if (confirm(`Are you sure you want to delete site "${name || id}" from the SQLite database?`)) {
-        appData.projects = (appData.projects || []).filter(p => p.id !== id);
-        renderAll();
-        populateProjectDropdowns();
+      const displayName = name || id || 'Site';
+      if (!confirm(`Are you sure you want to delete site "${displayName}"?`)) return;
 
-        try {
-          if (isSQLiteOnline) {
-            await apiFetch(`${API_URL}/projects/${id}`, { method: 'DELETE' });
-            await fetchFromSQLite();
-          }
-        } catch (err) {
-          console.error('Failed to delete project from SQLite:', err);
+      const targetId = id || '';
+      const targetName = (name || '').trim();
+
+      // Filter out locally immediately
+      appData.projects = (appData.projects || []).filter(p => {
+        if (targetId && p.id === targetId) return false;
+        if (targetName && (p.name || '').trim().toLowerCase() === targetName.toLowerCase()) return false;
+        return true;
+      });
+
+      saveLocalState();
+      renderAll();
+      populateProjectDropdowns();
+
+      try {
+        if (isSQLiteOnline) {
+          const deleteKey = targetId || targetName;
+          await apiFetch(`${API_URL}/projects/${encodeURIComponent(deleteKey)}`, { method: 'DELETE' });
+          await fetchFromSQLite();
         }
+        showSyncToast(`Site "${displayName}" deleted successfully.`);
+      } catch (err) {
+        console.error('Failed to delete project from SQLite:', err);
+        alert('Failed to delete site: ' + (err.message || err));
       }
     }
 
@@ -3073,10 +3087,15 @@
             return `
               <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700 space-y-3 hover:border-slate-600 transition-all shadow-md">
                 <div class="flex justify-between items-center font-bold text-white">
-                  <span class="text-base font-extrabold tracking-tight">${p.name}</span>
-                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30">Active</span>
+                  <span class="text-base font-extrabold tracking-tight">${escapeHtml(p.name)}</span>
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30">Active</span>
+                    <button onclick="deleteProject('${p.id}', '${escapeHtml(p.name)}')" title="Delete Site" class="p-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-colors cursor-pointer">
+                      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
                 </div>
-                <p class="text-xs text-slate-400">${p.location || 'Location'} • Client: <span class="text-slate-200 font-semibold">${p.client || 'Direct'}</span></p>
+                <p class="text-xs text-slate-400">${escapeHtml(p.location || 'Location')} • Client: <span class="text-slate-200 font-semibold">${escapeHtml(p.client || 'Direct')}</span></p>
                 
                 <div class="space-y-2 pt-2 border-t border-slate-700 text-xs">
                   <!-- Materials Brief Folder -->
@@ -3104,8 +3123,8 @@
                               ${siteMaterials.map(m => `
                                 <tr class="hover:bg-slate-700/30">
                                   <td class="py-1 pr-1.5 text-amber-300 font-mono">${m.date || '-'}</td>
-                                  <td class="py-1 px-1.5 font-semibold text-white">${m.vendor || 'Direct'}</td>
-                                  <td class="py-1 px-1.5 text-slate-300">${m.item}</td>
+                                  <td class="py-1 px-1.5 font-semibold text-white">${escapeHtml(m.vendor || 'Direct')}</td>
+                                  <td class="py-1 px-1.5 text-slate-300">${escapeHtml(m.item)}</td>
                                   <td class="py-1 pl-1.5 font-mono font-bold text-rose-400 text-right">${formatINR(m.amount)}</td>
                                 </tr>
                               `).join('')}
@@ -3165,23 +3184,23 @@
                   <div>
                     <div class="flex items-center gap-2">
                       <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      <h3 class="font-black text-white text-lg tracking-tight">${p.name}</h3>
+                      <h3 class="font-black text-white text-lg tracking-tight">${escapeHtml(p.name)}</h3>
                     </div>
                     <p class="text-xs text-slate-400 mt-1 flex items-center gap-1">
                       <i data-lucide="map-pin" class="w-3.5 h-3.5 text-amber-500"></i>
-                      <span>${p.location || 'Site Location'}</span>
+                      <span>${escapeHtml(p.location || 'Site Location')}</span>
                     </p>
                   </div>
                   <div class="flex items-center gap-2">
                     <span class="text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold">Active Site</span>
-                    <button onclick="deleteProject('${p.id}', '${p.name}')" title="Delete Site" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-colors cursor-pointer">
+                    <button onclick="deleteProject('${p.id}', '${escapeHtml(p.name)}')" title="Delete Site" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-colors cursor-pointer">
                       <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
                   </div>
                 </div>
                 <div class="text-xs text-slate-300 bg-slate-800/60 p-3.5 rounded-xl flex items-center justify-between border border-slate-700/60">
-                  <div>Client: <strong class="text-amber-400 font-bold">${p.client || 'Direct Client'}</strong></div>
-                  <div>Site ID: <strong class="text-slate-400 font-mono">${p.id}</strong></div>
+                  <div>Client: <strong class="text-amber-400 font-bold">${escapeHtml(p.client || 'Direct Client')}</strong></div>
+                  <div>Site ID: <strong class="text-slate-400 font-mono">${escapeHtml(p.id)}</strong></div>
                 </div>
                 
                 <div class="space-y-2.5 pt-2 border-t border-slate-800 text-xs">

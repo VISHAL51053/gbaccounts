@@ -191,8 +191,26 @@ app.post('/api/projects', (req, res) => {
 app.delete('/api/projects/:id', (req, res) => {
   try {
     const { id } = req.params;
-    db.prepare('DELETE FROM projects WHERE id = ?').run(id);
-    res.json({ success: true, message: `Site ${id} removed successfully` });
+    const decoded = decodeURIComponent(id).trim();
+
+    const delTxn = db.transaction(() => {
+      const prj = db.prepare('SELECT * FROM projects WHERE id = ? OR name = ?').get(decoded, decoded);
+      if (prj) {
+        // Reassign materials and supplier payments to General Site
+        try {
+          db.prepare("UPDATE materials SET project_id = NULL, project_name = 'General Site' WHERE project_id = ? OR project_name = ?").run(prj.id, prj.name);
+        } catch(e) {}
+        try {
+          db.prepare("UPDATE supplier_payments SET project_name = 'General Site' WHERE project_name = ?").run(prj.name);
+        } catch(e) {}
+        db.prepare('DELETE FROM projects WHERE id = ? OR name = ?').run(prj.id, prj.name);
+      } else {
+        db.prepare('DELETE FROM projects WHERE id = ? OR name = ?').run(decoded, decoded);
+      }
+    });
+
+    delTxn();
+    res.json({ success: true, message: `Site ${decoded} removed successfully` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
