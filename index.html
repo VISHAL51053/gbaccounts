@@ -1,0 +1,3118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>GURUBARAN BUILDERS - ERP</title>
+
+  <!-- PWA Meta Tags -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="GB ERP" />
+  <meta name="theme-color" content="#0b0f19" />
+  <meta name="application-name" content="GB ERP" />
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50:'#fffbeb', 100:'#fef3c7', 500:'#f59e0b', 600:'#d97706', 700:'#b45309' }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    * { -webkit-tap-highlight-color: transparent; touch-action: manipulation; box-sizing: border-box; }
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      background-color: #0b0f19;
+      color: #f1f5f9;
+      overscroll-behavior: none;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+    /* Safe area for iPhone notch/home bar */
+    .safe-top    { padding-top: env(safe-area-inset-top); }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+    /* Bottom nav spacing so content isn't hidden behind it on mobile */
+    @media (max-width: 767px) {
+      #mainContent { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
+    }
+
+    /* Mobile bottom navigation bar */
+    #mobileBottomNav {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 40;
+      background: #0f172a;
+      border-top: 1px solid #1e293b;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    @media (max-width: 767px) { #mobileBottomNav { display: flex; } }
+
+    /* Mobile bottom nav buttons */
+    .mob-nav-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 4px 6px;
+      color: #64748b;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      transition: color 0.15s;
+      gap: 3px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mob-nav-btn.active { color: #f59e0b; }
+    .mob-nav-btn svg { width: 22px; height: 22px; }
+
+    /* Overflow-more tab button */
+    #moreNavBtn.active { color: #f59e0b; }
+
+    /* More menu drawer */
+    #moreDrawer {
+      display: none;
+      position: fixed;
+      bottom: calc(4.5rem + env(safe-area-inset-bottom));
+      left: 0; right: 0;
+      background: #0f172a;
+      border-top: 1px solid #1e293b;
+      z-index: 39;
+      padding: 8px;
+    }
+    #moreDrawer.open { display: block; }
+
+    /* Make modals scroll on small phones */
+    .modal-inner {
+      max-height: 90vh;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Touch-friendly table scroll */
+    .tbl-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; color: black !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#0b0f19] text-[#f1f5f9]">
+
+  <!-- ================= MASTER SINGLE LOGIN OVERLAY ================= -->
+  <div id="authOverlay" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-4 transition-all duration-300">
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 relative overflow-hidden">
+      <!-- Glow effect -->
+      <div class="absolute -top-24 -right-24 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-24 -left-24 w-48 h-48 bg-amber-600/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Header / Logo -->
+      <div class="text-center space-y-3">
+        <div class="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 items-center justify-center text-slate-950 font-black shadow-xl shadow-amber-500/20 border border-amber-400/40 mx-auto">
+          <i data-lucide="building-2" class="w-9 h-9 text-slate-950"></i>
+        </div>
+        <div>
+          <h2 class="text-2xl font-black tracking-tight text-white uppercase">GURUBARAN BUILDERS</h2>
+          <p class="text-xs text-amber-400 font-semibold mt-0.5 tracking-wider uppercase">Personal Owner Portal</p>
+        </div>
+        <p class="text-xs text-slate-400 max-w-xs mx-auto">
+          Single-user secure access to personal construction sites, materials, and accounts.
+        </p>
+      </div>
+
+      <!-- Login Form -->
+      <form id="loginForm" onsubmit="handleLogin(event); return false;" class="space-y-4">
+        <div id="loginError" class="hidden p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs font-semibold text-center"></div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Master Username</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+              <i data-lucide="user" class="w-4 h-4"></i>
+            </span>
+            <input type="text" id="loginUsername" required class="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white font-semibold text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all" placeholder="Enter username (gurubaran)" value="gurubaran" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">Master Password</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+              <i data-lucide="lock" class="w-4 h-4"></i>
+            </span>
+            <input type="password" id="loginPassword" required class="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white font-semibold text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all" placeholder="Enter password (admin123)" value="admin123" />
+          </div>
+        </div>
+
+        <button type="button" onclick="handleLogin(event)" id="loginSubmitBtn" class="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer">
+          <i data-lucide="log-in" class="w-4 h-4"></i>
+          <span>Login to My Portal</span>
+        </button>
+      </form>
+
+      <!-- Security Note -->
+      <div class="pt-4 border-t border-slate-800 text-center">
+        <p class="text-[11px] text-slate-500 flex items-center justify-center gap-1.5 font-medium">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-400"></i>
+          <span>Personal SQLite Database Protected • ACID Compliant</span>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TOP NAVIGATION HEADER ================= -->
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-md no-print safe-top">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-14 sm:h-16">
+
+        <!-- Company Logo & Name -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/20 border border-amber-400/40 shrink-0">
+            <i data-lucide="building-2" class="w-5 h-5 sm:w-6 sm:h-6 text-slate-950"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-1.5 sm:gap-2">
+              <h1 id="headerCompanyName" class="text-sm sm:text-xl font-black tracking-tight text-white uppercase m-0 font-sans leading-none">
+                GURUBARAN BUILDERS
+              </h1>
+            </div>
+          </div>
+        </div>
+
+        <!-- Header Actions -->
+        <div class="flex items-center gap-2">
+          <button onclick="openModal('modalProject')" class="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <span>+ Add Site</span>
+          </button>
+
+          <!-- Logout -->
+          <div class="flex items-center gap-1.5 pl-2 border-l border-slate-800">
+            <button onclick="handleLogout()" title="Logout" class="p-2 rounded-xl bg-slate-800 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 border border-slate-700 transition-all cursor-pointer">
+              <i data-lucide="log-out" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= MAIN LAYOUT WITH SIDEBAR ================= -->
+  <div class="flex-1 flex flex-row max-w-7xl w-full mx-auto">
+
+    <!-- SIDEBAR NAVIGATION (desktop only) -->
+    <aside class="hidden md:flex w-64 bg-slate-900/90 border-r border-slate-800 p-4 flex-col justify-between shrink-0 no-print">
+      <div class="space-y-4">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-2">Navigation</p>
+        <nav class="space-y-1">
+          <button onclick="switchTab('tab-dashboard')" id="btn-tab-dashboard" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-sm bg-amber-500 text-slate-950 transition-all text-left">
+            <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+            <span>Home Dashboard</span>
+          </button>
+          <button onclick="switchTab('tab-projects')" id="btn-tab-projects" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm text-slate-300 hover:bg-slate-800/80 transition-all text-left">
+            <i data-lucide="building" class="w-5 h-5 text-slate-400"></i>
+            <span>Sites</span>
+          </button>
+          <button onclick="switchTab('tab-labor')" id="btn-tab-labor" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm text-slate-300 hover:bg-slate-800/80 transition-all text-left">
+            <i data-lucide="users" class="w-5 h-5 text-slate-400"></i>
+            <span>Labour Attendance</span>
+          </button>
+          <button onclick="switchTab('tab-materials')" id="btn-tab-materials" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm text-slate-300 hover:bg-slate-800/80 transition-all text-left">
+            <i data-lucide="boxes" class="w-5 h-5 text-slate-400"></i>
+            <span>Material Entry</span>
+          </button>
+          <button onclick="switchTab('tab-materials-directory')" id="btn-tab-materials-directory" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm text-slate-300 hover:bg-slate-800/80 transition-all text-left">
+            <i data-lucide="package" class="w-5 h-5 text-slate-400"></i>
+            <span>Material Payment</span>
+          </button>
+          <button onclick="switchTab('tab-income-expense')" id="btn-tab-income-expense" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm text-slate-300 hover:bg-slate-800/80 transition-all text-left">
+            <i data-lucide="arrow-left-right" class="w-5 h-5 text-slate-400"></i>
+            <span>Payment History</span>
+          </button>
+          <button onclick="switchTab('tab-settings')" id="btn-tab-settings" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm text-slate-300 hover:bg-slate-800/80 transition-all text-left">
+            <i data-lucide="settings" class="w-5 h-5 text-slate-400"></i>
+            <span>Company Settings</span>
+          </button>
+          <button onclick="handleLogout()" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm text-rose-400 hover:bg-rose-950/30 transition-all text-left cursor-pointer">
+            <i data-lucide="log-out" class="w-5 h-5 text-rose-400"></i>
+            <span>Logout Portal</span>
+          </button>
+        </nav>
+      </div>
+      <div class="mt-8 pt-4 border-t border-slate-800 px-2 text-xs text-slate-400">
+        <div class="bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
+          <div class="flex items-center gap-2 text-amber-400 font-bold mb-1">
+            <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i>
+            <span>SQLite Database</span>
+          </div>
+          <p class="text-[10px] text-slate-400 font-mono truncate">gurubaran_builders.db</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CONTENT BODY -->
+    <main id="mainContent" class="flex-1 p-3 sm:p-6 lg:p-8 overflow-y-auto min-w-0">
+      
+      <!-- ================= 1. HOME DASHBOARD ================= -->
+      <section id="tab-dashboard" class="tab-content space-y-6">
+        
+        <!-- Hero Card -->
+        <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950/40 border border-slate-800 p-6 sm:p-8 shadow-xl">
+          <div class="space-y-2">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-bold">
+              <i data-lucide="building-2" class="w-3.5 h-3.5"></i>
+              <span>OFFICIAL ACCOUNTS & CONSTRUCTION PORTAL</span>
+            </div>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white">
+              Welcome to <span id="dashCompanyName" class="text-amber-400">GURUBARAN BUILDERS</span>
+            </h2>
+
+          </div>
+        </div>
+
+        <!-- 2 KPI Metrics -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-md">
+            <span class="text-xs font-bold text-slate-400 uppercase">Active Sites</span>
+            <div id="statActiveSites" class="text-3xl font-black text-white mt-2">0</div>
+          </div>
+
+          <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-md">
+            <span class="text-xs font-bold text-slate-400 uppercase">Labor Workforce</span>
+            <div id="statTotalWorkers" class="text-3xl font-black text-amber-400 mt-2">0 Workers</div>
+          </div>
+        </div>
+
+        <!-- Construction Sites Section -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-md">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-lg font-bold text-white">Construction Sites & Projects</h3>
+            </div>
+            <button onclick="openModal('modalProject')" class="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs">
+              + Add Site
+            </button>
+          </div>
+
+          <div id="dashboardSitesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Recent Material Purchases Table -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-md">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-lg font-bold text-white">Recent Raw Material Purchases</h3>
+            </div>
+            <button onclick="openModal('modalMaterial')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs border border-slate-700">
+              + Add Material Entry
+            </button>
+          </div>
+
+          <div class="overflow-x-auto tbl-scroll">
+            <table class="w-full text-left text-xs">
+              <thead class="text-slate-400 bg-slate-800/80 uppercase">
+                <tr>
+                  <th class="p-3">Date</th>
+                  <th class="p-3">Material / Description</th>
+                  <th class="p-3">Site</th>
+                  <th class="p-3">Supplier</th>
+                  <th class="p-3 text-right">Cost (â‚¹)</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardMaterialsList" class="divide-y divide-slate-800">
+                <!-- Rendered by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ================= 2. SITES & PROJECTS ================= -->
+      <section id="tab-projects" class="tab-content hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-black text-white m-0">Construction Sites & Projects</h2>
+            <p class="text-xs text-slate-400"></p>
+          </div>
+          <button onclick="openModal('modalProject')" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-md">
+            + Add New Site
+          </button>
+        </div>
+
+        <div id="allProjectsList" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Rendered by JS -->
+        </div>
+      </section>
+
+      <!-- ================= 3A. MATERIALS PAYMENT DIRECTORY ================= -->
+      <section id="tab-materials-directory" class="tab-content hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-black text-white m-0">Materials Payment</h2>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openModal('modalVendor')" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-md flex items-center gap-1.5 cursor-pointer transition-colors">
+              <i data-lucide="folder-plus" class="w-4 h-4"></i>
+              <span>+ Add Material Supplier</span>
+            </button>
+            <button onclick="openModalMaterialForSupplier('')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs border border-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>+ Add Material Entry</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Metrics Summary for Materials by Supplier -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center gap-3">
+            <div class="p-3 rounded-xl bg-rose-500/15 text-rose-400">
+              <i data-lucide="indian-rupee" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Materials Cost</div>
+              <div id="matDirTotalCost" class="text-xl font-black text-rose-400 font-mono">â‚¹0</div>
+            </div>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center gap-3">
+            <div class="p-3 rounded-xl bg-amber-500/15 text-amber-400">
+              <i data-lucide="truck" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Material Suppliers</div>
+              <div id="matDirSuppliersCount" class="text-xl font-black text-white font-mono">0</div>
+            </div>
+          </div>
+          <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center gap-3">
+            <div class="p-3 rounded-xl bg-sky-500/15 text-sky-400">
+              <i data-lucide="boxes" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Deliveries Logged</div>
+              <div id="matDirDeliveriesCount" class="text-xl font-black text-white font-mono">0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Supplier-wise Materials Container -->
+        <div id="materialsSupplierDirectoryList" class="space-y-4">
+          <!-- Rendered dynamically by JS -->
+        </div>
+      </section>
+
+      <!-- ================= 3B. MATERIAL ENTRY & PURCHASES ================= -->
+      <section id="tab-materials" class="tab-content hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-black text-white m-0">Material Entry</h2>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openModal('modalVendor')" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-md flex items-center gap-1.5 cursor-pointer transition-colors">
+              <i data-lucide="folder-plus" class="w-4 h-4"></i>
+              <span>+ Add Material Supplier</span>
+            </button>
+            <button onclick="openModalMaterialForSupplier('')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs border border-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>+ Add Material Entry</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Material Supplier Folders Container -->
+        <div id="materialsSupplierFolders" class="space-y-4">
+          <!-- Rendered dynamically as expandable folders by JS -->
+        </div>
+      </section>
+
+      <!-- ================= 4. LABOUR ATTENDANCE ================= -->
+      <section id="tab-labor" class="tab-content hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-black text-white m-0">Weekly Labour Attendance & Wage Muster Roll</h2>
+            <p class="text-xs text-slate-400">Track Monday to Sunday daily duties, rates (<span class="text-amber-400 font-bold">Ma: ₹950/₹1425</span>, <span class="text-sky-400 font-bold">Mm: ₹750/₹1125</span>) & weekly settlement totals</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="shareWeeklyLabourWhatsApp()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs sm:text-sm shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="share-2" class="w-4 h-4"></i>
+              <span>Send via WhatsApp</span>
+            </button>
+            <button onclick="exportLabourGoogleSheets()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs border border-slate-700 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+              <span>Google Sheet / Excel</span>
+            </button>
+            <button onclick="openModal('modalLabor')" class="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow-md transition-colors cursor-pointer">
+              + Add Labour
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl shadow-md overflow-hidden">
+          <div class="overflow-x-auto tbl-scroll">
+            <table class="w-full text-left text-xs min-w-[950px]">
+              <thead class="text-slate-400 bg-slate-800/80 uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th class="p-3.5">Worker Name</th>
+                  <th class="p-3.5">Role</th>
+                  <th class="p-2.5 text-center bg-slate-800/40">Mon</th>
+                  <th class="p-2.5 text-center bg-slate-800/20">Tue</th>
+                  <th class="p-2.5 text-center bg-slate-800/40">Wed</th>
+                  <th class="p-2.5 text-center bg-slate-800/20">Thu</th>
+                  <th class="p-2.5 text-center bg-slate-800/40">Fri</th>
+                  <th class="p-2.5 text-center bg-slate-800/20">Sat</th>
+                  <th class="p-2.5 text-center bg-slate-800/40">Sun</th>
+                  <th class="p-3 text-center">Days</th>
+                  <th class="p-3.5 text-right text-emerald-400 font-bold">Weekly Total</th>
+                  <th class="p-3.5 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="allLaborTable" class="divide-y divide-slate-800 font-medium">
+                <!-- Rendered by JS -->
+              </tbody>
+              <tfoot class="bg-slate-800/90 text-white font-bold border-t border-slate-700">
+                <tr>
+                  <td colspan="10" class="p-3.5 text-right uppercase tracking-wider text-slate-400 text-xs">Total Weekly Labour Wages:</td>
+                  <td id="labourTotalSum" class="p-3.5 text-right font-mono font-black text-emerald-400 text-sm whitespace-nowrap">₹0</td>
+                  <td class="p-3.5 text-center">
+                    <button onclick="shareWeeklyLabourWhatsApp()" title="Share Total via WhatsApp" class="text-emerald-400 hover:text-emerald-300 text-xs font-bold underline cursor-pointer">Share</button>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 5. VENDORS & SUPPLIERS ================= -->
+      <section id="tab-vendors" class="tab-content hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-black text-white m-0">Vendors & Material Suppliers</h2>
+            <p class="text-xs text-slate-400">Directory of steel mills, cement stockists, quarry suppliers and subcontractors</p>
+          </div>
+          <button onclick="openModal('modalVendor')" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-md flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="folder-plus" class="w-4 h-4"></i>
+            <span>+ Add Material Supplier</span>
+          </button>
+        </div>
+
+        <div id="allVendorsList" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Rendered by JS -->
+        </div>
+      </section>
+
+      <!-- ================= 6. PAYMENT HISTORY & CASHFLOW ================= -->
+      <section id="tab-income-expense" class="tab-content hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-black text-white m-0">Payment History</h2>
+            <p class="text-xs text-slate-400"></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openModal('modalIncome')" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm shadow-md flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i>
+              <span>+ Add Income</span>
+            </button>
+            <button onclick="openModal('modalExpense')" class="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-white font-bold text-sm shadow-md flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="minus-circle" class="w-4 h-4"></i>
+              <span>+ Add Expense</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3 Metric Cards for Income & Expense -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-md">
+            <div class="flex justify-between items-start">
+              <span class="text-xs font-bold text-slate-400 uppercase">Total Income Received</span>
+              <span class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400"><i data-lucide="trending-up" class="w-4 h-4"></i></span>
+            </div>
+            <div id="statTotalIncome" class="text-2xl sm:text-3xl font-black text-emerald-400 font-mono mt-2">â‚¹0</div>
+            <p class="text-[11px] text-slate-500 mt-1">Client payments & business receipts</p>
+          </div>
+
+          <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-md">
+            <div class="flex justify-between items-start">
+              <span class="text-xs font-bold text-slate-400 uppercase">General Expenses</span>
+              <span class="p-1.5 rounded-lg bg-rose-500/10 text-rose-400"><i data-lucide="trending-down" class="w-4 h-4"></i></span>
+            </div>
+            <div id="statTotalExpenses" class="text-2xl sm:text-3xl font-black text-rose-400 font-mono mt-2">â‚¹0</div>
+            <p class="text-[11px] text-slate-500 mt-1">Fuel, rent, office & site operations</p>
+          </div>
+
+          <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-md">
+            <div class="flex justify-between items-start">
+              <span class="text-xs font-bold text-slate-400 uppercase">Net Balance</span>
+              <span class="p-1.5 rounded-lg bg-amber-500/10 text-amber-400"><i data-lucide="wallet" class="w-4 h-4"></i></span>
+            </div>
+            <div id="statNetBalance" class="text-2xl sm:text-3xl font-black text-amber-400 font-mono mt-2">â‚¹0</div>
+            <p class="text-[11px] text-slate-500 mt-1">Total Income minus Expenses</p>
+          </div>
+        </div>
+
+        <!-- Transactions Ledger Table -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl shadow-md overflow-hidden">
+          <div class="p-4 border-b border-slate-800 flex justify-between items-center">
+            <h3 class="font-bold text-white text-sm">Income & Expense Transactions Ledger</h3>
+            <span class="text-xs text-slate-400">All persistent SQLite records</span>
+          </div>
+          <div class="overflow-x-auto tbl-scroll">
+            <table class="w-full text-left text-xs">
+              <thead class="text-slate-400 bg-slate-800/80 uppercase text-[11px]">
+                <tr>
+                  <th class="p-3.5">Date</th>
+                  <th class="p-3.5">Type</th>
+                  <th class="p-3.5">Category</th>
+                  <th class="p-3.5">Party / Client / Beneficiary</th>
+                  <th class="p-3.5">Site / Purpose</th>
+                  <th class="p-3.5">Payment Mode</th>
+                  <th class="p-3.5 text-right">Amount (â‚¹)</th>
+                  <th class="p-3.5 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="allTransactionsTable" class="divide-y divide-slate-800 font-medium">
+                <!-- Rendered by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 8. COMPANY SETTINGS ================= -->
+      <section id="tab-settings" class="tab-content hidden space-y-6 max-w-3xl">
+        <div>
+          <h2 class="text-2xl font-black text-white m-0">Company Profile & SQLite Database Settings</h2>
+          <p class="text-xs text-slate-400"></p>
+        </div>
+
+        <!-- 24/7 Cloud Database Sync Card -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-md space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                <i data-lucide="cloud" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="font-bold text-white text-base m-0">24/7 Multi-Device Cloud Sync</h3>
+                <p id="cloudSyncStatusText" class="text-xs text-slate-400">Live synchronization between Samsung Mobile & Mac</p>
+              </div>
+            </div>
+            <button type="button" onclick="testAndSaveCloudSync()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+              <span>Sync All Data Now</span>
+            </button>
+          </div>
+
+          <div class="pt-2 border-t border-slate-800 space-y-3">
+            <div>
+              <label class="block text-slate-400 mb-1 font-semibold text-xs">Cloud Sync API URL</label>
+              <div class="flex gap-2">
+                <input type="text" id="cloudSyncUrlInput" class="flex-1 p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-amber-300 font-mono text-xs focus:border-amber-500 focus:outline-none" placeholder="https://gurubaran-builders.loca.lt/api" />
+                <button type="button" onclick="saveCloudSyncUrl()" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md cursor-pointer">
+                  Save URL
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <form id="settingsForm" onsubmit="saveSettings(event)" class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-md space-y-4 text-xs">
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Company Name *</label>
+            <input type="text" id="setCompanyName" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-bold text-sm" value="GURUBARAN BUILDERS" />
+          </div>
+
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Tagline / Motto</label>
+            <input type="text" id="setTagline" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white" value="Quality Construction & Civil Engineering Excellence" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-slate-400 mb-1 font-semibold">GSTIN</label>
+              <input type="text" id="setGstin" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono" placeholder="33AAB..." />
+            </div>
+            <div>
+              <label class="block text-slate-400 mb-1 font-semibold">Phone Number</label>
+              <input type="text" id="setPhone" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white" placeholder="+91 ..." />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Office Address</label>
+            <input type="text" id="setAddress" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white" value="Chennai, Tamil Nadu" />
+          </div>
+
+          <div class="pt-4 border-t border-slate-800 flex justify-between items-center">
+            <button type="button" onclick="clearAllAppStorage()" class="px-4 py-2 rounded-xl bg-rose-950/40 text-rose-300 border border-rose-900/60 font-semibold text-xs">
+              Clear All Data (Fresh Start)
+            </button>
+            <button type="submit" class="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-md">
+              Save Company Info
+            </button>
+          </div>
+        </form>
+
+        <!-- Master Password / Credentials Card -->
+        <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-md space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <i data-lucide="key-round" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-white text-base m-0">Master Account Login & Password</h3>
+              <p class="text-xs text-slate-400">Update your single-user owner credentials stored in the SQLite database</p>
+            </div>
+          </div>
+
+          <form id="changePasswordForm" onsubmit="handleChangePassword(event)" class="space-y-3 text-xs pt-2">
+            <div id="pwdFeedback" class="hidden p-3 rounded-xl text-xs font-semibold"></div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-slate-400 mb-1 font-semibold">Current Password *</label>
+                <input type="password" id="currentPwd" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-semibold text-xs" placeholder="Current password" />
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1 font-semibold">New Master Username</label>
+                <input type="text" id="newUsername" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-semibold text-xs" placeholder="gurubaran" />
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1 font-semibold">New Master Password *</label>
+                <input type="password" id="newPwd" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-semibold text-xs" placeholder="New password" />
+              </div>
+            </div>
+
+            <div class="flex justify-end pt-2">
+              <button type="submit" class="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md flex items-center gap-1.5 cursor-pointer">
+                <i data-lucide="shield-check" class="w-4 h-4"></i>
+                <span>Update Credentials in SQLite</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ================= MOBILE BOTTOM NAVIGATION ================= -->
+  <!-- "More" drawer (slides up above bottom nav) -->
+  <div id="moreDrawer">
+    <div class="grid grid-cols-2 gap-2 p-2">
+      <button onclick="switchTab('tab-materials-directory'); closeMoreDrawer()" class="mob-nav-btn flex-row gap-2 px-3 py-3 rounded-xl bg-slate-800/80 border border-slate-700/50 text-slate-300 text-xs font-semibold justify-start">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/><rect width="22" height="8" x="1" y="8" rx="1"/></svg>
+        Material Payment
+      </button>
+      <button onclick="switchTab('tab-income-expense'); closeMoreDrawer()" class="mob-nav-btn flex-row gap-2 px-3 py-3 rounded-xl bg-slate-800/80 border border-slate-700/50 text-slate-300 text-xs font-semibold justify-start">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4 4 4"/><path d="M17 8v12m0 0 4-4m-4 4-4-4"/></svg>
+        Payment History
+      </button>
+      <button onclick="switchTab('tab-settings'); closeMoreDrawer()" class="mob-nav-btn flex-row gap-2 px-3 py-3 rounded-xl bg-slate-800/80 border border-slate-700/50 text-slate-300 text-xs font-semibold justify-start">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        Settings
+      </button>
+      <button onclick="openModal('modalProject'); closeMoreDrawer()" class="mob-nav-btn flex-row gap-2 px-3 py-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-semibold justify-start">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        New Site
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile Bottom Tab Bar -->
+  <nav id="mobileBottomNav" class="no-print">
+    <button onclick="switchTab('tab-dashboard'); closeMoreDrawer()" id="mob-btn-dashboard" class="mob-nav-btn active">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+      <span>Home</span>
+    </button>
+    <button onclick="switchTab('tab-projects'); closeMoreDrawer()" id="mob-btn-projects" class="mob-nav-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Sites</span>
+    </button>
+    <button onclick="switchTab('tab-labor'); closeMoreDrawer()" id="mob-btn-labor" class="mob-nav-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span>Labour</span>
+    </button>
+    <button onclick="switchTab('tab-materials'); closeMoreDrawer()" id="mob-btn-materials" class="mob-nav-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+      <span>Materials</span>
+    </button>
+    <button id="moreNavBtn" onclick="toggleMoreDrawer()" class="mob-nav-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      <span>More</span>
+    </button>
+  </nav>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- Modal: Add Project -->
+  <div id="modalProject" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4 modal-inner">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white">Add Construction Site / Project</h3>
+        <button onclick="closeModal('modalProject')" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <form onsubmit="handleCreateProject(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Site / Project Name *</label>
+          <input type="text" id="projName" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-bold" placeholder="e.g. Royal Palm Residency" />
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Client Name *</label>
+          <input type="text" id="projClient" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white" placeholder="e.g. Mr. Ramachandran" />
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Site Location *</label>
+          <input type="text" id="projLocation" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white" placeholder="e.g. OMR, Chennai" />
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('modalProject')" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Cancel</button>
+          <button type="submit" id="btnCreateSite" class="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold cursor-pointer transition-colors shadow-md">Create Site</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Material Purchase / Entry -->
+  <div id="modalMaterial" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4 modal-inner">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <div class="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
+            <i data-lucide="package-plus" class="w-4 h-4"></i>
+          </div>
+          <h3 class="text-base font-bold text-white">Add Raw Material Entry</h3>
+        </div>
+        <button onclick="closeModal('modalMaterial')" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <form onsubmit="handleCreateMaterial(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Material Supplier (Folder) *</label>
+          <select id="matVendorSelect" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-amber-300 font-bold">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Material Item & Description *</label>
+          <input type="text" id="matItem" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-bold" placeholder="e.g. m sand / 53 Grade Cement" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Site / Project *</label>
+            <select id="matProjectSelect" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-medium"></select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Total Cost (â‚¹) *</label>
+            <input type="number" id="matAmount" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-rose-400 font-bold" placeholder="10000" />
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('modalMaterial')" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition-colors">Save Material</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Labor Worker -->
+  <div id="modalLabor" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4 modal-inner">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <h3 class="text-base font-bold text-white">Add Labour</h3>
+        <button onclick="closeModal('modalLabor')" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <form onsubmit="handleCreateLabor(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Worker / Labour Name *</label>
+          <input type="text" id="labName" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-bold" placeholder="e.g. Murugesan K" />
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Role</label>
+          <select id="labRole" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-medium">
+            <option value="Ma">Ma</option>
+            <option value="Mm">Mm</option>
+          </select>
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('modalLabor')" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition-colors">Add Labour</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Material Supplier -->
+  <div id="modalVendor" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4 modal-inner">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <div class="p-1.5 rounded-lg bg-amber-500/20 text-amber-400">
+            <i data-lucide="folder-plus" class="w-4 h-4"></i>
+          </div>
+          <h3 class="text-base font-bold text-white">Add Material Supplier</h3>
+        </div>
+        <button onclick="closeModal('modalVendor')" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <form onsubmit="handleCreateVendor(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Supplier / Vendor Name *</label>
+          <input type="text" id="vndName" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-bold" placeholder="e.g. palkkar" />
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Role / Material Supplied</label>
+          <select id="vndRole" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-medium">
+            <option value="Raw Materials">Raw Materials</option>
+            <option value="Sand Supplier">Sand Supplier (M-Sand / P-Sand)</option>
+            <option value="Cement Stockist">Cement Stockist</option>
+            <option value="Steel Supplier">Steel & TMT Rods</option>
+            <option value="Bricks & Blocks">Bricks & Concrete Blocks</option>
+            <option value="Blue Metal Quarry">Blue Metal & Gravel Quarry</option>
+            <option value="Electrical & Plumbing">Electrical & Plumbing</option>
+            <option value="Tiles, Marble & Paints">Tiles, Marble & Paints</option>
+            <option value="Machinery & Fuel">Machinery Rental & Fuel</option>
+            <option value="General Supplier">General Supplier</option>
+          </select>
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('modalVendor')" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition-colors">Create Supplier Folder</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add General Income -->
+  <div id="modalIncome" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4 modal-inner">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-2 text-emerald-400 font-bold">
+          <i data-lucide="plus-circle" class="w-5 h-5"></i>
+          <h3 class="text-base font-bold text-white">Record Business Income</h3>
+        </div>
+        <button onclick="closeModal('modalIncome')" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <form onsubmit="handleCreateIncome(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Income Amount (â‚¹) *</label>
+          <input type="number" id="incAmount" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-emerald-400 font-bold text-base" placeholder="e.g. 500000" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Income Category</label>
+            <select id="incCategory" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-medium">
+              <option value="Client Advance">Client Advance</option>
+              <option value="Milestone Stage Payment">Milestone Stage Payment</option>
+              <option value="Project Final Settlement">Project Final Settlement</option>
+              <option value="Scrap & Machinery Rental">Scrap Sale / Machinery Rent</option>
+              <option value="Other Income">Other General Income</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Payment Mode</label>
+            <select id="incMode" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-medium">
+              <option value="Bank Transfer / NEFT">Bank Transfer (NEFT/RTGS)</option>
+              <option value="UPI / GPay">UPI / GPay / PhonePe</option>
+              <option value="Cash">Cash in Hand</option>
+              <option value="Cheque">Bank Cheque</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Received From (Client / Party) *</label>
+            <input type="text" id="incParty" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-semibold" placeholder="e.g. Mr. Ramachandran" />
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Related Project / Site</label>
+            <select id="incProjectSelect" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-medium"></select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Description / Reference Note</label>
+          <input type="text" id="incNotes" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white" placeholder="e.g. 1st Slab Stage Advance receipt" />
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('modalIncome')" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold">Save Income</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add General Expense -->
+  <div id="modalExpense" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4 modal-inner">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-2 text-rose-400 font-bold">
+          <i data-lucide="minus-circle" class="w-5 h-5"></i>
+          <h3 class="text-base font-bold text-white">Record General Expense</h3>
+        </div>
+        <button onclick="closeModal('modalExpense')" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <form onsubmit="handleCreateExpense(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Expense Amount (â‚¹) *</label>
+          <input type="number" id="expAmount" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-rose-400 font-bold text-base" placeholder="e.g. 15000" />
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Expense Category</label>
+            <select id="expCategory" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-medium">
+              <option value="Site Food & Tea">Site Petty Cash / Food & Tea</option>
+              <option value="Vehicle Fuel & Transport">Vehicle Fuel & Logistics</option>
+              <option value="Office Rent & Electricity">Office Rent & EB Bill</option>
+              <option value="Machinery Service & Rental">Machinery Rental & Service</option>
+              <option value="Printing & Stationary">Printing, Drawing & Admin</option>
+              <option value="Government & Approvals">Legal, Plan Approval & Fees</option>
+              <option value="Miscellaneous">Other Miscellaneous Expense</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Payment Mode</label>
+            <select id="expMode" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-medium">
+              <option value="Cash">Cash in Hand</option>
+              <option value="UPI / GPay">UPI / GPay / PhonePe</option>
+              <option value="Bank Transfer / NEFT">Bank Transfer (NEFT/RTGS)</option>
+              <option value="Cheque">Bank Cheque</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Paid To (Beneficiary / Shop) *</label>
+            <input type="text" id="expParty" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-semibold" placeholder="e.g. Fuel Station / Site Staff" />
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1 font-semibold">Related Project / Site</label>
+            <select id="expProjectSelect" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-medium"></select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold">Description / Purpose</label>
+          <input type="text" id="expNotes" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white" placeholder="e.g. Diesel for JCB excavation at site" />
+        </div>
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('modalExpense')" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Cancel</button>
+          <button type="submit" class="px-4 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-400 text-white font-bold">Save Expense</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Pay Supplier for Site -->
+  <div id="modalSupplierPayment" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4 modal-inner">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-2 text-emerald-400 font-bold">
+          <i data-lucide="wallet" class="w-5 h-5"></i>
+          <h3 class="text-base font-bold text-white">Record Supplier Payment</h3>
+        </div>
+        <button onclick="closeModal('modalSupplierPayment')" class="text-slate-400 hover:text-white">&times;</button>
+      </div>
+      <form onsubmit="handleCreateSupplierPayment(event)" class="space-y-3 text-xs">
+        <input type="hidden" id="paySuppVendor" />
+        <input type="hidden" id="paySuppProject" />
+
+        <!-- Summary Info Box -->
+        <div class="bg-slate-800/80 p-3.5 rounded-xl border border-slate-700/80 space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 font-semibold">Supplier:</span>
+            <span id="paySuppVendorDisplay" class="text-amber-400 font-extrabold text-sm"></span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 font-semibold">Site / Project:</span>
+            <span id="paySuppProjectDisplay" class="text-slate-200 font-bold text-sm"></span>
+          </div>
+          <div class="pt-2 border-t border-slate-700 flex justify-between items-center text-xs">
+            <div>
+              <span class="text-slate-400 block text-[10px] uppercase font-bold">Total Supplied</span>
+              <span id="paySuppTotalDisplay" class="font-mono font-bold text-slate-200"></span>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-[10px] uppercase font-bold">Already Paid</span>
+              <span id="paySuppPaidDisplay" class="font-mono font-bold text-emerald-400"></span>
+            </div>
+            <div class="text-right">
+              <span class="text-slate-400 block text-[10px] uppercase font-bold">Current Balance</span>
+              <span id="paySuppBalanceDisplay" class="font-mono font-extrabold text-rose-400 text-sm"></span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1.5 font-bold uppercase tracking-wider text-[11px]">Paying Amount (â‚¹) *</label>
+          <input type="number" id="paySuppAmount" required class="w-full p-3 rounded-xl bg-slate-800 border border-slate-700 text-emerald-400 font-black text-xl focus:border-emerald-500 focus:outline-none" placeholder="Enter paying amount" />
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+          <button type="button" onclick="closeModal('modalSupplierPayment')" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold cursor-pointer">Cancel</button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm transition-colors shadow-lg cursor-pointer">Pay Amount</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= SQLITE API CLIENT & JAVASCRIPT ================= -->
+  <script>
+    function getApiUrl() {
+      const customUrl = localStorage.getItem('gb_cloud_url');
+      if (customUrl && customUrl.trim()) {
+        return customUrl.trim().replace(/\/+$/, '');
+      }
+      if (window.location && window.location.origin && window.location.protocol.startsWith('http')) {
+        if (window.location.port === '5000' && !window.location.hostname.includes('capacitor') && !window.location.hostname.includes('localhost')) {
+          return `${window.location.origin}/api`;
+        }
+      }
+      return 'https://gurubaran-builders.loca.lt/api';
+    }
+
+    async function apiFetch(url, options = {}) {
+      const defaultHeaders = {
+        'Bypass-Tunnel-Reminder': 'true'
+      };
+      if (options.body && typeof options.body === 'string' && (!options.headers || !options.headers['Content-Type'])) {
+        defaultHeaders['Content-Type'] = 'application/json';
+      }
+      return fetch(url, {
+        ...options,
+        headers: {
+          ...defaultHeaders,
+          ...(options.headers || {})
+        }
+      });
+    }
+
+    let API_URL = getApiUrl();
+    let isSQLiteOnline = false;
+
+    let appData = {
+      company: {
+        name: "GURUBARAN BUILDERS",
+        tagline: "Quality Construction & Civil Engineering Excellence",
+        address: "Chennai, Tamil Nadu",
+        phone: "+91 98401 23456",
+        gstin: ""
+      },
+      projects: [],
+      materials: [],
+      labor: [],
+      vendors: [],
+      supplierPayments: [],
+      accounts: [
+        { id: 'ACC-1', name: 'Primary Current Account', balance: 0 },
+        { id: 'ACC-2', name: 'Site Cash in Hand', balance: 0 }
+      ],
+      transactions: []
+    };
+
+    function formatINR(num) {
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num || 0);
+    }
+
+    function safeLucideIcons() {
+      try {
+        if (typeof lucide !== 'undefined' && lucide && typeof lucide.createIcons === 'function') {
+          lucide.createIcons();
+        }
+      } catch (err) {
+        console.warn('Lucide icons skipped:', err);
+      }
+    }
+
+    function loadLocalData() {
+      try {
+        const saved = localStorage.getItem('gb_app_data');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === 'object') {
+            appData = { ...appData, ...parsed };
+          }
+        }
+      } catch (err) {
+        console.warn('Error reading local data:', err);
+      }
+      renderAll();
+    }
+
+    function saveLocalState() {
+      try {
+        localStorage.setItem('gb_app_data', JSON.stringify(appData));
+      } catch (e) {
+        console.warn('Local storage save failed:', e);
+      }
+    }
+
+    function updateSyncBadge(isOnline) {
+      const badge = document.getElementById('dbStatusBadge');
+      const statusText = document.getElementById('cloudSyncStatusText');
+      if (badge) {
+        if (isOnline) {
+          badge.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Cloud Connected</span>
+          `;
+          badge.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30";
+        } else {
+          badge.innerHTML = `
+            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span>Local Device Mode</span>
+          `;
+          badge.className = "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30";
+        }
+      }
+      if (statusText) {
+        statusText.textContent = isOnline ? '🟢 Connected & Synchronized (24/7 Live Sync Active)' : '🟡 Working locally on this device (offline cache active)';
+      }
+    }
+
+    // --- Load / Sync Data From Cloud / SQLite Database ---
+    async function fetchFromSQLite() {
+      API_URL = getApiUrl();
+      const urlInput = document.getElementById('cloudSyncUrlInput');
+      if (urlInput && !urlInput.value) {
+        urlInput.value = localStorage.getItem('gb_cloud_url') || API_URL;
+      }
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+        const [statusRes, compRes, projRes, matRes, labRes, vndRes, accRes, txnRes, suppPayRes] = await Promise.all([
+          apiFetch(`${API_URL}/status`, { signal: controller.signal }),
+          apiFetch(`${API_URL}/company`, { signal: controller.signal }),
+          apiFetch(`${API_URL}/projects`, { signal: controller.signal }),
+          apiFetch(`${API_URL}/materials`, { signal: controller.signal }),
+          apiFetch(`${API_URL}/labor`, { signal: controller.signal }),
+          apiFetch(`${API_URL}/vendors`, { signal: controller.signal }),
+          apiFetch(`${API_URL}/accounts`, { signal: controller.signal }),
+          apiFetch(`${API_URL}/transactions`, { signal: controller.signal }),
+          apiFetch(`${API_URL}/supplier-payments`, { signal: controller.signal })
+        ]);
+        clearTimeout(timeoutId);
+
+        if (statusRes.ok) {
+          isSQLiteOnline = true;
+          updateSyncBadge(true);
+
+          appData.company = await compRes.json();
+          appData.projects = await projRes.json();
+          appData.materials = await matRes.json();
+          appData.labor = await labRes.json();
+          appData.vendors = await vndRes.json();
+          appData.accounts = await accRes.json();
+          appData.transactions = await txnRes.json();
+          appData.supplierPayments = (suppPayRes && suppPayRes.ok) ? await suppPayRes.json() : [];
+
+          saveLocalState();
+          renderAll();
+          return true;
+        }
+      } catch (err) {
+        console.warn('Cloud sync offline, using local storage state:', err);
+        isSQLiteOnline = false;
+        updateSyncBadge(false);
+        loadLocalData();
+        return false;
+      }
+    }
+
+    function saveCloudSyncUrl() {
+      const urlInput = document.getElementById('cloudSyncUrlInput');
+      if (urlInput && urlInput.value.trim()) {
+        localStorage.setItem('gb_cloud_url', urlInput.value.trim());
+        API_URL = getApiUrl();
+        alert('Cloud Sync API URL saved! Syncing now...');
+        fetchFromSQLite();
+      } else {
+        localStorage.removeItem('gb_cloud_url');
+        API_URL = getApiUrl();
+        alert('Cloud Sync URL cleared. Using default.');
+        fetchFromSQLite();
+      }
+    }
+
+    async function testAndSaveCloudSync() {
+      const ok = await fetchFromSQLite();
+      if (ok) {
+        alert('✅ Cloud Sync Successful! Data is synchronized.');
+      } else {
+        alert('Saved locally. Connect to Cloud Sync URL in Settings to sync across devices.');
+      }
+    }
+
+    // --- Tab Navigation (syncs both sidebar and mobile bottom nav) ---
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      const activeEl = document.getElementById(tabId);
+      if (activeEl) activeEl.classList.remove('hidden');
+
+      // Sync desktop sidebar
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('bg-amber-500', 'text-slate-950', 'font-bold');
+        btn.classList.add('text-slate-300');
+      });
+      const activeBtn = document.getElementById('btn-' + tabId);
+      if (activeBtn) {
+        activeBtn.classList.remove('text-slate-300');
+        activeBtn.classList.add('bg-amber-500', 'text-slate-950', 'font-bold');
+      }
+
+      // Sync mobile bottom nav
+      document.querySelectorAll('.mob-nav-btn').forEach(btn => btn.classList.remove('active'));
+      const mobMap = {
+        'tab-dashboard': 'mob-btn-dashboard',
+        'tab-projects': 'mob-btn-projects',
+        'tab-labor': 'mob-btn-labor',
+        'tab-materials': 'mob-btn-materials'
+      };
+      if (mobMap[tabId]) {
+        const mobBtn = document.getElementById(mobMap[tabId]);
+        if (mobBtn) mobBtn.classList.add('active');
+      }
+
+      // Scroll to top on mobile
+      const mc = document.getElementById('mainContent');
+      if (mc) mc.scrollTop = 0;
+
+      safeLucideIcons();
+    }
+
+    // Mobile "More" drawer toggle
+    function toggleMoreDrawer() {
+      const drawer = document.getElementById('moreDrawer');
+      const moreBtn = document.getElementById('moreNavBtn');
+      drawer.classList.toggle('open');
+      moreBtn.classList.toggle('active', drawer.classList.contains('open'));
+    }
+    function closeMoreDrawer() {
+      const drawer = document.getElementById('moreDrawer');
+      const moreBtn = document.getElementById('moreNavBtn');
+      if (drawer) drawer.classList.remove('open');
+      if (moreBtn) moreBtn.classList.remove('active');
+    }
+
+    let activeMaterialSupplierFilter = 'ALL';
+
+    function setMaterialSupplierFilter(suppName) {
+      activeMaterialSupplierFilter = suppName || 'ALL';
+      renderAll();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // --- Modal Helpers ---
+    function openModal(modalId) {
+      document.getElementById(modalId).classList.remove('hidden');
+      document.getElementById(modalId).classList.add('flex');
+      populateProjectDropdowns();
+      if (modalId === 'modalMaterial') {
+        populateSupplierDropdown();
+      }
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.add('hidden');
+      document.getElementById(modalId).classList.remove('flex');
+    }
+
+    function populateSupplierDropdown(selectedVendor) {
+      const select = document.getElementById('matVendorSelect');
+      if (!select) return;
+
+      const suppliers = [];
+      const seen = new Set();
+      (appData.vendors || []).forEach(v => {
+        if (v.name && !seen.has(v.name.toLowerCase())) {
+          seen.add(v.name.toLowerCase());
+          suppliers.push(v.name);
+        }
+      });
+      (appData.materials || []).forEach(m => {
+        if (m.vendor && !seen.has(m.vendor.toLowerCase())) {
+          seen.add(m.vendor.toLowerCase());
+          suppliers.push(m.vendor);
+        }
+      });
+
+      if (suppliers.length === 0) {
+        select.innerHTML = '<option value="General Supplier">General Supplier (Add via + Add Material Supplier)</option>';
+      } else {
+        select.innerHTML = suppliers.map(s => `
+          <option value="${escapeHtml(s)}" ${selectedVendor && selectedVendor.toLowerCase() === s.toLowerCase() ? 'selected' : ''}>${escapeHtml(s)}</option>
+        `).join('');
+      }
+    }
+
+    function openModalMaterialForSupplier(vendorName, category) {
+      openModal('modalMaterial');
+      populateSupplierDropdown(vendorName);
+      if (category) {
+        const catEl = document.getElementById('matCategory');
+        if (catEl) {
+          for (let i = 0; i < catEl.options.length; i++) {
+            if (catEl.options[i].value.toLowerCase() === category.toLowerCase() || category.toLowerCase().includes(catEl.options[i].value.toLowerCase())) {
+              catEl.selectedIndex = i;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    function openModalMaterialForSite(siteName) {
+      openModal('modalMaterial');
+      if (siteName) {
+        const sel = document.getElementById('matProjectSelect');
+        if (sel) {
+          for (let i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value.toLowerCase() === siteName.toLowerCase()) {
+              sel.selectedIndex = i;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    function populateProjectDropdowns() {
+      const selects = [
+        document.getElementById('matProjectSelect'),
+        document.getElementById('labProjectSelect'),
+        document.getElementById('labSiteSelect'),
+        document.getElementById('incProjectSelect'),
+        document.getElementById('expProjectSelect')
+      ];
+
+      selects.forEach(select => {
+        if (!select) return;
+        select.innerHTML = '';
+        if (appData.projects.length === 0) {
+          select.innerHTML = '<option value="General Site">General Site / Office</option>';
+        } else {
+          appData.projects.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.name;
+            opt.textContent = `${p.name} (${p.location || 'Site'})`;
+            select.appendChild(opt);
+          });
+          const generalOpt = document.createElement('option');
+          generalOpt.value = 'General / HQ';
+          generalOpt.textContent = 'General / HQ (Company)';
+          select.appendChild(generalOpt);
+        }
+      });
+    }
+
+    // --- Handlers: Create Project in SQLite ---
+    async function handleCreateProject(e) {
+      if (e) e.preventDefault();
+      try {
+        const nameInput = document.getElementById('projName');
+        const clientInput = document.getElementById('projClient');
+        const locationInput = document.getElementById('projLocation');
+
+        const name = nameInput ? nameInput.value.trim() : '';
+        const client = (clientInput && clientInput.value.trim()) || 'Direct Client';
+        const location = (locationInput && locationInput.value.trim()) || 'Site Location';
+
+        if (!name) {
+          alert('Please enter a site / project name.');
+          return;
+        }
+
+        const tempId = 'PRJ-' + Math.floor(100 + Math.random() * 900);
+        const newProj = {
+          id: tempId,
+          name,
+          client,
+          location,
+          budget: 0,
+          spent: 0,
+          progress: 10,
+          status: 'In Progress',
+          supervisor: 'Civil Engg',
+          created_at: new Date().toISOString()
+        };
+
+        // 1. Instant optimistic update for 0ms lag
+        if (!appData.projects) appData.projects = [];
+        appData.projects.unshift(newProj);
+
+        // Immediate close & reset for instant feedback
+        closeModal('modalProject');
+        if (e && e.target && typeof e.target.reset === 'function') {
+          e.target.reset();
+        } else {
+          if (nameInput) nameInput.value = '';
+          if (clientInput) clientInput.value = '';
+          if (locationInput) locationInput.value = '';
+        }
+
+        renderAll();
+        populateProjectDropdowns();
+
+        // 2. Persist directly to SQLite Database
+        if (isSQLiteOnline) {
+          const res = await apiFetch(`${API_URL}/projects`, {
+            method: 'POST',
+            body: JSON.stringify({ name, client, location, budget: 0, supervisor: 'Civil Engg' })
+          });
+          const created = await res.json();
+          if (created && created.id) {
+            const idx = appData.projects.findIndex(p => p.id === tempId);
+            if (idx !== -1) {
+              appData.projects[idx] = created;
+            }
+          }
+          await fetchFromSQLite();
+        }
+      } catch (err) {
+        console.error('Failed to create project:', err);
+        alert('Could not create site: ' + (err.message || err));
+      }
+    }
+
+    // --- Handlers: Delete Project from SQLite ---
+    async function deleteProject(id, name) {
+      if (confirm(`Are you sure you want to delete site "${name || id}" from the SQLite database?`)) {
+        appData.projects = (appData.projects || []).filter(p => p.id !== id);
+        renderAll();
+        populateProjectDropdowns();
+
+        try {
+          if (isSQLiteOnline) {
+            await apiFetch(`${API_URL}/projects/${id}`, { method: 'DELETE' });
+            await fetchFromSQLite();
+          }
+        } catch (err) {
+          console.error('Failed to delete project from SQLite:', err);
+        }
+      }
+    }
+
+    // --- Handlers: Create Material in SQLite ---
+    async function handleCreateMaterial(e) {
+      if (e) e.preventDefault();
+      const projName = document.getElementById('matProjectSelect').value || 'General Site';
+      const targetProj = appData.projects.find(p => p.name === projName);
+      const vendorSelect = document.getElementById('matVendorSelect');
+      const vendorName = (vendorSelect && vendorSelect.value) ? vendorSelect.value : 'General Supplier';
+      const billInput = document.getElementById('matBillNumber');
+      const billNumber = (billInput && billInput.value.trim()) ? billInput.value.trim() : `VCH-MAT-${Date.now().toString().slice(-5)}`;
+      const catEl = document.getElementById('matCategory');
+      const category = (catEl && catEl.value) ? catEl.value : 'Raw Materials';
+      const item = document.getElementById('matItem').value;
+      const amount = Number(document.getElementById('matAmount').value) || 0;
+      
+      const payload = {
+        date: new Date().toISOString().split('T')[0],
+        item,
+        category,
+        amount,
+        project_id: targetProj ? targetProj.id : null,
+        project_name: projName,
+        vendor: vendorName,
+        bill_number: billNumber
+      };
+
+      try {
+        if (isSQLiteOnline) {
+          await apiFetch(`${API_URL}/materials`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          await fetchFromSQLite();
+        } else {
+          appData.materials.unshift({ id: 'MAT-' + Date.now(), ...payload, billNumber: payload.bill_number });
+          if (targetProj) targetProj.spent += payload.amount;
+          renderAll();
+        }
+
+        closeModal('modalMaterial');
+        if (e && e.target && typeof e.target.reset === 'function') e.target.reset();
+      } catch (err) {
+        console.error(err);
+        closeModal('modalMaterial');
+      }
+    }
+
+    // --- Handlers: Create Labor in SQLite ---
+    async function handleCreateLabor(e) {
+      if (e) e.preventDefault();
+      try {
+        const nameInput = document.getElementById('labName');
+        const roleInput = document.getElementById('labRole');
+
+        const name = nameInput ? nameInput.value.trim() : '';
+        const role = roleInput ? roleInput.value : 'Ma';
+        const site_assigned = (appData.projects && appData.projects.length > 0) ? appData.projects[0].name : 'General Site';
+        const day_name = 'Monday';
+        const duty = '1 Duty';
+        const daily_rate = role === 'Mm' ? 750 : 950;
+        const total_amount = daily_rate;
+
+        if (!name) {
+          alert('Please enter worker / labour name.');
+          return;
+        }
+
+        const payload = {
+          name,
+          role,
+          site_assigned,
+          day_name,
+          duty,
+          daily_rate,
+          total_amount,
+          days_present: 1,
+          advance_paid: 0
+        };
+
+        if (isSQLiteOnline) {
+          await apiFetch(`${API_URL}/labor`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          await fetchFromSQLite();
+        } else {
+          appData.labor.push({ id: 'LAB-' + Date.now(), ...payload });
+          renderAll();
+        }
+
+        closeModal('modalLabor');
+        if (e && e.target && typeof e.target.reset === 'function') {
+          e.target.reset();
+        }
+      } catch (err) {
+        console.error('Error creating labor:', err);
+        alert('Could not add worker: ' + (err.message || err));
+        closeModal('modalLabor');
+      }
+    }
+
+    function getDutyAmount(role, duty) {
+      const isMm = role === 'Mm';
+      if (duty === '1 Duty') return isMm ? 750 : 950;
+      if (duty === '1.5 Duty' || duty === '1425' || duty === '1125') return isMm ? 1125 : 1425;
+      if (duty === '1/2 Duty' || duty === '0.5 Duty') return isMm ? 375 : 475;
+      return 0; // '-' or 'Off'
+    }
+
+    async function updateLaborDayDuty(id, dayKey, duty) {
+      const worker = (appData.labor || []).find(l => l.id === id);
+      if (!worker) return;
+
+      const role = worker.role || 'Ma';
+      worker[`${dayKey}_duty`] = duty;
+      worker[`${dayKey}_amt`] = getDutyAmount(role, duty);
+
+      // Recalculate total days and total weekly wages
+      const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+      let totalAmt = 0;
+      let daysCount = 0;
+
+      days.forEach(d => {
+        const dDuty = worker[`${d}_duty`] || '-';
+        const dAmt = getDutyAmount(role, dDuty);
+        worker[`${d}_amt`] = dAmt;
+        totalAmt += dAmt;
+        if (dDuty && dDuty !== '-' && dDuty !== 'Off') {
+          daysCount += (dDuty === '1/2 Duty' ? 0.5 : 1);
+        }
+      });
+
+      worker.total_amount = totalAmt;
+      worker.days_present = daysCount;
+
+      renderAll();
+
+      try {
+        if (isSQLiteOnline) {
+          await apiFetch(`${API_URL}/labor/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(worker)
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to save day duty to SQLite:', err);
+      }
+    }
+
+    async function updateLaborDaySite(id, dayKey, site) {
+      const worker = (appData.labor || []).find(l => l.id === id);
+      if (!worker) return;
+
+      worker[`${dayKey}_site`] = site;
+      renderAll();
+
+      try {
+        if (isSQLiteOnline) {
+          await apiFetch(`${API_URL}/labor/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(worker)
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to save day site to SQLite:', err);
+      }
+    }
+
+    async function updateLaborField(id, field, value) {
+      const worker = (appData.labor || []).find(l => l.id === id);
+      if (!worker) return;
+
+      worker[field] = value;
+
+      if (field === 'role') {
+        // Recalculate all 7 days with new role rates
+        const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+        let totalAmt = 0;
+        let daysCount = 0;
+        days.forEach(d => {
+          const dDuty = worker[`${d}_duty`] || '-';
+          const dAmt = getDutyAmount(value, dDuty);
+          worker[`${d}_amt`] = dAmt;
+          totalAmt += dAmt;
+          if (dDuty && dDuty !== '-' && dDuty !== 'Off') {
+            daysCount += (dDuty === '1/2 Duty' ? 0.5 : 1);
+          }
+        });
+        worker.daily_rate = value === 'Mm' ? 750 : 950;
+        worker.total_amount = totalAmt;
+        worker.days_present = daysCount;
+      }
+
+      renderAll();
+
+      try {
+        if (isSQLiteOnline) {
+          await apiFetch(`${API_URL}/labor/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(worker)
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to save labor update:', err);
+      }
+    }
+
+    async function deleteLabor(id) {
+      if (confirm('Delete this labour record from SQLite?')) {
+        appData.labor = (appData.labor || []).filter(l => l.id !== id);
+        renderAll();
+        try {
+          if (isSQLiteOnline) {
+            await apiFetch(`${API_URL}/labor/${id}`, { method: 'DELETE' });
+            await fetchFromSQLite();
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    }
+
+    function getLabourWeeklySummary() {
+      const daysKeys = [
+        { key: 'mon', label: 'Mon' },
+        { key: 'tue', label: 'Tue' },
+        { key: 'wed', label: 'Wed' },
+        { key: 'thu', label: 'Thu' },
+        { key: 'fri', label: 'Fri' },
+        { key: 'sat', label: 'Sat' },
+        { key: 'sun', label: 'Sun' }
+      ];
+
+      let grandTotal = 0;
+      let totalDaysAll = 0;
+      const rows = [];
+
+      (appData.labor || []).forEach((l, idx) => {
+        const role = l.role || 'Ma';
+        let workerTotal = 0;
+        let workerDays = 0;
+        const duties = {};
+
+        daysKeys.forEach(d => {
+          const duty = l[`${d.key}_duty`] || (l.day_name && l.day_name.toLowerCase().startsWith(d.key) ? (l.duty || '1 Duty') : '-');
+          const amt = getDutyAmount(role, duty);
+          workerTotal += amt;
+          duties[d.label] = duty;
+          if (duty && duty !== '-' && duty !== 'Off') {
+            workerDays += (duty === '1/2 Duty' ? 0.5 : (duty === '1.5 Duty' ? 1.5 : 1));
+          }
+        });
+
+        if (workerTotal === 0 && Number(l.total_amount) > 0) {
+          workerTotal = Number(l.total_amount);
+          workerDays = Number(l.days_present) || 1;
+        }
+
+        grandTotal += workerTotal;
+        totalDaysAll += workerDays;
+
+        rows.push({
+          index: idx + 1,
+          name: l.name,
+          role,
+          days: workerDays,
+          amount: workerTotal,
+          duties
+        });
+      });
+
+      return { rows, grandTotal, totalDaysAll, totalWorkers: rows.length };
+    }
+
+    function shareWeeklyLabourWhatsApp() {
+      const summary = getLabourWeeklySummary();
+      if (summary.rows.length === 0) {
+        alert('No labour attendance data recorded yet.');
+        return;
+      }
+
+      const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      const compName = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
+
+      let msg = `🏗️ *${compName.toUpperCase()}*\n`;
+      msg += `📋 *Weekly Labour Attendance & Wage Summary*\n`;
+      msg += `📅 *Date:* ${today}\n\n`;
+      msg += `👷 *WORKER WAGE BREAKDOWN:*\n`;
+
+      summary.rows.forEach(r => {
+        msg += `${r.index}. *${r.name}* (${r.role}) - ${r.days} Days ➔ ₹${r.amount.toLocaleString('en-IN')}\n`;
+      });
+
+      msg += `\n─────────────────────\n`;
+      msg += `👥 *Total Active Labour:* ${summary.totalWorkers} Workers\n`;
+      msg += `📊 *Total Days Worked:* ${summary.totalDaysAll} Days\n`;
+      msg += `💰 *TOTAL LABOUR CHARGES: ₹${summary.grandTotal.toLocaleString('en-IN')}*\n`;
+      msg += `─────────────────────\n`;
+      msg += `_Sent via ${compName} Mobile App_`;
+
+      const encoded = encodeURIComponent(msg);
+      const whatsappUrl = `https://api.whatsapp.com/send?text=${encoded}`;
+      window.open(whatsappUrl, '_blank');
+    }
+
+    function exportLabourGoogleSheets() {
+      const summary = getLabourWeeklySummary();
+      if (summary.rows.length === 0) {
+        alert('No labour attendance data recorded yet.');
+        return;
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const compName = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
+
+      let csv = `"${compName} - Weekly Labour Attendance & Wages (${today})"\n\n`;
+      csv += `"S.No","Worker Name","Role (Ma/Mm)","Mon","Tue","Wed","Thu","Fri","Sat","Sun","Total Days","Weekly Wage (INR)"\n`;
+
+      summary.rows.forEach(r => {
+        csv += `"${r.index}","${r.name}","${r.role}","${r.duties['Mon'] || '-'}","${r.duties['Tue'] || '-'}","${r.duties['Wed'] || '-'}","${r.duties['Thu'] || '-'}","${r.duties['Fri'] || '-'}","${r.duties['Sat'] || '-'}","${r.duties['Sun'] || '-'}","${r.days}","${r.amount}"\n`;
+      });
+
+      csv += `\n"","","","","","","","","","Total Labour Charges:","${summary.totalDaysAll} Days","${summary.grandTotal}"\n`;
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `Labour_Attendance_Weekly_${today}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    }
+
+    // --- Handlers: Create Material Supplier Folder in SQLite ---
+    async function handleCreateVendor(e) {
+      if (e) e.preventDefault();
+      const nameInput = document.getElementById('vndName');
+      const roleInput = document.getElementById('vndRole');
+      const name = nameInput ? nameInput.value.trim() : '';
+      const role = roleInput ? roleInput.value : 'Raw Materials';
+
+      if (!name) {
+        alert('Please enter supplier name.');
+        return;
+      }
+
+      const payload = {
+        name,
+        role,
+        category: role,
+        balance_due: 0
+      };
+
+      try {
+        if (isSQLiteOnline) {
+          await apiFetch(`${API_URL}/vendors`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          await fetchFromSQLite();
+        } else {
+          appData.vendors.push({ id: 'VND-' + Date.now(), ...payload, balance: 0 });
+          renderAll();
+        }
+
+        closeModal('modalVendor');
+        if (e && e.target && typeof e.target.reset === 'function') e.target.reset();
+      } catch (err) {
+        console.error(err);
+        closeModal('modalVendor');
+      }
+    }
+
+    async function deleteSupplierFolder(id, name, fromVendors) {
+      if (confirm(`Delete material supplier folder "${name}"?`)) {
+        if (fromVendors && id && !id.startsWith('VND-')) {
+          if (isSQLiteOnline) {
+            await apiFetch(`${API_URL}/vendors/${id}`, { method: 'DELETE' });
+          } else {
+            appData.vendors = appData.vendors.filter(v => v.id !== id);
+          }
+        } else if (fromVendors && id) {
+          if (isSQLiteOnline) {
+            await apiFetch(`${API_URL}/vendors/${id}`, { method: 'DELETE' });
+          } else {
+            appData.vendors = appData.vendors.filter(v => v.id !== id);
+          }
+        }
+        await fetchFromSQLite();
+        renderAll();
+      }
+    }
+
+    async function deleteMaterialsForSupplierSite(suppName, siteName) {
+      if (confirm(`Delete all material records from supplier "${suppName}" for site "${siteName}"?`)) {
+        const toDelete = (appData.materials || []).filter(m => 
+          (m.vendor || '').toLowerCase() === suppName.toLowerCase() &&
+          (m.project_name || m.project || 'General Site').toLowerCase() === siteName.toLowerCase()
+        );
+
+        if (isSQLiteOnline) {
+          for (const m of toDelete) {
+            await apiFetch(`${API_URL}/materials/${m.id}`, { method: 'DELETE' });
+          }
+          await fetchFromSQLite();
+        } else {
+          const deleteIds = new Set(toDelete.map(m => m.id));
+          appData.materials = appData.materials.filter(m => !deleteIds.has(m.id));
+          renderAll();
+        }
+      }
+    }
+
+    // --- Handlers: Supplier Payments (Pay Supplier for Site) ---
+    function openPaySupplierSiteModal(vendor, project, totalAmount, paidAmount) {
+      document.getElementById('paySuppVendor').value = vendor;
+      document.getElementById('paySuppProject').value = project;
+      document.getElementById('paySuppVendorDisplay').textContent = vendor;
+      document.getElementById('paySuppProjectDisplay').textContent = project;
+      document.getElementById('paySuppTotalDisplay').textContent = formatINR(totalAmount);
+      document.getElementById('paySuppPaidDisplay').textContent = formatINR(paidAmount);
+      const balance = Math.max(0, (totalAmount || 0) - (paidAmount || 0));
+      document.getElementById('paySuppBalanceDisplay').textContent = formatINR(balance);
+      document.getElementById('paySuppAmount').value = balance > 0 ? balance : '';
+      openModal('modalSupplierPayment');
+      setTimeout(() => {
+        const amtInput = document.getElementById('paySuppAmount');
+        if (amtInput) { amtInput.focus(); amtInput.select(); }
+      }, 50);
+    }
+
+    async function handleCreateSupplierPayment(e) {
+      if (e) e.preventDefault();
+      const vendor = document.getElementById('paySuppVendor').value;
+      const project_name = document.getElementById('paySuppProject').value;
+      const amount = Number(document.getElementById('paySuppAmount').value) || 0;
+      const date = new Date().toISOString().split('T')[0];
+      const payment_mode = 'Cash in Hand';
+      const notes = `Payment to ${vendor} for site ${project_name}`;
+
+      if (amount <= 0) {
+        alert('Please enter a valid paying amount.');
+        return;
+      }
+
+      const payload = {
+        vendor,
+        project_name,
+        amount,
+        date,
+        payment_mode,
+        notes
+      };
+
+      try {
+        if (isSQLiteOnline) {
+          await apiFetch(`${API_URL}/supplier-payments`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          await fetchFromSQLite();
+        } else {
+          if (!appData.supplierPayments) appData.supplierPayments = [];
+          appData.supplierPayments.unshift({ id: 'SPAY-' + Date.now(), ...payload });
+          appData.transactions.unshift({
+            id: 'TXN-SPAY-' + Date.now(),
+            date,
+            type: 'Expense',
+            category: 'Supplier Payment',
+            amount,
+            party: vendor,
+            project: project_name,
+            reference: `Payment to ${vendor} (${project_name})`
+          });
+          renderAll();
+        }
+
+        closeModal('modalSupplierPayment');
+        if (e && e.target && typeof e.target.reset === 'function') e.target.reset();
+      } catch (err) {
+        console.error(err);
+        alert('Failed to record supplier payment: ' + (err.message || err));
+        closeModal('modalSupplierPayment');
+      }
+    }
+
+    // --- Handlers: Income & Expense (General Cashflow) ---
+    async function handleCreateIncome(e) {
+      e.preventDefault();
+      const payload = {
+        type: 'Income',
+        amount: Number(document.getElementById('incAmount').value) || 0,
+        category: document.getElementById('incCategory').value || 'Client Advance',
+        party: document.getElementById('incParty').value || 'Client',
+        project: document.getElementById('incProjectSelect').value || 'General / HQ',
+        reference: document.getElementById('incMode').value + (document.getElementById('incNotes').value ? ` - ${document.getElementById('incNotes').value}` : ''),
+        date: new Date().toISOString().split('T')[0]
+      };
+
+      try {
+        if (isSQLiteOnline) {
+          await apiFetch(`${API_URL}/transactions`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          await fetchFromSQLite();
+        } else {
+          appData.transactions.unshift({ id: 'TXN-' + Date.now(), ...payload });
+          renderAll();
+        }
+
+        closeModal('modalIncome');
+        e.target.reset();
+      } catch (err) {
+        console.error(err);
+        closeModal('modalIncome');
+      }
+    }
+
+    async function handleCreateExpense(e) {
+      e.preventDefault();
+      const payload = {
+        type: 'Expense',
+        amount: Number(document.getElementById('expAmount').value) || 0,
+        category: document.getElementById('expCategory').value || 'General Expense',
+        party: document.getElementById('expParty').value || 'Paid Party',
+        project: document.getElementById('expProjectSelect').value || 'General / HQ',
+        reference: document.getElementById('expMode').value + (document.getElementById('expNotes').value ? ` - ${document.getElementById('expNotes').value}` : ''),
+        date: new Date().toISOString().split('T')[0]
+      };
+
+      try {
+        if (isSQLiteOnline) {
+          await apiFetch(`${API_URL}/transactions`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+          await fetchFromSQLite();
+        } else {
+          appData.transactions.unshift({ id: 'TXN-' + Date.now(), ...payload });
+          renderAll();
+        }
+
+        closeModal('modalExpense');
+        e.target.reset();
+      } catch (err) {
+        console.error(err);
+        closeModal('modalExpense');
+      }
+    }
+
+    async function deleteTransaction(id) {
+      if (confirm('Delete this transaction record from SQLite?')) {
+        if (isSQLiteOnline) {
+          await apiFetch(`${API_URL}/transactions/${id}`, { method: 'DELETE' });
+          await fetchFromSQLite();
+        } else {
+          appData.transactions = appData.transactions.filter(t => t.id !== id);
+          renderAll();
+        }
+      }
+    }
+
+    function showAuthOverlay(show) {
+      const authOverlay = document.getElementById('authOverlay');
+      if (!authOverlay) return;
+      if (show) {
+        authOverlay.classList.remove('hidden');
+        authOverlay.classList.add('flex');
+        authOverlay.style.display = 'flex';
+      } else {
+        authOverlay.classList.add('hidden');
+        authOverlay.classList.remove('flex');
+        authOverlay.style.display = 'none';
+      }
+    }
+
+    // --- Authentication Logic (Personal Single Login) ---
+    function checkAuth() {
+      const savedUser = localStorage.getItem('gb_auth_user') || sessionStorage.getItem('gb_auth_user');
+      const userBadge = document.getElementById('headerUserName');
+
+      if (savedUser) {
+        showAuthOverlay(false);
+        if (userBadge) userBadge.textContent = savedUser;
+      } else {
+        showAuthOverlay(true);
+      }
+    }
+
+    async function handleLogin(e) {
+      if (e) {
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+      }
+
+      const usernameInput = document.getElementById('loginUsername');
+      const passwordInput = document.getElementById('loginPassword');
+      const username = usernameInput ? usernameInput.value.trim() : 'gurubaran';
+      const password = passwordInput ? passwordInput.value : 'admin123';
+      const errorDiv = document.getElementById('loginError');
+      const submitBtn = document.getElementById('loginSubmitBtn');
+
+      if (errorDiv) {
+        errorDiv.classList.add('hidden');
+        errorDiv.textContent = '';
+      }
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span>Logging in...</span>`;
+      }
+
+      const isMatch = (username.toLowerCase() === 'gurubaran' && password === 'admin123');
+
+      try {
+        const apiUrl = getApiUrl();
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+        try {
+          const res = await apiFetch(`${apiUrl}/login`, {
+            method: 'POST',
+            body: JSON.stringify({ username, password }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (res.ok) {
+            const data = await res.json();
+            if (data && data.success) {
+              isSQLiteOnline = true;
+              localStorage.setItem('gb_auth_user', data.username || username);
+              sessionStorage.setItem('gb_auth_user', data.username || username);
+              const userBadge = document.getElementById('headerUserName');
+              if (userBadge) userBadge.textContent = data.username || username;
+              showAuthOverlay(false);
+              fetchFromSQLite();
+              return;
+            }
+          }
+        } catch (fetchErr) {
+          console.warn('Backend login request bypassed to local check:', fetchErr);
+        }
+
+        if (isMatch) {
+          localStorage.setItem('gb_auth_user', username);
+          sessionStorage.setItem('gb_auth_user', username);
+          const userBadge = document.getElementById('headerUserName');
+          if (userBadge) userBadge.textContent = username;
+          showAuthOverlay(false);
+          loadLocalData();
+        } else {
+          if (errorDiv) {
+            errorDiv.textContent = 'Invalid username or password';
+            errorDiv.classList.remove('hidden');
+          }
+        }
+      } catch (err) {
+        console.error('Login error:', err);
+        if (isMatch) {
+          localStorage.setItem('gb_auth_user', username);
+          sessionStorage.setItem('gb_auth_user', username);
+          const userBadge = document.getElementById('headerUserName');
+          if (userBadge) userBadge.textContent = username;
+          showAuthOverlay(false);
+          loadLocalData();
+        } else if (errorDiv) {
+          errorDiv.textContent = 'Invalid username or password';
+          errorDiv.classList.remove('hidden');
+        }
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `<i data-lucide="log-in" class="w-4 h-4"></i><span>Login to My Portal</span>`;
+          safeLucideIcons();
+        }
+      }
+    }
+
+    function handleLogout() {
+      if (confirm('Logout of GURUBARAN BUILDERS portal?')) {
+        localStorage.removeItem('gb_auth_user');
+        localStorage.removeItem('gb_auth_token');
+        sessionStorage.removeItem('gb_auth_user');
+        sessionStorage.removeItem('gb_auth_token');
+        showAuthOverlay(true);
+        safeLucideIcons();
+      }
+    }
+
+    async function handleChangePassword(e) {
+      e.preventDefault();
+      const currentPassword = document.getElementById('currentPwd').value;
+      const newUsername = document.getElementById('newUsername').value.trim();
+      const newPassword = document.getElementById('newPwd').value.trim();
+      const feedback = document.getElementById('pwdFeedback');
+
+      feedback.className = 'hidden p-3 rounded-xl text-xs font-semibold';
+      feedback.textContent = '';
+
+      try {
+        if (isSQLiteOnline) {
+          const res = await apiFetch(`${API_URL}/change-password`, {
+            method: 'POST',
+            body: JSON.stringify({ currentPassword, newUsername, newPassword })
+          });
+          const data = await res.json();
+
+          if (res.ok && data.success) {
+            feedback.textContent = 'Master credentials updated in SQLite database successfully!';
+            feedback.className = 'p-3 rounded-xl text-xs font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 block';
+            if (newUsername) {
+              sessionStorage.setItem('gb_auth_user', newUsername);
+              document.getElementById('headerUserName').textContent = newUsername;
+            }
+            e.target.reset();
+          } else {
+            feedback.textContent = data.error || 'Failed to update password';
+            feedback.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-500/15 border border-rose-500/30 text-rose-300 block';
+          }
+        } else {
+          // Offline fallback
+          const savedCreds = JSON.parse(localStorage.getItem('gb_admin_creds') || '{"username":"gurubaran","password":"admin123"}');
+          if (currentPassword !== savedCreds.password) {
+            feedback.textContent = 'Current password does not match!';
+            feedback.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-500/15 border border-rose-500/30 text-rose-300 block';
+          } else {
+            const updated = {
+              username: newUsername || savedCreds.username,
+              password: newPassword || savedCreds.password
+            };
+            localStorage.setItem('gb_admin_creds', JSON.stringify(updated));
+            sessionStorage.setItem('gb_auth_user', updated.username);
+            document.getElementById('headerUserName').textContent = updated.username;
+            feedback.textContent = 'Credentials updated locally!';
+            feedback.className = 'p-3 rounded-xl text-xs font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 block';
+            e.target.reset();
+          }
+        }
+      } catch (err) {
+        feedback.textContent = 'Error connecting to database server';
+        feedback.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-500/15 border border-rose-500/30 text-rose-300 block';
+      }
+      safeLucideIcons();
+    }
+
+    // --- Settings Form ---
+    async function saveSettings(e) {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('setCompanyName').value,
+        tagline: document.getElementById('setTagline').value,
+        gstin: document.getElementById('setGstin').value,
+        phone: document.getElementById('setPhone').value,
+        address: document.getElementById('setAddress').value
+      };
+
+      if (isSQLiteOnline) {
+        await apiFetch(`${API_URL}/company`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+        await fetchFromSQLite();
+      }
+
+      alert('Company profile updated in SQLite database!');
+    }
+
+    async function clearAllAppStorage() {
+      if (confirm('Clear all data from SQLite database and start completely fresh?')) {
+        if (isSQLiteOnline) {
+          await apiFetch(`${API_URL}/reset`, { method: 'POST' });
+          await fetchFromSQLite();
+        } else {
+          appData.projects = [];
+          appData.materials = [];
+          appData.labor = [];
+          appData.vendors = [];
+          renderAll();
+        }
+        alert('All SQLite database records reset successfully.');
+      }
+    }
+
+    // --- Render Functions ---
+    function renderAll() {
+      // Header and Company Info (safely guarded against null elements)
+      const headerComp = document.getElementById('headerCompanyName');
+      if (headerComp) headerComp.textContent = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
+
+      const dashComp = document.getElementById('dashCompanyName');
+      if (dashComp) dashComp.textContent = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
+
+      const reportComp = document.getElementById('reportCompanyName');
+      if (reportComp) reportComp.textContent = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
+
+      const headerTag = document.getElementById('headerTagline');
+      if (headerTag) headerTag.textContent = (appData.company && appData.company.tagline) || 'Quality Construction & Civil Engineering Excellence';
+
+      const reportAddr = document.getElementById('reportAddress');
+      if (reportAddr) reportAddr.textContent = (appData.company && appData.company.address) || 'Chennai, Tamil Nadu';
+
+      // 2 Home KPI Metrics
+      if (document.getElementById('statActiveSites')) {
+        document.getElementById('statActiveSites').textContent = (appData.projects || []).length;
+      }
+      if (document.getElementById('statTotalWorkers')) {
+        document.getElementById('statTotalWorkers').textContent = ((appData.labor || []).length) + ' Workers';
+      }
+
+      const totalBank = (appData.accounts || []).reduce((s, a) => s + (Number(a.balance) || 0), 0);
+      if (document.getElementById('navBankBalance')) {
+        document.getElementById('navBankBalance').textContent = formatINR(totalBank);
+      }
+
+      // Render Dashboard Sites
+      const dashSites = document.getElementById('dashboardSitesList');
+      if (dashSites) {
+        if (appData.projects.length === 0) {
+          dashSites.innerHTML = '<div class="col-span-3 text-center py-6 text-slate-500 text-xs">No active project sites logged yet.</div>';
+        } else {
+          dashSites.innerHTML = appData.projects.map(p => {
+            const siteMaterials = (appData.materials || []).filter(m => (m.project_name === p.name || m.project === p.name));
+            const siteMatCost = siteMaterials.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+
+            let siteLabCost = 0;
+            let siteShiftsCount = 0;
+            (appData.labor || []).forEach(l => {
+              ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(d => {
+                const dSite = l[`${d}_site`] || l.site_assigned;
+                const dAmt = Number(l[`${d}_amt`]) || 0;
+                const dDuty = l[`${d}_duty`] || '-';
+                if (dSite === p.name && dAmt > 0) {
+                  siteLabCost += dAmt;
+                  siteShiftsCount += (dDuty === '1/2 Duty' ? 0.5 : 1);
+                }
+              });
+            });
+
+            const totalSiteSpent = siteMatCost + siteLabCost;
+
+            return `
+              <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700 space-y-3 hover:border-slate-600 transition-all shadow-md">
+                <div class="flex justify-between items-center font-bold text-white">
+                  <span class="text-base font-extrabold tracking-tight">${p.name}</span>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30">Active</span>
+                </div>
+                <p class="text-xs text-slate-400">${p.location || 'Location'} â€¢ Client: <span class="text-slate-200 font-semibold">${p.client || 'Direct'}</span></p>
+                
+                <div class="space-y-2 pt-2 border-t border-slate-700 text-xs">
+                  <!-- Materials Brief Folder -->
+                  <details class="group bg-slate-900/80 rounded-xl border border-slate-700/60 overflow-hidden text-xs transition-all">
+                    <summary class="flex justify-between items-center p-2.5 font-bold text-slate-200 cursor-pointer hover:bg-slate-700/40 select-none">
+                      <span class="flex items-center gap-1.5">
+                        <i data-lucide="folder" class="w-3.5 h-3.5 text-amber-400"></i>
+                        <span>Raw Materials Folder (${siteMaterials.length})</span>
+                      </span>
+                      <span class="font-mono text-rose-400 font-bold">${formatINR(siteMatCost)}</span>
+                    </summary>
+                    <div class="p-2.5 pt-0 border-t border-slate-700/40">
+                      ${siteMaterials.length === 0 ? '<div class="py-2 text-slate-500 text-center text-[11px]">No materials delivered yet.</div>' : `
+                        <div class="overflow-x-auto max-h-36 overflow-y-auto">
+                          <table class="w-full text-left text-[10px]">
+                            <thead class="text-slate-400 border-b border-slate-700/80 uppercase">
+                              <tr>
+                                <th class="py-1 pr-1.5">Delivered Date</th>
+                                <th class="py-1 px-1.5">Delivered By (Vendor)</th>
+                                <th class="py-1 px-1.5">Material</th>
+                                <th class="py-1 pl-1.5 text-right">Cost</th>
+                              </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/60 font-medium">
+                              ${siteMaterials.map(m => `
+                                <tr class="hover:bg-slate-700/30">
+                                  <td class="py-1 pr-1.5 text-amber-300 font-mono">${m.date || '-'}</td>
+                                  <td class="py-1 px-1.5 font-semibold text-white">${m.vendor || 'Direct'}</td>
+                                  <td class="py-1 px-1.5 text-slate-300">${m.item}</td>
+                                  <td class="py-1 pl-1.5 font-mono font-bold text-rose-400 text-right">${formatINR(m.amount)}</td>
+                                </tr>
+                              `).join('')}
+                            </tbody>
+                          </table>
+                        </div>
+                      `}
+                    </div>
+                  </details>
+
+                  <!-- Labour Wages Row -->
+                  <div class="flex justify-between items-center text-slate-400 px-1 py-0.5">
+                    <span>ðŸ‘· Labour Wages (${siteShiftsCount} shifts):</span>
+                    <span class="font-mono font-semibold text-amber-400">${formatINR(siteLabCost)}</span>
+                  </div>
+
+                  <div class="flex justify-between font-bold text-slate-200 pt-1.5 border-t border-slate-700/60">
+                    <span class="text-slate-300">Total Spent:</span>
+                    <span class="text-rose-400 font-bold font-mono">${formatINR(totalSiteSpent)}</span>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      // Render All Projects
+      const allProj = document.getElementById('allProjectsList');
+      if (allProj) {
+        if (appData.projects.length === 0) {
+          allProj.innerHTML = '<div class="col-span-2 text-center py-10 text-slate-500 text-sm">No construction sites added yet. Click "+ Add New Site" to create one.</div>';
+        } else {
+          allProj.innerHTML = appData.projects.map(p => {
+            const siteMaterials = (appData.materials || []).filter(m => (m.project_name === p.name || m.project === p.name));
+            const siteMatCost = siteMaterials.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+
+            let siteLabCost = 0;
+            let siteShiftsCount = 0;
+            (appData.labor || []).forEach(l => {
+              ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(d => {
+                const dSite = l[`${d}_site`] || l.site_assigned;
+                const dAmt = Number(l[`${d}_amt`]) || 0;
+                const dDuty = l[`${d}_duty`] || '-';
+                if (dSite === p.name && dAmt > 0) {
+                  siteLabCost += dAmt;
+                  siteShiftsCount += (dDuty === '1/2 Duty' ? 0.5 : 1);
+                }
+              });
+            });
+
+            const totalSiteSpent = siteMatCost + siteLabCost;
+
+            return `
+              <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-4 hover:border-slate-700 transition-all shadow-lg">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <h3 class="font-black text-white text-lg tracking-tight">${p.name}</h3>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                      <i data-lucide="map-pin" class="w-3.5 h-3.5 text-amber-500"></i>
+                      <span>${p.location || 'Site Location'}</span>
+                    </p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold">Active Site</span>
+                    <button onclick="deleteProject('${p.id}', '${p.name}')" title="Delete Site" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition-colors cursor-pointer">
+                      <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="text-xs text-slate-300 bg-slate-800/60 p-3.5 rounded-xl flex items-center justify-between border border-slate-700/60">
+                  <div>Client: <strong class="text-amber-400 font-bold">${p.client || 'Direct Client'}</strong></div>
+                  <div>Site ID: <strong class="text-slate-400 font-mono">${p.id}</strong></div>
+                </div>
+                
+                <div class="space-y-2.5 pt-2 border-t border-slate-800 text-xs">
+                  <!-- Materials Brief Folder -->
+                  <details class="group bg-slate-800/50 rounded-xl border border-slate-700/60 overflow-hidden text-xs transition-all">
+                    <summary class="flex justify-between items-center p-3 font-bold text-slate-200 cursor-pointer hover:bg-slate-700/40 select-none">
+                      <span class="flex items-center gap-2">
+                        <i data-lucide="folder" class="w-4 h-4 text-amber-400"></i>
+                        <span>Raw Materials Folder (${siteMaterials.length} deliveries)</span>
+                      </span>
+                      <span class="font-mono text-rose-400 font-bold">${formatINR(siteMatCost)}</span>
+                    </summary>
+                    <div class="p-3 pt-0 border-t border-slate-700/40">
+                      ${siteMaterials.length === 0 ? '<div class="py-2 text-slate-500 text-center text-xs">No materials delivered to this site yet.</div>' : `
+                        <div class="overflow-x-auto max-h-48 overflow-y-auto mt-2">
+                          <table class="w-full text-left text-[11px]">
+                            <thead class="text-slate-400 border-b border-slate-700 uppercase text-[10px]">
+                              <tr>
+                                <th class="py-1.5 pr-2">Date Delivered</th>
+                                <th class="py-1.5 px-2">Delivered By (Supplier / Vendor)</th>
+                                <th class="py-1.5 px-2">Material Description</th>
+                                <th class="py-1.5 pl-2 text-right">Cost</th>
+                              </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/60 font-medium">
+                              ${siteMaterials.map(m => `
+                                <tr class="hover:bg-slate-700/30">
+                                  <td class="py-1.5 pr-2 text-amber-300 font-mono font-semibold">${m.date || '-'}</td>
+                                  <td class="py-1.5 px-2 font-bold text-white">${m.vendor || 'Direct Supplier'}</td>
+                                  <td class="py-1.5 px-2 text-slate-300">${m.item} <span class="text-[9px] text-slate-500">(${m.category || 'Material'})</span></td>
+                                  <td class="py-1.5 pl-2 font-mono font-bold text-rose-400 text-right">${formatINR(m.amount)}</td>
+                                </tr>
+                              `).join('')}
+                            </tbody>
+                          </table>
+                        </div>
+                      `}
+                    </div>
+                  </details>
+
+                  <!-- Labour Wages Row -->
+                  <div class="flex justify-between items-center text-slate-400 px-1 py-0.5">
+                    <span>ðŸ‘· Labour Wages Incurred (${siteShiftsCount} shifts):</span>
+                    <span class="font-mono font-bold text-amber-400">${formatINR(siteLabCost)}</span>
+                  </div>
+
+                  <div class="flex justify-between items-center text-xs pt-2 border-t border-slate-700/70 font-bold">
+                    <span class="text-slate-300 font-semibold">Total Cost Incurred:</span>
+                    <span class="font-mono font-black text-rose-400 text-sm">${formatINR(totalSiteSpent)}</span>
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      // Render Material Supplier Folders
+      const suppFoldersContainer = document.getElementById('materialsSupplierFolders');
+      const dashMat = document.getElementById('dashboardMaterialsList');
+
+      // Dashboard recent materials list
+      if (dashMat) {
+        if (appData.materials.length === 0) {
+          dashMat.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-500">No raw material purchases logged yet.</td></tr>';
+        } else {
+          dashMat.innerHTML = appData.materials.slice(0, 5).map(m => `
+            <tr class="hover:bg-slate-800/40">
+              <td class="p-3 text-slate-300">${m.date}</td>
+              <td class="p-3 font-bold text-white">${m.item}</td>
+              <td class="p-3 text-slate-400">${m.project_name || m.project || '-'}</td>
+              <td class="p-3 text-slate-400">${m.vendor || '-'}</td>
+              <td class="p-3 font-mono font-bold text-rose-400 text-right">${formatINR(m.amount)}</td>
+            </tr>
+          `).join('');
+        }
+      }
+
+      // Material Supplier Folders
+      if (suppFoldersContainer) {
+        // Collect all unique suppliers from appData.vendors + appData.materials
+        const suppliersList = [];
+        const seenVendorNames = new Set();
+
+        (appData.vendors || []).forEach(v => {
+          if (v.name && !seenVendorNames.has(v.name.toLowerCase())) {
+            seenVendorNames.add(v.name.toLowerCase());
+            suppliersList.push({
+              id: v.id,
+              name: v.name,
+              role: v.role || v.category || 'Raw Materials',
+              fromVendors: true
+            });
+          }
+        });
+
+        (appData.materials || []).forEach(m => {
+          const vName = m.vendor || 'General Supplier';
+          if (vName && !seenVendorNames.has(vName.toLowerCase())) {
+            seenVendorNames.add(vName.toLowerCase());
+            suppliersList.push({
+              id: 'VND-' + encodeURIComponent(vName),
+              name: vName,
+              role: m.category || 'Raw Materials',
+              fromVendors: false
+            });
+          }
+        });
+
+        if (suppliersList.length === 0) {
+          suppFoldersContainer.innerHTML = `
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-10 text-center space-y-3">
+              <div class="inline-flex p-3 rounded-2xl bg-amber-500/10 text-amber-400">
+                <i data-lucide="folder" class="w-8 h-8"></i>
+              </div>
+              <h3 class="text-base font-bold text-white">No Material Suppliers Created Yet</h3>
+              <p class="text-xs text-slate-400 max-w-md mx-auto">Click "+ Add Material Supplier" to create a supplier folder with Name and Role, and track delivered materials inside.</p>
+              <button onclick="openModal('modalVendor')" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-colors cursor-pointer">
+                + Add Material Supplier
+              </button>
+            </div>
+          `;
+        } else {
+          suppFoldersContainer.innerHTML = suppliersList.map(supp => {
+            const suppMats = (appData.materials || []).filter(m => (m.vendor || '').toLowerCase() === supp.name.toLowerCase());
+            const totalCost = suppMats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+
+            return `
+              <div class="bg-slate-900/90 border border-slate-800 rounded-2xl shadow-md overflow-hidden transition-all hover:border-slate-700">
+                <!-- Folder Header / Accordion Summary -->
+                <details class="group" open>
+                  <summary class="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-800/40 hover:bg-slate-800/70 cursor-pointer select-none border-b border-slate-800 gap-3">
+                    <div class="flex items-center gap-3">
+                      <div class="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                        <i data-lucide="folder" class="w-5 h-5"></i>
+                      </div>
+                      <div>
+                        <div class="flex items-center gap-2">
+                          <span class="font-extrabold text-white text-base tracking-tight">${supp.name}</span>
+                          <span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold">${supp.role}</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5">${suppMats.length} delivery record(s) logged</p>
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-3 self-end sm:self-auto">
+                      <div class="text-right">
+                        <div class="text-[10px] uppercase font-bold text-slate-400">Total Supplied</div>
+                        <div class="font-mono font-black text-rose-400 text-base">${formatINR(totalCost)}</div>
+                      </div>
+                      <button type="button" onclick="event.stopPropagation(); openModalMaterialForSupplier('${escapeHtml(supp.name)}', '${escapeHtml(supp.role)}')" class="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow transition-colors flex items-center gap-1 cursor-pointer">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        <span>Add Material</span>
+                      </button>
+                      <button type="button" onclick="event.stopPropagation(); deleteSupplierFolder('${supp.id}', '${escapeHtml(supp.name)}', ${supp.fromVendors})" title="Delete Supplier Folder" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 cursor-pointer transition-colors">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                      </button>
+                    </div>
+                  </summary>
+
+                  <!-- Folder Contents: Deliveries Table -->
+                  <div class="p-0 overflow-x-auto">
+                    ${suppMats.length === 0 ? `
+                      <div class="p-6 text-center text-xs text-slate-500 space-y-2">
+                        <p>No materials recorded for <strong>${supp.name}</strong> yet.</p>
+                        <button type="button" onclick="openModalMaterialForSupplier('${escapeHtml(supp.name)}', '${escapeHtml(supp.role)}')" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 font-semibold text-xs border border-slate-700 cursor-pointer">
+                          + Add Material Delivery
+                        </button>
+                      </div>
+                    ` : `
+                      <table class="w-full text-left text-xs">
+                        <thead class="text-slate-400 bg-slate-950/40 uppercase text-[11px] border-b border-slate-800">
+                          <tr>
+                            <th class="p-3.5">Date</th>
+                            <th class="p-3.5">Material Description</th>
+                            <th class="p-3.5">Site</th>
+                            <th class="p-3.5 text-right">Cost (â‚¹)</th>
+                            <th class="p-3.5 text-center">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/60 font-medium">
+                          ${suppMats.map(m => `
+                            <tr class="hover:bg-slate-800/40 transition-colors">
+                              <td class="p-3.5 text-amber-300 font-mono">${m.date || '-'}</td>
+                              <td class="p-3.5 font-bold text-white">${m.item}</td>
+                              <td class="p-3.5 text-slate-300 font-semibold">${m.project_name || m.project || '-'}</td>
+                              <td class="p-3.5 font-mono font-bold text-rose-400 text-right">${formatINR(m.amount)}</td>
+                              <td class="p-3.5 text-center">
+                                <button onclick="deleteMaterial('${m.id}')" class="text-rose-400 hover:text-rose-300 text-xs font-bold px-2 py-1 rounded hover:bg-rose-500/10 cursor-pointer">Delete</button>
+                              </td>
+                            </tr>
+                          `).join('')}
+                        </tbody>
+                      </table>
+                    `}
+                  </div>
+                </details>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      // Render Supplier-wise Materials Directory (Materials Page)
+      const suppMatDir = document.getElementById('materialsSupplierDirectoryList');
+      if (suppMatDir) {
+        // Collect all unique suppliers from appData.vendors + appData.materials
+        const suppliersList = [];
+        const seenVendorNames = new Set();
+
+        (appData.vendors || []).forEach(v => {
+          if (v.name && !seenVendorNames.has(v.name.toLowerCase())) {
+            seenVendorNames.add(v.name.toLowerCase());
+            suppliersList.push({
+              id: v.id,
+              name: v.name,
+              role: v.role || v.category || 'Raw Materials',
+              fromVendors: true
+            });
+          }
+        });
+
+        (appData.materials || []).forEach(m => {
+          const vName = m.vendor || 'General Supplier';
+          if (vName && !seenVendorNames.has(vName.toLowerCase())) {
+            seenVendorNames.add(vName.toLowerCase());
+            suppliersList.push({
+              id: 'VND-' + encodeURIComponent(vName),
+              name: vName,
+              role: m.category || 'Raw Materials',
+              fromVendors: false
+            });
+          }
+        });
+
+        const totalAllMatCost = (appData.materials || []).reduce((s, m) => s + (Number(m.amount) || 0), 0);
+        if (document.getElementById('matDirTotalCost')) {
+          document.getElementById('matDirTotalCost').textContent = formatINR(totalAllMatCost);
+        }
+        if (document.getElementById('matDirSuppliersCount')) {
+          document.getElementById('matDirSuppliersCount').textContent = suppliersList.length;
+        }
+        if (document.getElementById('matDirDeliveriesCount')) {
+          document.getElementById('matDirDeliveriesCount').textContent = (appData.materials || []).length;
+        }
+
+        if (suppliersList.length === 0) {
+          suppMatDir.innerHTML = `
+            <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-10 text-center space-y-3">
+              <div class="inline-flex p-3 rounded-2xl bg-amber-500/10 text-amber-400">
+                <i data-lucide="truck" class="w-8 h-8"></i>
+              </div>
+              <h3 class="text-base font-bold text-white">No Material Suppliers Logged Yet</h3>
+              <p class="text-xs text-slate-400 max-w-md mx-auto">Add your material suppliers to categorize materials by supplier with amounts and dates.</p>
+              <button onclick="openModal('modalVendor')" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md cursor-pointer">
+                + Add Material Supplier
+              </button>
+            </div>
+          `;
+        } else {
+          suppMatDir.innerHTML = suppliersList.map(supp => {
+            const suppMats = (appData.materials || []).filter(m => (m.vendor || '').toLowerCase() === supp.name.toLowerCase());
+            const totalCost = suppMats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+
+            // Group materials by site for this supplier
+            const siteGroupMap = {};
+            suppMats.forEach(m => {
+              const sName = m.project_name || m.project || 'General Site';
+              if (!siteGroupMap[sName]) {
+                siteGroupMap[sName] = {
+                  siteName: sName,
+                  totalAmount: 0,
+                  paidAmount: 0,
+                  balanceAmount: 0,
+                  recordsCount: 0
+                };
+              }
+              siteGroupMap[sName].totalAmount += (Number(m.amount) || 0);
+              siteGroupMap[sName].recordsCount += 1;
+            });
+
+            // Calculate paid amounts for each site under this supplier
+            (appData.supplierPayments || []).forEach(p => {
+              if ((p.vendor || '').toLowerCase() === supp.name.toLowerCase()) {
+                const sName = p.project_name || 'General Site';
+                if (!siteGroupMap[sName]) {
+                  siteGroupMap[sName] = {
+                    siteName: sName,
+                    totalAmount: 0,
+                    paidAmount: 0,
+                    balanceAmount: 0,
+                    recordsCount: 0
+                  };
+                }
+                siteGroupMap[sName].paidAmount += (Number(p.amount) || 0);
+              }
+            });
+
+            let suppTotalPaid = 0;
+            Object.values(siteGroupMap).forEach(row => {
+              row.balanceAmount = row.totalAmount - row.paidAmount;
+              suppTotalPaid += row.paidAmount;
+            });
+
+            const siteRows = Object.values(siteGroupMap);
+            const suppTotalBalance = totalCost - suppTotalPaid;
+
+            return `
+              <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-md overflow-hidden transition-all hover:border-slate-700">
+                <details class="group" open>
+                  <summary class="flex flex-col sm:flex-row sm:items-center justify-between p-4.5 bg-slate-800/50 hover:bg-slate-800/80 cursor-pointer select-none border-b border-slate-800 gap-3">
+                    <div class="flex items-center gap-3.5">
+                      <div class="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                        <i data-lucide="truck" class="w-5 h-5"></i>
+                      </div>
+                      <div>
+                        <div class="flex items-center gap-2">
+                          <h3 class="font-extrabold text-white text-base tracking-tight">${escapeHtml(supp.name)}</h3>
+                          <span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold">${escapeHtml(supp.role)}</span>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-0.5"><strong class="text-slate-200 font-semibold">${suppMats.length}</strong> material delivery records across <strong class="text-amber-400 font-semibold">${siteRows.length}</strong> site(s)</p>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 self-end sm:self-auto">
+                      <div class="text-right">
+                        <div class="text-[10px] uppercase font-bold text-slate-400">Total Supplied</div>
+                        <div class="font-mono font-black text-rose-400 text-base">${formatINR(totalCost)}</div>
+                      </div>
+                      <button type="button" onclick="event.stopPropagation(); openModalMaterialForSupplier('${escapeHtml(supp.name)}', '${escapeHtml(supp.role)}')" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow transition-colors flex items-center gap-1 cursor-pointer">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        <span>Add Material</span>
+                      </button>
+                      <button type="button" onclick="event.stopPropagation(); deleteSupplierFolder('${supp.id}', '${escapeHtml(supp.name)}', ${supp.fromVendors})" title="Delete Supplier" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 cursor-pointer transition-colors">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                      </button>
+                    </div>
+                  </summary>
+
+                  <!-- Materials Table for this Supplier (Grouped by Site) -->
+                  <div class="p-0 overflow-x-auto">
+                    ${siteRows.length === 0 ? `
+                      <div class="p-8 text-center text-xs text-slate-500 space-y-2">
+                        <p>No materials recorded for <strong>${escapeHtml(supp.name)}</strong> yet.</p>
+                        <button type="button" onclick="openModalMaterialForSupplier('${escapeHtml(supp.name)}', '${escapeHtml(supp.role)}')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-semibold text-xs border border-slate-700 cursor-pointer">
+                          + Add Material Delivery for ${escapeHtml(supp.name)}
+                        </button>
+                      </div>
+                    ` : `
+                      <table class="w-full text-left text-xs">
+                        <thead class="text-slate-400 bg-slate-950/50 uppercase text-[11px] border-b border-slate-800">
+                          <tr>
+                            <th class="p-3.5">Site Name</th>
+                            <th class="p-3.5 text-right">Amount (â‚¹)</th>
+                            <th class="p-3.5 text-center">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/60 font-medium">
+                          ${siteRows.map(row => {
+                            const isPaid = row.paidAmount > 0;
+                            const isFullyPaid = isPaid && row.balanceAmount <= 0;
+                            return `
+                              <tr class="hover:bg-slate-800/40 transition-colors">
+                                <td class="p-3.5 text-amber-300 font-bold text-sm tracking-wide">
+                                  ${escapeHtml(row.siteName)}
+                                </td>
+                                <td class="p-3.5 font-mono text-right text-sm">
+                                  <div class="font-black ${isFullyPaid ? 'text-emerald-400' : 'text-rose-400'}">
+                                    ${formatINR(row.balanceAmount)}
+                                  </div>
+                                  ${isPaid ? `
+                                    <div class="text-[10px] text-slate-400 font-normal mt-0.5">
+                                      Paid: <span class="text-emerald-400 font-bold">${formatINR(row.paidAmount)}</span> / Total: ${formatINR(row.totalAmount)}
+                                    </div>
+                                  ` : ''}
+                                </td>
+                                <td class="p-3.5 text-center whitespace-nowrap">
+                                  <button type="button" onclick="openPaySupplierSiteModal('${escapeHtml(supp.name)}', '${escapeHtml(row.siteName)}', ${row.totalAmount}, ${row.paidAmount})" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 text-xs font-bold mr-1.5 cursor-pointer transition-colors inline-flex items-center gap-1">
+                                    <i data-lucide="wallet" class="w-3 h-3"></i>
+                                    <span>Pay</span>
+                                  </button>
+                                  <button type="button" onclick="deleteMaterialsForSupplierSite('${escapeHtml(supp.name)}', '${escapeHtml(row.siteName)}')" class="text-rose-400 hover:text-rose-300 text-xs font-bold px-2 py-1 rounded hover:bg-rose-500/10 cursor-pointer">Delete</button>
+                                </td>
+                              </tr>
+                            `;
+                          }).join('')}
+                        </tbody>
+                        <tfoot class="bg-slate-950/60 font-bold border-t border-slate-800 text-slate-300">
+                          <tr>
+                            <td class="p-3 text-right uppercase tracking-wider text-[11px] text-slate-400">Total Supplied by ${escapeHtml(supp.name)}:</td>
+                            <td class="p-3 text-right font-mono text-sm">
+                              <span class="font-black text-rose-400">${formatINR(suppTotalBalance)}</span>
+                              ${suppTotalPaid > 0 ? `<span class="text-[10px] text-slate-400 font-normal ml-1">(Paid: <span class="text-emerald-400 font-bold">${formatINR(suppTotalPaid)}</span> / ${formatINR(totalCost)})</span>` : ''}
+                            </td>
+                            <td></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    `}
+                  </div>
+                </details>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+
+      // Render Labor Table
+      const labTable = document.getElementById('allLaborTable');
+      if (labTable) {
+        if (!appData.labor || appData.labor.length === 0) {
+          labTable.innerHTML = '<tr><td colspan="12" class="p-6 text-center text-slate-500">No workers enrolled yet. Click "+ Add Labour" to add.</td></tr>';
+          if (document.getElementById('labourTotalSum')) document.getElementById('labourTotalSum').textContent = 'â‚¹0';
+        } else {
+          const daysKeys = [
+            { key: 'mon', label: 'Mon' },
+            { key: 'tue', label: 'Tue' },
+            { key: 'wed', label: 'Wed' },
+            { key: 'thu', label: 'Thu' },
+            { key: 'fri', label: 'Fri' },
+            { key: 'sat', label: 'Sat' },
+            { key: 'sun', label: 'Sun' }
+          ];
+
+          let grandWeeklyTotal = 0;
+
+          labTable.innerHTML = appData.labor.map(l => {
+            const currentRole = l.role || 'Ma';
+            const isMm = currentRole === 'Mm';
+
+            // Calculate total for this worker
+            let workerTotal = 0;
+            let workerDaysCount = 0;
+
+            daysKeys.forEach(d => {
+              const duty = l[`${d.key}_duty`] || (l.day_name && l.day_name.toLowerCase().startsWith(d.key) ? (l.duty || '1 Duty') : '-');
+              const amt = getDutyAmount(currentRole, duty);
+              workerTotal += amt;
+              if (duty && duty !== '-' && duty !== 'Off') {
+                workerDaysCount += (duty === '1/2 Duty' ? 0.5 : 1);
+              }
+            });
+
+            if (workerTotal === 0 && Number(l.total_amount) > 0) {
+              workerTotal = Number(l.total_amount);
+              workerDaysCount = Number(l.days_present) || 1;
+            }
+
+            grandWeeklyTotal += workerTotal;
+
+            // Render day cells with both Duty and Site dropdown
+            const daysCellsHtml = daysKeys.map(d => {
+              const duty = l[`${d.key}_duty`] || (l.day_name && l.day_name.toLowerCase().startsWith(d.key) ? (l.duty || '1 Duty') : '-');
+              const daySite = l[`${d.key}_site`] || l.site_assigned || (appData.projects[0] ? appData.projects[0].name : 'General Site');
+              const amt = getDutyAmount(currentRole, duty);
+              const isActive = duty && duty !== '-' && duty !== 'Off';
+
+              let daySiteOptions = '';
+              if (appData.projects.length === 0) {
+                daySiteOptions = `<option value="${daySite}" selected>${daySite}</option>`;
+              } else {
+                daySiteOptions = appData.projects.map(p => `
+                  <option value="${p.name}" ${p.name === daySite ? 'selected' : ''}>${p.name}</option>
+                `).join('');
+                if (!appData.projects.some(p => p.name === daySite)) {
+                  daySiteOptions = `<option value="${daySite}" selected>${daySite}</option>` + daySiteOptions;
+                }
+              }
+
+              return `
+                <td class="p-2 text-center ${d.key === 'sun' ? 'bg-slate-800/30' : ''}">
+                  <div class="flex flex-col items-center gap-1 min-w-[95px]">
+                    <select onchange="updateLaborDayDuty('${l.id}', '${d.key}', this.value)" class="bg-slate-800 border ${isActive ? 'border-emerald-500/80 text-emerald-300 font-bold bg-emerald-950/40' : 'border-slate-700 text-slate-400'} rounded-md px-1 py-1 text-[11px] focus:outline-none focus:border-amber-500 cursor-pointer w-full text-center">
+                      <option value="-" ${duty === '-' ? 'selected' : ''}>- Off</option>
+                      <option value="1 Duty" ${duty === '1 Duty' ? 'selected' : ''}>1D (₹${isMm ? '750' : '950'})</option>
+                      <option value="1.5 Duty" ${duty === '1.5 Duty' ? 'selected' : ''}>1.5D (₹${isMm ? '1125' : '1425'})</option>
+                      <option value="1/2 Duty" ${duty === '1/2 Duty' ? 'selected' : ''}>½D (₹${isMm ? '375' : '475'})</option>
+                    </select>
+                    <select onchange="updateLaborDaySite('${l.id}', '${d.key}', this.value)" class="bg-slate-900 border ${isActive ? 'border-slate-600 text-amber-300 font-semibold' : 'border-slate-800 text-slate-500'} rounded-md px-1 py-0.5 text-[10px] focus:outline-none focus:border-amber-500 cursor-pointer w-full text-center">
+                      ${daySiteOptions}
+                    </select>
+                    ${isActive ? `<span class="text-[10px] font-mono font-bold text-emerald-400">₹${amt}</span>` : `<span class="text-[10px] text-slate-600 font-mono">-</span>`}
+                  </div>
+                </td>
+              `;
+            }).join('');
+
+            return `
+              <tr class="hover:bg-slate-800/40 transition-colors">
+                <td class="p-3.5 font-bold text-white whitespace-nowrap">${l.name}</td>
+                <td class="p-3.5">
+                  <select onchange="updateLaborField('${l.id}', 'role', this.value)" class="bg-slate-800 border ${currentRole === 'Ma' ? 'border-amber-500/40 text-amber-300' : 'border-sky-500/40 text-sky-300'} rounded-lg px-2.5 py-1 text-xs font-bold focus:outline-none cursor-pointer">
+                    <option value="Ma" ${currentRole === 'Ma' ? 'selected' : ''}>Ma</option>
+                    <option value="Mm" ${currentRole === 'Mm' ? 'selected' : ''}>Mm</option>
+                  </select>
+                </td>
+                ${daysCellsHtml}
+                <td class="p-3.5 text-center font-bold text-white text-xs whitespace-nowrap">
+                  ${workerDaysCount} <span class="text-[10px] text-slate-400">days</span>
+                </td>
+                <td class="p-3.5 text-right font-mono font-black text-emerald-400 text-sm whitespace-nowrap">
+                  ${formatINR(workerTotal)}
+                </td>
+                <td class="p-3.5 text-center">
+                  <button onclick="deleteLabor('${l.id}')" class="text-rose-400 hover:text-rose-300 text-xs font-bold px-2 py-1 rounded hover:bg-rose-500/10 cursor-pointer transition-colors">
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+
+          if (document.getElementById('labourTotalSum')) {
+            document.getElementById('labourTotalSum').textContent = formatINR(grandWeeklyTotal);
+          }
+        }
+      }
+
+      // Render Vendors
+      const vndList = document.getElementById('allVendorsList');
+      if (appData.vendors.length === 0) {
+        vndList.innerHTML = '<div class="col-span-2 text-center py-10 text-slate-500 text-sm">No suppliers added yet. Click "+ Add Vendor" to add one.</div>';
+      } else {
+        vndList.innerHTML = appData.vendors.map(v => {
+          const suppMats = (appData.materials || []).filter(m => (m.vendor || '').toLowerCase() === v.name.toLowerCase());
+          const totalCost = suppMats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
+          return `
+            <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3 hover:border-slate-700 transition-all shadow-md">
+              <div class="flex justify-between items-start font-bold text-white text-base">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <i data-lucide="truck" class="w-4 h-4 text-amber-400"></i>
+                    <span>${v.name}</span>
+                  </div>
+                  <span class="inline-block mt-1 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">${v.role || v.category || 'Supplier'}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <div class="text-right">
+                    <span class="text-[10px] uppercase font-bold text-slate-400 block">Total Supplied</span>
+                    <span class="text-rose-400 font-mono font-bold">${formatINR(totalCost)}</span>
+                  </div>
+                  <button onclick="deleteSupplierFolder('${v.id}', '${escapeHtml(v.name)}', true)" title="Delete Supplier" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 cursor-pointer transition-colors">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </div>
+              <p class="text-xs text-slate-400">${suppMats.length} delivery record(s) logged</p>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Render Income & Expense Metrics & Transactions
+      const totalIncome = appData.transactions.filter(t => t.type === 'Income').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+      const totalExpenses = appData.transactions.filter(t => t.type === 'Expense').reduce((s, t) => s + (Number(t.amount) || 0), 0);
+      const netBalance = totalIncome - totalExpenses;
+
+      if (document.getElementById('statTotalIncome')) {
+        document.getElementById('statTotalIncome').textContent = formatINR(totalIncome);
+      }
+      if (document.getElementById('statTotalExpenses')) {
+        document.getElementById('statTotalExpenses').textContent = formatINR(totalExpenses);
+      }
+      if (document.getElementById('statNetBalance')) {
+        document.getElementById('statNetBalance').textContent = formatINR(netBalance);
+        document.getElementById('statNetBalance').className = netBalance >= 0 ? "text-2xl sm:text-3xl font-black text-emerald-400 font-mono mt-2" : "text-2xl sm:text-3xl font-black text-rose-400 font-mono mt-2";
+      }
+      if (document.getElementById('navBankBalance')) {
+        document.getElementById('navBankBalance').textContent = formatINR(netBalance);
+      }
+
+      const txnTable = document.getElementById('allTransactionsTable');
+      if (txnTable) {
+        if (appData.transactions.length === 0) {
+          txnTable.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-500">No income or expense entries recorded yet. Click "+ Add Income" or "+ Add Expense" above.</td></tr>';
+        } else {
+          txnTable.innerHTML = appData.transactions.map(t => {
+            const isInc = t.type === 'Income';
+            return `
+              <tr class="hover:bg-slate-800/40 transition-colors">
+                <td class="p-3.5 text-slate-300 font-mono">${t.date || '-'}</td>
+                <td class="p-3.5">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isInc ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'}">
+                    ${isInc ? '▲ Income' : '▼ Expense'}
+                  </span>
+                </td>
+                <td class="p-3.5 text-white font-semibold">${t.category || '-'}</td>
+                <td class="p-3.5 text-slate-200">${t.party || '-'}</td>
+                <td class="p-3.5 text-slate-300">${t.project || '-'}</td>
+                <td class="p-3.5 text-slate-400 text-[11px] font-mono">${t.reference || '-'}</td>
+                <td class="p-3.5 text-right font-mono font-bold ${isInc ? 'text-emerald-400' : 'text-rose-400'}">
+                  ${isInc ? '+' : '-'}${formatINR(t.amount)}
+                </td>
+                <td class="p-3.5 text-center">
+                  <button onclick="deleteTransaction('${t.id}')" class="text-rose-400 hover:text-rose-300 text-xs font-bold cursor-pointer">Delete</button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+      }
+
+      if (!isSQLiteOnline) {
+        saveLocalState();
+      }
+
+      safeLucideIcons();
+    }
+
+    async function deleteMaterial(id) {
+      if (confirm('Delete this material record from SQLite?')) {
+        if (isSQLiteOnline) {
+          await fetch(`${API_URL}/materials/${id}`, { method: 'DELETE' });
+          await fetchFromSQLite();
+        } else {
+          appData.materials = (appData.materials || []).filter(m => m.id !== id);
+          renderAll();
+        }
+      }
+    }
+
+    // Initial boot
+    window.addEventListener('DOMContentLoaded', () => {
+      loadLocalData();
+      checkAuth();
+      fetchFromSQLite();
+      safeLucideIcons();
+
+      // Auto background cloud sync every 20 seconds
+      setInterval(() => {
+        if (localStorage.getItem('gb_auth_user')) {
+          fetchFromSQLite();
+        }
+      }, 20000);
+    });
+  </script>
+</body>
+</html>

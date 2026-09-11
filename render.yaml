@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: gurubaran-builders
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 10000
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
