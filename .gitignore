@@ -25,4 +25,6 @@ dist-ssr
 *.db
 *.db-wal
 *.db-shm
+!database/gurubaran_builders.db
+!database/backup_snapshot.json
 

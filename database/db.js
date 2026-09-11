@@ -372,5 +372,8 @@ if (checkLabor.count === 0) {
   }
 }
 
+// Ensure all changes are flushed to the database file on disk
+db.pragma('wal_checkpoint(TRUNCATE)');
+
 export default db;
 export { dbPath };
