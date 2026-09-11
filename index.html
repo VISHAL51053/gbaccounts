@@ -161,7 +161,7 @@
             <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
               <i data-lucide="user" class="w-4 h-4"></i>
             </span>
-            <input type="text" id="loginUsername" required autocomplete="username" class="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white font-semibold text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all" placeholder="Enter username (gurubaran)" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('loginPassword').focus();}" />
+            <input type="text" id="loginUsername" required autocomplete="username" class="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-white font-semibold text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all" placeholder="Enter username" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('loginPassword').focus();}" />
           </div>
         </div>
 
@@ -182,13 +182,6 @@
           <i data-lucide="log-in" class="w-4 h-4"></i>
           <span>Login to My Portal</span>
         </button>
-
-        <div class="pt-1 flex items-center justify-center">
-          <button type="button" onclick="quickFillAndLogin()" class="text-amber-400/90 hover:text-amber-300 text-xs font-medium underline flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-amber-500/10 transition-colors cursor-pointer">
-            <i data-lucide="key" class="w-3.5 h-3.5"></i>
-            <span>⚡ 1-Click Fast Login (gurubaran / admin123)</span>
-          </button>
-        </div>
       </form>
 
       <!-- Security Note -->
@@ -4009,7 +4002,7 @@
 
       if (!username || !password) {
         if (errorDiv) {
-          errorDiv.innerHTML = '<span>Please enter both username and password.<br><small class="text-slate-400">Default: <b>gurubaran</b> / <b>admin123</b></small></span>';
+          errorDiv.innerHTML = '<span>Please enter both username and password.</span>';
           errorDiv.classList.remove('hidden');
         }
         return;
@@ -4061,7 +4054,7 @@
 
         const errData = await res.json().catch(() => ({}));
         if (errorDiv) {
-          errorDiv.innerHTML = `<span>Invalid credentials.<br><small class="text-slate-400">Owner Login: <b>gurubaran</b> / <b>admin123</b></small></span>`;
+          errorDiv.innerHTML = `<span>Invalid username or password. Please try again.</span>`;
           errorDiv.classList.remove('hidden');
         }
       } catch (err) {
@@ -4069,7 +4062,7 @@
         if (isMasterUser) {
           grantAccess('gurubaran');
         } else if (errorDiv) {
-          errorDiv.innerHTML = `<span>Invalid credentials.<br><small class="text-slate-400">Owner Login: <b>gurubaran</b> / <b>admin123</b></small></span>`;
+          errorDiv.innerHTML = `<span>Invalid username or password. Please try again.</span>`;
           errorDiv.classList.remove('hidden');
         }
       } finally {
