@@ -2565,7 +2565,7 @@
 
       const totalMatCost = mats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
       const totalPaid = pays.reduce((s, p) => s + (Number(p.amount) || 0), 0);
-      const totalBalance = totalMatCost - totalPaid;
+      const totalBalance = Math.max(0, totalMatCost - totalPaid);
 
       // Build purchases rows
       let purchasesRows = '';
