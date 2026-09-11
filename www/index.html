@@ -3326,54 +3326,83 @@
     }
 
     async function deleteSupplierFolder(id, name, fromVendors) {
-      if (confirm(`Delete material supplier folder "${name}"?`)) {
-        if (fromVendors && id && !id.startsWith('VND-')) {
-          if (isSQLiteOnline) {
-            await apiFetch(`${API_URL}/vendors/${id}`, { method: 'DELETE' });
-          } else {
-            appData.vendors = appData.vendors.filter(v => v.id !== id);
-          }
-        } else if (fromVendors && id) {
-          if (isSQLiteOnline) {
-            await apiFetch(`${API_URL}/vendors/${id}`, { method: 'DELETE' });
-          } else {
-            appData.vendors = appData.vendors.filter(v => v.id !== id);
-          }
+      if (!confirm(`Permanently delete supplier folder "${name}" and all its materials?`)) return;
+      if (id) markIdAsDeleted(id);
+      if (name) markIdAsDeleted(name);
+
+      const suppMats = (appData.materials || []).filter(m => (m.vendor || '').toLowerCase() === (name || '').toLowerCase());
+      const delMatIds = suppMats.map(m => m.id);
+      delMatIds.forEach(mId => markIdAsDeleted(mId));
+
+      const delSet = new Set(delMatIds);
+      appData.materials = (appData.materials || []).filter(m => !delSet.has(m.id));
+      appData.vendors = (appData.vendors || []).filter(v => v.id !== id && (v.name || '').toLowerCase() !== (name || '').toLowerCase());
+
+      saveLocalState();
+      renderAll();
+
+      try {
+        const apiUrl = getApiUrl();
+        if (id && !id.startsWith('VND-')) {
+          apiFetch(`${apiUrl}/vendors/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
         }
-        await fetchFromSQLite();
-        renderAll();
+        for (const mId of delMatIds) {
+          apiFetch(`${apiUrl}/materials/${encodeURIComponent(mId)}`, { method: 'DELETE' }).catch(() => {});
+        }
+        await apiFetch(`${apiUrl}/sync/push`, {
+          method: 'POST',
+          body: JSON.stringify({ deleted_ids: [id, name, ...delMatIds].filter(Boolean) })
+        });
+        showSyncToast(`Supplier "${name}" deleted permanently.`);
+      } catch (err) {
+        console.warn('Error deleting supplier:', err);
       }
     }
 
     async function deleteMaterialsForSupplierSite(suppName, siteName) {
-      if (confirm(`Delete all material records from supplier "${suppName}" for site "${siteName}"?`)) {
-        const toDelete = (appData.materials || []).filter(m => 
-          (m.vendor || '').toLowerCase() === suppName.toLowerCase() &&
-          (m.project_name || m.project || 'General Site').toLowerCase() === siteName.toLowerCase()
-        );
+      if (!confirm(`Permanently delete all material records from supplier "${suppName}" for site "${siteName}"?`)) return;
+      const toDelete = (appData.materials || []).filter(m => 
+        (m.vendor || '').toLowerCase() === (suppName || '').toLowerCase() &&
+        (m.project_name || m.project || 'General Site').toLowerCase() === (siteName || '').toLowerCase()
+      );
 
-        if (isSQLiteOnline) {
-          for (const m of toDelete) {
-            await apiFetch(`${API_URL}/materials/${m.id}`, { method: 'DELETE' });
-          }
-          await fetchFromSQLite();
-        } else {
-          const deleteIds = new Set(toDelete.map(m => m.id));
-          appData.materials = appData.materials.filter(m => !deleteIds.has(m.id));
-          renderAll();
+      const delIds = toDelete.map(m => m.id);
+      delIds.forEach(mId => markIdAsDeleted(mId));
+
+      const deleteIdsSet = new Set(delIds);
+      appData.materials = (appData.materials || []).filter(m => !deleteIdsSet.has(m.id));
+      saveLocalState();
+      renderAll();
+
+      try {
+        const apiUrl = getApiUrl();
+        for (const mId of delIds) {
+          apiFetch(`${apiUrl}/materials/${encodeURIComponent(mId)}`, { method: 'DELETE' }).catch(() => {});
         }
+        await apiFetch(`${apiUrl}/sync/push`, {
+          method: 'POST',
+          body: JSON.stringify({ deleted_ids: delIds })
+        });
+        showSyncToast('Material records deleted permanently.');
+      } catch (err) {
+        console.warn('Error deleting supplier site materials:', err);
       }
     }
 
     async function deleteMaterial(id) {
       if (!id) return;
-      if (!confirm('Delete this material record from SQLite?')) return;
+      if (!confirm('Permanently delete this material record?')) return;
       markIdAsDeleted(id);
       appData.materials = (appData.materials || []).filter(m => m.id !== id);
       saveLocalState();
       renderAll();
       try {
-        await apiFetch(`${getApiUrl()}/materials/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        const apiUrl = getApiUrl();
+        await apiFetch(`${apiUrl}/materials/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        await apiFetch(`${apiUrl}/sync/push`, {
+          method: 'POST',
+          body: JSON.stringify({ deleted_ids: [id] })
+        });
         showSyncToast('Material record deleted permanently.');
       } catch(e) {
         console.warn('Error deleting material from backend:', e);
@@ -4293,6 +4322,7 @@
                                 <th class="py-1 px-1.5">Delivered By (Vendor)</th>
                                 <th class="py-1 px-1.5">Material</th>
                                 <th class="py-1 pl-1.5 text-right">Cost</th>
+                                <th class="py-1 pl-1.5 text-center">Action</th>
                               </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-800/60 font-medium">
@@ -4302,6 +4332,9 @@
                                   <td class="py-1 px-1.5 font-semibold text-white">${escapeHtml(m.vendor || 'Direct')}</td>
                                   <td class="py-1 px-1.5 text-slate-300">${escapeHtml(m.item)}</td>
                                   <td class="py-1 pl-1.5 font-mono font-bold text-rose-400 text-right">${formatINR(m.amount)}</td>
+                                  <td class="py-1 pl-1.5 text-center">
+                                    <button onclick="deleteMaterial('${m.id}')" title="Delete Material" class="text-rose-400 hover:text-rose-300 font-bold px-1.5 py-0.5 rounded hover:bg-rose-500/10 cursor-pointer text-[10px]">✕</button>
+                                  </td>
                                 </tr>
                               `).join('')}
                             </tbody>
@@ -4399,6 +4432,7 @@
                                 <th class="py-1.5 px-2">Delivered By (Supplier / Vendor)</th>
                                 <th class="py-1.5 px-2">Material Description</th>
                                 <th class="py-1.5 pl-2 text-right">Cost</th>
+                                <th class="py-1.5 pl-2 text-center">Action</th>
                               </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-800/60 font-medium">
@@ -4408,6 +4442,9 @@
                                   <td class="py-1.5 px-2 font-bold text-white">${m.vendor || 'Direct Supplier'}</td>
                                   <td class="py-1.5 px-2 text-slate-300">${m.item} <span class="text-[9px] text-slate-500">(${m.category || 'Material'})</span></td>
                                   <td class="py-1.5 pl-2 font-mono font-bold text-rose-400 text-right">${formatINR(m.amount)}</td>
+                                  <td class="py-1.5 pl-2 text-center">
+                                    <button onclick="deleteMaterial('${m.id}')" title="Delete Material" class="text-rose-400 hover:text-rose-300 font-bold text-xs px-2 py-0.5 rounded hover:bg-rose-500/10 cursor-pointer">✕ Delete</button>
+                                  </td>
                                 </tr>
                               `).join('')}
                             </tbody>
@@ -4441,7 +4478,7 @@
       // Dashboard recent materials list
       if (dashMat) {
         if (appData.materials.length === 0) {
-          dashMat.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-500">No raw material purchases logged yet.</td></tr>';
+          dashMat.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-500">No raw material purchases logged yet.</td></tr>';
         } else {
           dashMat.innerHTML = appData.materials.slice(0, 5).map(m => `
             <tr class="hover:bg-slate-800/40">
@@ -4450,6 +4487,9 @@
               <td class="p-3 text-slate-400">${m.project_name || m.project || '-'}</td>
               <td class="p-3 text-slate-400">${m.vendor || '-'}</td>
               <td class="p-3 font-mono font-bold text-rose-400 text-right">${formatINR(m.amount)}</td>
+              <td class="p-3 text-center">
+                <button onclick="deleteMaterial('${m.id}')" title="Delete Material" class="text-rose-400 hover:text-rose-300 font-bold text-xs px-2 py-1 rounded hover:bg-rose-500/10 cursor-pointer">Delete</button>
+              </td>
             </tr>
           `).join('');
         }
