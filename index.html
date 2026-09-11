@@ -329,10 +329,10 @@
 
           <div class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-3">
             <div class="p-2 sm:p-2.5 rounded-xl bg-rose-500/15 text-rose-400 shrink-0">
-              <i data-lucide="indian-rupee" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+              <i data-lucide="scale" class="w-4 h-4 sm:w-5 sm:h-5"></i>
             </div>
             <div class="min-w-0">
-              <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block truncate">Total Materials Cost</span>
+              <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block truncate">Outstanding Balance</span>
               <div id="statTotalMaterials" class="text-base sm:text-2xl font-black text-rose-400 font-mono mt-0.5 truncate">₹0</div>
             </div>
           </div>
@@ -4208,8 +4208,10 @@
         document.getElementById('statTotalWorkers').textContent = ((appData.labor || []).length) + ' Workers';
       }
       const totalMatCost = (appData.materials || []).reduce((s, m) => s + (Number(m.amount) || 0), 0);
+      const totalSuppPaid = (appData.supplierPayments || []).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+      const outstandingBal = Math.max(0, totalMatCost - totalSuppPaid);
       if (document.getElementById('statTotalMaterials')) {
-        document.getElementById('statTotalMaterials').textContent = formatINR(totalMatCost);
+        document.getElementById('statTotalMaterials').textContent = formatINR(outstandingBal);
       }
       const labWeeklySum = getLabourWeeklySummary();
       if (document.getElementById('statWeekLabor')) {
