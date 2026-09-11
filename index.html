@@ -640,7 +640,7 @@
             <div>
               <label class="block text-slate-400 mb-1 font-semibold text-xs">Cloud Sync API URL</label>
               <div class="flex gap-2">
-                <input type="text" id="cloudSyncUrlInput" class="flex-1 p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-amber-300 font-mono text-xs focus:border-amber-500 focus:outline-none" placeholder="https://gurubaran-builders.loca.lt/api" />
+                <input type="text" id="cloudSyncUrlInput" class="flex-1 p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-amber-300 font-mono text-xs focus:border-amber-500 focus:outline-none" placeholder="https://gbaccounts.onrender.com/api" />
                 <button type="button" onclick="saveCloudSyncUrl()" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md cursor-pointer">
                   Save URL
                 </button>
@@ -1090,14 +1090,18 @@
     function getApiUrl() {
       const customUrl = localStorage.getItem('gb_cloud_url');
       if (customUrl && customUrl.trim()) {
-        return customUrl.trim().replace(/\/+$/, '');
+        let url = customUrl.trim().replace(/\/+$/, '');
+        if (!url.endsWith('/api') && !url.includes('/api/')) {
+          url += '/api';
+        }
+        return url;
       }
       if (window.location && window.location.origin && window.location.protocol.startsWith('http')) {
         if (window.location.port === '5000' && !window.location.hostname.includes('capacitor') && !window.location.hostname.includes('localhost')) {
           return `${window.location.origin}/api`;
         }
       }
-      return 'https://gurubaran-builders.loca.lt/api';
+      return 'https://gbaccounts.onrender.com/api';
     }
 
     async function apiFetch(url, options = {}) {
@@ -1253,7 +1257,12 @@
     function saveCloudSyncUrl() {
       const urlInput = document.getElementById('cloudSyncUrlInput');
       if (urlInput && urlInput.value.trim()) {
-        localStorage.setItem('gb_cloud_url', urlInput.value.trim());
+        let val = urlInput.value.trim().replace(/\/+$/, '');
+        if (!val.endsWith('/api') && !val.includes('/api/')) {
+          val += '/api';
+          urlInput.value = val;
+        }
+        localStorage.setItem('gb_cloud_url', val);
         API_URL = getApiUrl();
         alert('Cloud Sync API URL saved! Syncing now...');
         fetchFromSQLite();
