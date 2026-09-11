@@ -212,6 +212,9 @@ try { db.exec(`ALTER TABLE labor_roster ADD COLUMN sun_site TEXT DEFAULT ''`); }
 // Safe migrations for vendors table
 try { db.exec(`ALTER TABLE vendors ADD COLUMN role TEXT DEFAULT 'Raw Materials'`); } catch(e) {}
 
+// Automatic cleanup for test supplier payments
+try { db.prepare("DELETE FROM supplier_payments WHERE LOWER(vendor) LIKE '%palk%'").run(); } catch(e) {}
+
 // Seed default personal owner credentials
 const checkAdmin = db.prepare('SELECT id, username FROM admin_user WHERE id = 1').get();
 if (!checkAdmin) {

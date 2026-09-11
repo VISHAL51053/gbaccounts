@@ -1108,7 +1108,7 @@
       <form onsubmit="handleCreateVendor(event)" class="space-y-3 text-xs">
         <div>
           <label class="block text-slate-400 mb-1 font-semibold">Supplier / Vendor Name *</label>
-          <input type="text" id="vndName" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-bold" placeholder="e.g. palkkar" />
+          <input type="text" id="vndName" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-bold" placeholder="e.g. Amman Steels / Supreme Traders" />
         </div>
         <div>
           <label class="block text-slate-400 mb-1 font-semibold">Role / Material Supplied</label>
@@ -1519,6 +1519,9 @@
           if (parsed && typeof parsed === 'object') {
             appData = { ...appData, ...parsed };
           }
+        }
+        if (Array.isArray(appData.supplierPayments)) {
+          appData.supplierPayments = appData.supplierPayments.filter(p => !p || !p.vendor || !p.vendor.toLowerCase().includes('palk'));
         }
       } catch (err) {
         console.warn('Error reading local data:', err);
