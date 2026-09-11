@@ -482,21 +482,21 @@
         </div>
 
         <!-- 1. Executive Top Metric KPI Cards Bar (Active Workforce) -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div class="bg-slate-900/90 border border-slate-800 p-3.5 rounded-2xl shadow-sm">
-            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Active Workers</span>
-            <div id="labStatTotalWorkers" class="text-lg sm:text-xl font-black text-white mt-1">0</div>
-            <span class="text-[10px] text-slate-500 block mt-0.5">On Current Roster</span>
+        <div class="grid grid-cols-3 gap-2 sm:gap-4">
+          <div class="bg-slate-900/90 border border-slate-800 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl shadow-sm text-center sm:text-left">
+            <span class="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 tracking-wider block truncate">Active</span>
+            <div id="labStatTotalWorkers" class="text-base sm:text-2xl font-black text-white mt-0.5 sm:mt-1 truncate">0</div>
+            <span class="text-[8px] sm:text-[10px] text-slate-500 block mt-0.5 truncate">Workers</span>
           </div>
-          <div class="bg-slate-900/90 border border-amber-500/30 p-3.5 rounded-2xl shadow-sm bg-amber-500/5">
-            <span class="text-[10px] uppercase font-bold text-amber-400 tracking-wider block">Masons (Ma)</span>
-            <div id="labStatMasons" class="text-lg sm:text-xl font-black text-amber-300 mt-1">0</div>
-            <span class="text-[10px] text-amber-400/70 block mt-0.5">₹950 / Day</span>
+          <div class="bg-slate-900/90 border border-amber-500/30 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl shadow-sm bg-amber-500/5 text-center sm:text-left">
+            <span class="text-[9px] sm:text-[10px] uppercase font-bold text-amber-400 tracking-wider block truncate">Masons</span>
+            <div id="labStatMasons" class="text-base sm:text-2xl font-black text-amber-300 mt-0.5 sm:mt-1 truncate">0</div>
+            <span class="text-[8px] sm:text-[10px] text-amber-400/80 block mt-0.5 truncate">₹950 / Day</span>
           </div>
-          <div class="bg-slate-900/90 border border-sky-500/30 p-3.5 rounded-2xl shadow-sm bg-sky-500/5">
-            <span class="text-[10px] uppercase font-bold text-sky-400 tracking-wider block">Helpers (Mm)</span>
-            <div id="labStatHelpers" class="text-lg sm:text-xl font-black text-sky-300 mt-1">0</div>
-            <span class="text-[10px] text-sky-400/70 block mt-0.5">₹750 / Day</span>
+          <div class="bg-slate-900/90 border border-sky-500/30 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl shadow-sm bg-sky-500/5 text-center sm:text-left">
+            <span class="text-[9px] sm:text-[10px] uppercase font-bold text-sky-400 tracking-wider block truncate">Helpers</span>
+            <div id="labStatHelpers" class="text-base sm:text-2xl font-black text-sky-300 mt-0.5 sm:mt-1 truncate">0</div>
+            <span class="text-[8px] sm:text-[10px] text-sky-400/80 block mt-0.5 truncate">₹750 / Day</span>
           </div>
         </div>
 
@@ -2602,13 +2602,13 @@
       const summary = getLabourWeeklySummary();
 
       if (document.getElementById('labStatTotalWorkers')) {
-        document.getElementById('labStatTotalWorkers').textContent = `${summary.totalWorkers} Workers`;
+        document.getElementById('labStatTotalWorkers').textContent = `${summary.totalWorkers}`;
       }
       if (document.getElementById('labStatMasons')) {
-        document.getElementById('labStatMasons').textContent = `${summary.maRows.length} Masons`;
+        document.getElementById('labStatMasons').textContent = `${summary.maRows.length}`;
       }
       if (document.getElementById('labStatHelpers')) {
-        document.getElementById('labStatHelpers').textContent = `${summary.mmRows.length} Helpers`;
+        document.getElementById('labStatHelpers').textContent = `${summary.mmRows.length}`;
       }
     }
 
