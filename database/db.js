@@ -154,12 +154,28 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
+  -- Weekly Labour Attendance History & Site-Wise Archive
+  CREATE TABLE IF NOT EXISTS labor_weekly_history (
+    id TEXT PRIMARY KEY,
+    week_label TEXT NOT NULL,
+    week_ending TEXT NOT NULL,
+    total_workers INTEGER DEFAULT 0,
+    total_shifts REAL DEFAULT 0,
+    total_wages REAL DEFAULT 0,
+    masons_count INTEGER DEFAULT 0,
+    helpers_count INTEGER DEFAULT 0,
+    site_breakdown_json TEXT,
+    workers_data_json TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   -- Performance Query Indices
   CREATE INDEX IF NOT EXISTS idx_projects_created ON projects(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_materials_proj_name ON materials(project_name);
   CREATE INDEX IF NOT EXISTS idx_labor_site ON labor_roster(site_assigned);
   CREATE INDEX IF NOT EXISTS idx_txn_proj ON transactions(project);
   CREATE INDEX IF NOT EXISTS idx_supp_pay_vend ON supplier_payments(vendor);
+  CREATE INDEX IF NOT EXISTS idx_lab_hist_created ON labor_weekly_history(created_at DESC);
 `);
 
 // Safe migrations for labor_roster columns

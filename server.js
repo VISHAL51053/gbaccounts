@@ -717,6 +717,462 @@ app.get(['/api/labor/csv', '/api/labour/csv'], (req, res) => {
   }
 });
 
+// 5.3 Weekly Labour History & Site-Wise Archive Endpoints
+app.get(['/api/labor/history', '/api/labour/history'], (req, res) => {
+  try {
+    const history = db.prepare('SELECT * FROM labor_weekly_history ORDER BY created_at DESC').all();
+    res.json(history);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post(['/api/labor/history', '/api/labour/history'], (req, res) => {
+  try {
+    const {
+      id,
+      week_label,
+      week_ending,
+      total_workers,
+      total_shifts,
+      total_wages,
+      masons_count,
+      helpers_count,
+      site_breakdown_json,
+      workers_data_json,
+      reset_roster
+    } = req.body;
+
+    const recordId = id || `LWH-${Date.now()}`;
+    const today = new Date().toISOString().split('T')[0];
+
+    const archiveTxn = db.transaction(() => {
+      // 1. Insert or update history record
+      db.prepare(`
+        INSERT INTO labor_weekly_history (
+          id, week_label, week_ending, total_workers, total_shifts, total_wages,
+          masons_count, helpers_count, site_breakdown_json, workers_data_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          week_label = excluded.week_label,
+          week_ending = excluded.week_ending,
+          total_workers = excluded.total_workers,
+          total_shifts = excluded.total_shifts,
+          total_wages = excluded.total_wages,
+          masons_count = excluded.masons_count,
+          helpers_count = excluded.helpers_count,
+          site_breakdown_json = excluded.site_breakdown_json,
+          workers_data_json = excluded.workers_data_json
+      `).run(
+        recordId,
+        week_label || `Week ending ${today}`,
+        week_ending || today,
+        Number(total_workers) || 0,
+        Number(total_shifts) || 0,
+        Number(total_wages) || 0,
+        Number(masons_count) || 0,
+        Number(helpers_count) || 0,
+        typeof site_breakdown_json === 'string' ? site_breakdown_json : JSON.stringify(site_breakdown_json || []),
+        typeof workers_data_json === 'string' ? workers_data_json : JSON.stringify(workers_data_json || [])
+      );
+
+      // 2. If requested, reset the current roster for a fresh week (preserving names, roles, rates)
+      if (reset_roster !== false) {
+        db.prepare(`
+          UPDATE labor_roster
+          SET mon_duty = '-', mon_amt = 0,
+              tue_duty = '-', tue_amt = 0,
+              wed_duty = '-', wed_amt = 0,
+              thu_duty = '-', thu_amt = 0,
+              fri_duty = '-', fri_amt = 0,
+              sat_duty = '-', sat_amt = 0,
+              sun_duty = '-', sun_amt = 0,
+              days_present = 0,
+              total_amount = 0,
+              week_label = ''
+        `).run();
+      }
+    });
+
+    archiveTxn();
+
+    const created = db.prepare('SELECT * FROM labor_weekly_history WHERE id = ?').get(recordId);
+    res.json({
+      success: true,
+      message: 'Weekly labour attendance archived to history and current week reset successfully.',
+      record: created
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete(['/api/labor/history/:id', '/api/labour/history/:id'], (req, res) => {
+  try {
+    db.prepare('DELETE FROM labor_weekly_history WHERE id = ?').run(req.params.id);
+    res.json({ success: true, message: 'Archived week deleted from history.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 5.4 Google Sheet View for Specific Archived Week
+app.get(['/api/labor/history/:id/sheet', '/api/labour/history/:id/sheet'], (req, res) => {
+  try {
+    const record = db.prepare('SELECT * FROM labor_weekly_history WHERE id = ?').get(req.params.id);
+    if (!record) {
+      return res.status(404).send('<h1>Archived week record not found</h1>');
+    }
+
+    const company = db.prepare('SELECT * FROM company_profile WHERE id = 1').get() || { name: 'GURUBARAN BUILDERS' };
+    let workers = [];
+    let siteBreakdown = [];
+
+    try {
+      workers = JSON.parse(record.workers_data_json || '[]');
+    } catch (e) {
+      workers = [];
+    }
+
+    try {
+      siteBreakdown = JSON.parse(record.site_breakdown_json || '[]');
+    } catch (e) {
+      siteBreakdown = [];
+    }
+
+    // Sort workers: Ma first, Mm second
+    workers.sort((a, b) => {
+      const roleA = a.role === 'Ma' ? 1 : (a.role === 'Mm' ? 2 : 3);
+      const roleB = b.role === 'Ma' ? 1 : (b.role === 'Mm' ? 2 : 3);
+      if (roleA !== roleB) return roleA - roleB;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    function getDutyAmount(role, duty) {
+      const isMm = role === 'Mm';
+      if (duty === '1 Duty') return isMm ? 750 : 950;
+      if (duty === '1.5 Duty' || duty === '1425' || duty === '1125') return isMm ? 1125 : 1425;
+      if (duty === '1/2 Duty' || duty === '0.5 Duty') return isMm ? 375 : 475;
+      return 0;
+    }
+
+    const daysKeys = [
+      { key: 'mon', label: 'Mon' },
+      { key: 'tue', label: 'Tue' },
+      { key: 'wed', label: 'Wed' },
+      { key: 'thu', label: 'Thu' },
+      { key: 'fri', label: 'Fri' },
+      { key: 'sat', label: 'Sat' },
+      { key: 'sun', label: 'Sun' }
+    ];
+
+    let lastRole = null;
+    const rowsHtml = workers.map((w, idx) => {
+      const role = w.role || 'Ma';
+      const isMm = role === 'Mm';
+      let rowGroupHeader = '';
+
+      if (role !== lastRole) {
+        lastRole = role;
+        const isMa = role === 'Ma';
+        rowGroupHeader = `
+          <tr class="role-group-header ${isMa ? 'group-ma' : 'group-mm'}">
+            <td colspan="12">
+              <span class="group-icon">${isMa ? '🧱' : '🦺'}</span>
+              <strong>${isMa ? 'MASONS (Ma) — Rate: ₹950 / Day (1.5D: ₹1,425, ½D: ₹475)' : 'HELPERS / ASSISTANTS (Mm) — Rate: ₹750 / Day (1.5D: ₹1,125, ½D: ₹375)'}</strong>
+            </td>
+          </tr>
+        `;
+      }
+
+      let workerTotal = 0;
+      let workerDays = 0;
+
+      const dayCells = daysKeys.map(d => {
+        const duty = w[`${d.key}_duty`] || '-';
+        const site = w[`${d.key}_site`] || '';
+        const amt = getDutyAmount(role, duty);
+        const isActive = duty && duty !== '-' && duty !== 'Off';
+
+        if (isActive) {
+          workerTotal += amt;
+          workerDays += (duty === '1/2 Duty' ? 0.5 : (duty === '1.5 Duty' ? 1.5 : 1));
+        }
+
+        return `
+          <td class="cell day-cell ${isActive ? 'active-day' : ''}">
+            <div class="duty-badge">${duty}</div>
+            ${site ? `<div class="site-chip" title="${site}">${site}</div>` : ''}
+            <div class="duty-amt ${isActive ? '' : 'text-muted'}">${isActive ? '₹' + amt : '-'}</div>
+          </td>
+        `;
+      }).join('');
+
+      if (workerTotal === 0 && Number(w.total_amount) > 0) {
+        workerTotal = Number(w.total_amount);
+        workerDays = Number(w.days_present) || 1;
+      }
+
+      return `
+        ${rowGroupHeader}
+        <tr>
+          <td class="cell text-center text-muted font-bold">${idx + 1}</td>
+          <td class="cell font-bold worker-name">${w.name}</td>
+          <td class="cell text-center"><span class="role-badge ${isMm ? 'role-mm' : 'role-ma'}">${role}</span></td>
+          ${dayCells}
+          <td class="cell text-center font-bold">${workerDays} d</td>
+          <td class="cell text-right font-black wage-col">₹${workerTotal.toLocaleString('en-IN')}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const siteBreakdownCardsHtml = siteBreakdown.map(s => `
+      <div class="site-card">
+        <div class="site-card-title">🏗️ ${s.site || 'General Site'}</div>
+        <div class="site-card-stats">
+          <div><span class="lbl">Workers:</span> <strong>${s.workersCount || s.workerCount || 0}</strong></div>
+          <div><span class="lbl">Shifts:</span> <strong>${s.shiftsCount || s.totalShifts || 0} d</strong></div>
+          <div><span class="lbl">Wages:</span> <strong class="green">₹${(Number(s.totalWages) || 0).toLocaleString('en-IN')}</strong></div>
+        </div>
+      </div>
+    `).join('');
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${company.name} - ${record.week_label} Labour Sheet</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background-color: #f0f4f9; color: #1e293b; padding: 20px; }
+          .container { max-width: 1350px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; border: 1px solid #e2e8f0; }
+          .sheets-bar { background: #0f9d58; color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+          .sheets-title { display: flex; align-items: center; gap: 12px; }
+          .sheets-icon { background: white; color: #0f9d58; width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; }
+          .sheets-title h1 { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
+          .sheets-title p { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+          .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+          .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 700; text-decoration: none; cursor: pointer; border: none; transition: all 0.2s; }
+          .btn-print { background: white; color: #0f9d58; }
+          .btn-download { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.4); }
+          .btn-whatsapp { background: #25D366; color: white; }
+          .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+          
+          .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; padding: 16px 20px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; }
+          .kpi-card { background: white; padding: 12px 16px; border-radius: 8px; border: 1px solid #e2e8f0; }
+          .kpi-card .lbl { font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; }
+          .kpi-card .val { font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 4px; }
+          .kpi-card .val.green { color: #0f9d58; }
+
+          .site-section { padding: 16px 20px; background: #faf5ff; border-bottom: 1px solid #e9d5ff; }
+          .site-section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; color: #7e22ce; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+          .site-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+          .site-card { background: white; border: 1px solid #d8b4fe; border-radius: 8px; padding: 10px 14px; }
+          .site-card-title { font-size: 13px; font-weight: 800; color: #581c87; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .site-card-stats { display: flex; justify-content: space-between; font-size: 11px; color: #475569; }
+          .site-card-stats .lbl { color: #94a3b8; }
+          .site-card-stats .green { color: #0f9d58; font-weight: 800; }
+
+          .table-wrapper { overflow-x: auto; padding: 0; }
+          table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
+          th { background: #f1f5f9; color: #475569; font-weight: 800; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; padding: 10px; border: 1px solid #e2e8f0; text-align: center; }
+          td.cell { padding: 8px 10px; border: 1px solid #e2e8f0; vertical-align: middle; }
+          .role-group-header { background: #f8fafc; font-size: 11px; }
+          .role-group-header.group-ma { background: #fffbeb; color: #b45309; border-top: 2px solid #f59e0b; }
+          .role-group-header.group-mm { background: #f0f9ff; color: #0369a1; border-top: 2px solid #0ea5e9; }
+          .role-group-header td { padding: 8px 14px; }
+          .group-icon { font-size: 13px; margin-right: 6px; }
+          
+          .worker-name { color: #0f172a; font-size: 13px; }
+          .role-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 800; }
+          .role-ma { background: #fef3c7; color: #b45309; }
+          .role-mm { background: #e0f2fe; color: #0369a1; }
+          
+          .day-cell { text-align: center; font-size: 11px; min-width: 80px; }
+          .day-cell.active-day { background: #ecfdf5; }
+          .duty-badge { font-weight: 700; color: #047857; }
+          .site-chip { font-size: 9px; background: #e2e8f0; color: #475569; padding: 1px 4px; border-radius: 3px; margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 90px; margin-left: auto; margin-right: auto; }
+          .duty-amt { font-size: 10px; font-family: 'Roboto Mono', monospace; color: #059669; font-weight: 600; margin-top: 1px; }
+          .duty-amt.text-muted { color: #94a3b8; }
+          .wage-col { font-family: 'Roboto Mono', monospace; font-size: 13px; color: #0f9d58; }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+          .font-bold { font-weight: 700; }
+          .font-black { font-weight: 900; }
+          .text-muted { color: #64748b; }
+          tr:hover td { background-color: #f8fafc; }
+
+          tfoot td { background: #f1f5f9; font-weight: 800; border-top: 2px solid #cbd5e1; padding: 12px 10px; }
+          .grand-total { font-size: 16px; color: #0f9d58; font-family: 'Roboto Mono', monospace; }
+
+          .footer { padding: 14px 20px; font-size: 11px; color: #64748b; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; }
+
+          @media print {
+            body { padding: 0; background: white; }
+            .container { box-shadow: none; border: none; }
+            .actions { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="sheets-bar">
+            <div class="sheets-title">
+              <div class="sheets-icon">📊</div>
+              <div>
+                <h1>${company.name} - ${record.week_label}</h1>
+                <p>Week Ending: ${record.week_ending} • Archived Labour Muster Roll & Site Allocation</p>
+              </div>
+            </div>
+            <div class="actions">
+              <button onclick="window.print()" class="btn btn-print">🖨️ Print / PDF</button>
+              <a href="/api/labor/history/${record.id}/csv" download="Labour_${record.week_ending}.csv" class="btn btn-download">📥 Download CSV</a>
+              <a href="https://api.whatsapp.com/send?text=${encodeURIComponent(`🏗️ *${company.name.toUpperCase()} - ${record.week_label}*\n📅 *Week Ending:* ${record.week_ending}\n👥 *Workers:* ${record.total_workers} (Masons: ${record.masons_count}, Helpers: ${record.helpers_count})\n📊 *Total Shifts:* ${record.total_shifts} Days\n💰 *Total Wages: ₹${Number(record.total_wages).toLocaleString('en-IN')}*\n\n👉 *View Full Historical Sheet:* ` + req.protocol + '://' + req.get('host') + '/api/labor/history/' + record.id + '/sheet')}" target="_blank" class="btn btn-whatsapp">📱 Share on WhatsApp</a>
+            </div>
+          </div>
+
+          <div class="kpi-row">
+            <div class="kpi-card">
+              <div class="lbl">Total Active Labour</div>
+              <div class="val">${record.total_workers} Workers</div>
+            </div>
+            <div class="kpi-card">
+              <div class="lbl">Masons (Ma) vs Helpers (Mm)</div>
+              <div class="val">${record.masons_count} Ma / ${record.helpers_count} Mm</div>
+            </div>
+            <div class="kpi-card">
+              <div class="lbl">Total Shifts Worked</div>
+              <div class="val">${record.total_shifts} Days</div>
+            </div>
+            <div class="kpi-card">
+              <div class="lbl">Total Week Wages</div>
+              <div class="val green">₹${Number(record.total_wages).toLocaleString('en-IN')}</div>
+            </div>
+          </div>
+
+          ${siteBreakdown.length > 0 ? `
+          <div class="site-section">
+            <div class="site-section-title">🏗️ Site-Wise Labour Deployment & Wage Allocation</div>
+            <div class="site-cards-grid">
+              ${siteBreakdownCardsHtml}
+            </div>
+          </div>
+          ` : ''}
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 40px;">#</th>
+                  <th style="text-align: left; min-width: 140px;">Worker Name</th>
+                  <th style="width: 60px;">Role</th>
+                  <th style="min-width: 85px;">Mon</th>
+                  <th style="min-width: 85px;">Tue</th>
+                  <th style="min-width: 85px;">Wed</th>
+                  <th style="min-width: 85px;">Thu</th>
+                  <th style="min-width: 85px;">Fri</th>
+                  <th style="min-width: 85px;">Sat</th>
+                  <th style="min-width: 85px;">Sun</th>
+                  <th style="width: 70px;">Total Days</th>
+                  <th style="width: 110px; text-align: right;">Weekly Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rowsHtml.length > 0 ? rowsHtml : '<tr><td colspan="12" class="cell text-center text-muted" style="padding: 30px;">No labour data recorded for this week.</td></tr>'}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="3" class="text-right font-black uppercase">Grand Total Summary:</td>
+                  <td colspan="7" class="text-center font-bold text-muted">${record.total_shifts} Total Worker Shifts Logged across Sites</td>
+                  <td class="text-center font-black">${record.total_shifts} d</td>
+                  <td class="text-right grand-total font-black">₹${Number(record.total_wages).toLocaleString('en-IN')}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <div class="footer">
+            <span>Generated from ${company.name} Cloud Accounts ERP</span>
+            <span>Archived History Record: ${record.id} • SQLite WAL Verified</span>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    res.send(html);
+  } catch (err) {
+    res.status(500).send('Error generating archived sheet: ' + err.message);
+  }
+});
+
+// 5.5 CSV Download for Specific Archived Week
+app.get(['/api/labor/history/:id/csv', '/api/labour/history/:id/csv'], (req, res) => {
+  try {
+    const record = db.prepare('SELECT * FROM labor_weekly_history WHERE id = ?').get(req.params.id);
+    if (!record) {
+      return res.status(404).json({ error: 'Archived week record not found' });
+    }
+
+    const company = db.prepare('SELECT * FROM company_profile WHERE id = 1').get() || { name: 'GURUBARAN BUILDERS' };
+    let workers = [];
+    try {
+      workers = JSON.parse(record.workers_data_json || '[]');
+    } catch (e) {
+      workers = [];
+    }
+
+    function getDutyAmount(role, duty) {
+      const isMm = role === 'Mm';
+      if (duty === '1 Duty') return isMm ? 750 : 950;
+      if (duty === '1.5 Duty' || duty === '1425' || duty === '1125') return isMm ? 1125 : 1425;
+      if (duty === '1/2 Duty' || duty === '0.5 Duty') return isMm ? 375 : 475;
+      return 0;
+    }
+
+    const daysKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    let csv = `"${company.name} - ${record.week_label} (Ending ${record.week_ending})"\n\n`;
+    csv += `"S.No","Worker Name","Role","Mon","Tue","Wed","Thu","Fri","Sat","Sun","Total Days","Weekly Wage (INR)"\n`;
+
+    workers.forEach((w, idx) => {
+      const role = w.role || 'Ma';
+      let wTotal = 0;
+      let wDays = 0;
+      const duties = {};
+
+      daysKeys.forEach(d => {
+        const duty = w[`${d}_duty`] || '-';
+        const site = w[`${d}_site`] ? ` (${w[`${d}_site`]})` : '';
+        const amt = getDutyAmount(role, duty);
+        wTotal += amt;
+        duties[d] = `${duty}${site}`;
+        if (duty && duty !== '-' && duty !== 'Off') {
+          wDays += (duty === '1/2 Duty' ? 0.5 : (duty === '1.5 Duty' ? 1.5 : 1));
+        }
+      });
+
+      if (wTotal === 0 && Number(w.total_amount) > 0) {
+        wTotal = Number(w.total_amount);
+        wDays = Number(w.days_present) || 1;
+      }
+
+      csv += `"${idx + 1}","${w.name}","${role}","${duties['mon']}","${duties['tue']}","${duties['wed']}","${duties['thu']}","${duties['fri']}","${duties['sat']}","${duties['sun']}","${wDays}","${wTotal}"\n`;
+    });
+
+    csv += `\n"","","","","","","","","","Total Labour Charges:","${record.total_shifts} Days","${record.total_wages}"\n`;
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename=Labour_${record.week_ending}.csv`);
+    res.send(csv);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 6. Vendors & Suppliers
 app.get('/api/vendors', (req, res) => {
   try {
@@ -817,8 +1273,9 @@ app.get('/api/sync/full', (req, res) => {
     const accounts = db.prepare('SELECT * FROM accounts').all();
     const transactions = db.prepare('SELECT * FROM transactions ORDER BY date DESC, created_at DESC').all();
     const supplierPayments = db.prepare('SELECT * FROM supplier_payments ORDER BY date DESC, created_at DESC').all();
+    const laborWeeklyHistory = db.prepare('SELECT * FROM labor_weekly_history ORDER BY created_at DESC').all();
 
-    const recordCount = projects.length + materials.length + labor.length + transactions.length + supplierPayments.length;
+    const recordCount = projects.length + materials.length + labor.length + transactions.length + supplierPayments.length + laborWeeklyHistory.length;
 
     res.json({
       success: true,
@@ -830,6 +1287,7 @@ app.get('/api/sync/full', (req, res) => {
       accounts,
       transactions,
       supplierPayments,
+      laborWeeklyHistory,
       recordCount
     });
   } catch (err) {
@@ -839,7 +1297,7 @@ app.get('/api/sync/full', (req, res) => {
 
 app.post('/api/sync/push', (req, res) => {
   try {
-    const { company, projects, materials, labor, vendors, accounts, transactions, supplierPayments } = req.body;
+    const { company, projects, materials, labor, vendors, accounts, transactions, supplierPayments, laborWeeklyHistory } = req.body;
 
     const syncTransaction = db.transaction(() => {
       // 1. Company Profile
@@ -1114,11 +1572,47 @@ app.post('/api/sync/push', (req, res) => {
           );
         }
       }
+
+      // 8. Labor Weekly History
+      if (Array.isArray(laborWeeklyHistory)) {
+        const stmt = db.prepare(`
+          INSERT INTO labor_weekly_history (
+            id, week_label, week_ending, total_workers, total_shifts, total_wages,
+            masons_count, helpers_count, site_breakdown_json, workers_data_json, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            week_label = excluded.week_label,
+            week_ending = excluded.week_ending,
+            total_workers = excluded.total_workers,
+            total_shifts = excluded.total_shifts,
+            total_wages = excluded.total_wages,
+            masons_count = excluded.masons_count,
+            helpers_count = excluded.helpers_count,
+            site_breakdown_json = excluded.site_breakdown_json,
+            workers_data_json = excluded.workers_data_json
+        `);
+        for (const h of laborWeeklyHistory) {
+          if (!h.id || !h.week_ending) continue;
+          stmt.run(
+            h.id,
+            h.week_label || `Week ending ${h.week_ending}`,
+            h.week_ending,
+            Number(h.total_workers) || 0,
+            Number(h.total_shifts) || 0,
+            Number(h.total_wages) || 0,
+            Number(h.masons_count) || 0,
+            Number(h.helpers_count) || 0,
+            typeof h.site_breakdown_json === 'string' ? h.site_breakdown_json : JSON.stringify(h.site_breakdown_json || []),
+            typeof h.workers_data_json === 'string' ? h.workers_data_json : JSON.stringify(h.workers_data_json || []),
+            h.created_at || new Date().toISOString()
+          );
+        }
+      }
     });
 
     syncTransaction();
 
-    const count = (projects ? projects.length : 0) + (materials ? materials.length : 0) + (labor ? labor.length : 0) + (transactions ? transactions.length : 0) + (supplierPayments ? supplierPayments.length : 0);
+    const count = (projects ? projects.length : 0) + (materials ? materials.length : 0) + (labor ? labor.length : 0) + (transactions ? transactions.length : 0) + (supplierPayments ? supplierPayments.length : 0) + (laborWeeklyHistory ? laborWeeklyHistory.length : 0);
 
     res.json({
       success: true,
