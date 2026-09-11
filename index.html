@@ -491,8 +491,8 @@
           </div>
         </div>
 
-        <!-- 1. Executive Top Metric KPI Cards Bar -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <!-- 1. Executive Top Metric KPI Cards Bar (Active Workforce) -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div class="bg-slate-900/90 border border-slate-800 p-3.5 rounded-2xl shadow-sm">
             <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Active Workers</span>
             <div id="labStatTotalWorkers" class="text-lg sm:text-xl font-black text-white mt-1">0</div>
@@ -507,21 +507,6 @@
             <span class="text-[10px] uppercase font-bold text-sky-400 tracking-wider block">Helpers (Mm)</span>
             <div id="labStatHelpers" class="text-lg sm:text-xl font-black text-sky-300 mt-1">0</div>
             <span class="text-[10px] text-sky-400/70 block mt-0.5">₹750 / Day</span>
-          </div>
-          <div class="bg-slate-900/90 border border-slate-800 p-3.5 rounded-2xl shadow-sm">
-            <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Shifts Worked</span>
-            <div id="labStatTotalShifts" class="text-lg sm:text-xl font-black text-white mt-1">0 d</div>
-            <span class="text-[10px] text-slate-500 block mt-0.5">This Week</span>
-          </div>
-          <div class="bg-slate-900/90 border border-emerald-500/30 p-3.5 rounded-2xl shadow-sm bg-emerald-500/5">
-            <span class="text-[10px] uppercase font-bold text-emerald-400 tracking-wider block">Total Wages</span>
-            <div id="labStatTotalWages" class="text-lg sm:text-xl font-mono font-black text-emerald-400 mt-1">₹0</div>
-            <span class="text-[10px] text-emerald-400/70 block mt-0.5">Weekly Payout</span>
-          </div>
-          <div class="bg-slate-900/90 border border-purple-500/30 p-3.5 rounded-2xl shadow-sm bg-purple-500/5">
-            <span class="text-[10px] uppercase font-bold text-purple-400 tracking-wider block">Active Sites</span>
-            <div id="labStatActiveSites" class="text-lg sm:text-xl font-black text-purple-300 mt-1">0</div>
-            <span class="text-[10px] text-purple-400/70 block mt-0.5">Deployed</span>
           </div>
         </div>
 
@@ -2473,7 +2458,6 @@
 
     function renderLaborTopMetrics() {
       const summary = getLabourWeeklySummary();
-      const breakdown = getSiteBreakdownFromLabor(appData.labor);
 
       if (document.getElementById('labStatTotalWorkers')) {
         document.getElementById('labStatTotalWorkers').textContent = `${summary.totalWorkers} Workers`;
@@ -2483,15 +2467,6 @@
       }
       if (document.getElementById('labStatHelpers')) {
         document.getElementById('labStatHelpers').textContent = `${summary.mmRows.length} Helpers`;
-      }
-      if (document.getElementById('labStatTotalShifts')) {
-        document.getElementById('labStatTotalShifts').textContent = `${summary.totalDaysAll} d`;
-      }
-      if (document.getElementById('labStatTotalWages')) {
-        document.getElementById('labStatTotalWages').textContent = formatINR(summary.grandTotal);
-      }
-      if (document.getElementById('labStatActiveSites')) {
-        document.getElementById('labStatActiveSites').textContent = `${breakdown.length} Site${breakdown.length === 1 ? '' : 's'}`;
       }
     }
 
