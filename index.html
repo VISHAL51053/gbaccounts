@@ -1778,9 +1778,20 @@
 
       let grandTotal = 0;
       let totalDaysAll = 0;
-      const rows = [];
 
-      (appData.labor || []).forEach((l, idx) => {
+      // Sort labor: Ma first, Mm second, others third, then name ASC
+      const sorted = [...(appData.labor || [])].sort((a, b) => {
+        const roleA = a.role === 'Ma' ? 1 : (a.role === 'Mm' ? 2 : 3);
+        const roleB = b.role === 'Ma' ? 1 : (b.role === 'Mm' ? 2 : 3);
+        if (roleA !== roleB) return roleA - roleB;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+
+      const rows = [];
+      const maRows = [];
+      const mmRows = [];
+
+      sorted.forEach((l, idx) => {
         const role = l.role || 'Ma';
         let workerTotal = 0;
         let workerDays = 0;
@@ -1799,17 +1810,25 @@
         grandTotal += workerTotal;
         totalDaysAll += workerDays;
 
-        rows.push({
+        const rowObj = {
           index: idx + 1,
+          id: l.id,
           name: l.name,
           role,
           days: workerDays,
           amount: workerTotal,
           duties
-        });
+        };
+
+        rows.push(rowObj);
+        if (role === 'Ma') {
+          maRows.push(rowObj);
+        } else {
+          mmRows.push(rowObj);
+        }
       });
 
-      return { rows, grandTotal, totalDaysAll, totalWorkers: rows.length };
+      return { rows, maRows, mmRows, grandTotal, totalDaysAll, totalWorkers: rows.length };
     }
 
     function openLabourGoogleSheetView() {
@@ -1831,14 +1850,25 @@
       let msg = `🏗️ *${compName.toUpperCase()}*\n`;
       msg += `📋 *Weekly Labour Attendance & Wage Summary*\n`;
       msg += `📅 *Date:* ${today}\n\n`;
-      msg += `👷 *WORKER WAGE BREAKDOWN:*\n`;
 
-      summary.rows.forEach(r => {
-        msg += `${r.index}. *${r.name}* (${r.role}) - ${r.days} Days ➔ ₹${r.amount.toLocaleString('en-IN')}\n`;
-      });
+      if (summary.maRows.length > 0) {
+        msg += `🧱 *MASONS (Ma - ₹950/day):*\n`;
+        summary.maRows.forEach((r, i) => {
+          msg += `${i + 1}. *${r.name}* - ${r.days} Days ➔ ₹${r.amount.toLocaleString('en-IN')}\n`;
+        });
+        msg += `\n`;
+      }
 
-      msg += `\n─────────────────────\n`;
-      msg += `👥 *Total Active Labour:* ${summary.totalWorkers} Workers\n`;
+      if (summary.mmRows.length > 0) {
+        msg += `🦺 *HELPERS / ASSISTANTS (Mm - ₹750/day):*\n`;
+        summary.mmRows.forEach((r, i) => {
+          msg += `${i + 1}. *${r.name}* - ${r.days} Days ➔ ₹${r.amount.toLocaleString('en-IN')}\n`;
+        });
+        msg += `\n`;
+      }
+
+      msg += `─────────────────────\n`;
+      msg += `👥 *Total Active Labour:* ${summary.totalWorkers} Workers (Masons: ${summary.maRows.length}, Helpers: ${summary.mmRows.length})\n`;
       msg += `📊 *Total Days Worked:* ${summary.totalDaysAll} Days\n`;
       msg += `💰 *TOTAL LABOUR CHARGES: ₹${summary.grandTotal.toLocaleString('en-IN')}*\n`;
       msg += `─────────────────────\n`;
@@ -2922,10 +2952,35 @@
           ];
 
           let grandWeeklyTotal = 0;
+          let lastRenderedRole = null;
 
-          labTable.innerHTML = appData.labor.map(l => {
+          // Sort labor: Ma first, Mm second, others third, then name ASC
+          const sortedLabor = [...appData.labor].sort((a, b) => {
+            const roleA = a.role === 'Ma' ? 1 : (a.role === 'Mm' ? 2 : 3);
+            const roleB = b.role === 'Ma' ? 1 : (b.role === 'Mm' ? 2 : 3);
+            if (roleA !== roleB) return roleA - roleB;
+            return (a.name || '').localeCompare(b.name || '');
+          });
+
+          labTable.innerHTML = sortedLabor.map(l => {
             const currentRole = l.role || 'Ma';
             const isMm = currentRole === 'Mm';
+
+            let sectionHeaderHtml = '';
+            if (currentRole !== lastRenderedRole) {
+              lastRenderedRole = currentRole;
+              const isMaGroup = currentRole === 'Ma';
+              sectionHeaderHtml = `
+                <tr class="${isMaGroup ? 'bg-amber-500/10 border-y border-amber-500/30' : 'bg-sky-500/10 border-y border-sky-500/30'}">
+                  <td colspan="12" class="py-2.5 px-4 text-xs font-black uppercase tracking-wider ${isMaGroup ? 'text-amber-300' : 'text-sky-300'}">
+                    <div class="flex items-center gap-2">
+                      <span>${isMaGroup ? '🧱' : '🦺'}</span>
+                      <span>${isMaGroup ? 'MASONS (Ma — ₹950 / Day)' : (currentRole === 'Mm' ? 'HELPERS / ASSISTANTS (Mm — ₹750 / Day)' : currentRole.toUpperCase())}</span>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }
 
             // Calculate total for this worker
             let workerTotal = 0;
@@ -2980,6 +3035,7 @@
             }).join('');
 
             return `
+              ${sectionHeaderHtml}
               <tr class="hover:bg-slate-800/40 transition-colors">
                 <td class="p-3.5 font-bold text-white whitespace-nowrap">${l.name}</td>
                 <td class="p-3.5">

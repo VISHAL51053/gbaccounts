@@ -321,7 +321,10 @@ app.delete('/api/supplier-payments/:id', (req, res) => {
 // 5. Labor Workforce (Muster Roll)
 app.get('/api/labor', (req, res) => {
   try {
-    const labor = db.prepare('SELECT * FROM labor_roster ORDER BY name ASC').all();
+    const labor = db.prepare(`
+      SELECT * FROM labor_roster 
+      ORDER BY CASE WHEN role = 'Ma' THEN 1 WHEN role = 'Mm' THEN 2 ELSE 3 END, name ASC
+    `).all();
     res.json(labor);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -416,7 +419,10 @@ app.delete('/api/labor/:id', (req, res) => {
 // 5.1 Google Sheet Live Web View for Labour Attendance & Wage Sheet
 app.get(['/api/labor/sheet', '/api/labour/sheet'], (req, res) => {
   try {
-    const workers = db.prepare('SELECT * FROM labor_roster ORDER BY name ASC').all();
+    const workers = db.prepare(`
+      SELECT * FROM labor_roster 
+      ORDER BY CASE WHEN role = 'Ma' THEN 1 WHEN role = 'Mm' THEN 2 ELSE 3 END, name ASC
+    `).all();
     const company = db.prepare('SELECT * FROM company_profile WHERE id = 1').get() || { name: 'GURUBARAN BUILDERS' };
     const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
@@ -440,11 +446,28 @@ app.get(['/api/labor/sheet', '/api/labour/sheet'], (req, res) => {
 
     let grandTotal = 0;
     let totalDaysAll = 0;
+    let lastRole = null;
 
     const rowsHtml = workers.map((w, idx) => {
       const role = w.role || 'Ma';
       let wTotal = 0;
       let wDays = 0;
+
+      let sectionHeader = '';
+      if (role !== lastRole) {
+        lastRole = role;
+        const sectionTitle = role === 'Ma' ? '🧱 MASONS (Ma — ₹950 / Day)' : (role === 'Mm' ? '🦺 HELPERS / ASSISTANTS (Mm — ₹750 / Day)' : `👷 ${role.toUpperCase()}`);
+        const headerBg = role === 'Ma' ? '#fffbeb' : '#f0f9ff';
+        const headerColor = role === 'Ma' ? '#b45309' : '#0369a1';
+        const headerBorder = role === 'Ma' ? '#fde68a' : '#bae6fd';
+        sectionHeader = `
+          <tr style="background: ${headerBg};">
+            <td colspan="12" style="padding: 8px 12px; font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: ${headerColor}; border: 1px solid ${headerBorder};">
+              ${sectionTitle}
+            </td>
+          </tr>
+        `;
+      }
 
       const dayTds = daysKeys.map(d => {
         const duty = w[`${d.key}_duty`] || (w.day_name && w.day_name.toLowerCase().startsWith(d.key) ? (w.duty || '1 Duty') : '-');
@@ -471,6 +494,7 @@ app.get(['/api/labor/sheet', '/api/labour/sheet'], (req, res) => {
       totalDaysAll += wDays;
 
       return `
+        ${sectionHeader}
         <tr>
           <td class="cell text-center font-bold text-muted">${idx + 1}</td>
           <td class="cell font-bold worker-name">${w.name}</td>
@@ -634,7 +658,10 @@ app.get(['/api/labor/sheet', '/api/labour/sheet'], (req, res) => {
 // 5.2 Google Sheet CSV Export for direct ImportData
 app.get(['/api/labor/csv', '/api/labour/csv'], (req, res) => {
   try {
-    const workers = db.prepare('SELECT * FROM labor_roster ORDER BY name ASC').all();
+    const workers = db.prepare(`
+      SELECT * FROM labor_roster 
+      ORDER BY CASE WHEN role = 'Ma' THEN 1 WHEN role = 'Mm' THEN 2 ELSE 3 END, name ASC
+    `).all();
     const company = db.prepare('SELECT * FROM company_profile WHERE id = 1').get() || { name: 'GURUBARAN BUILDERS' };
     const today = new Date().toISOString().split('T')[0];
 
