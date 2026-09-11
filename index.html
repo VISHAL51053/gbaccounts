@@ -1523,18 +1523,7 @@
         if (!Array.isArray(appData.supplierPayments)) {
           appData.supplierPayments = [];
         }
-        appData.supplierPayments = appData.supplierPayments.filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk'));
-        if (!appData.supplierPayments.some(p => p.id === 'SPAY-09000' || (p.amount === 9000 && p.vendor === 'AMMAN PRAKASH'))) {
-          appData.supplierPayments.push({
-            id: 'SPAY-09000',
-            vendor: 'AMMAN PRAKASH',
-            project_name: 'Site R1',
-            amount: 9000,
-            date: '2026-09-10',
-            payment_mode: 'Cash',
-            notes: 'Supplier settlement payment'
-          });
-        }
+        appData.supplierPayments = appData.supplierPayments.filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk') && p.id !== 'SPAY-09000' && !(p.amount === 9000 && p.vendor === 'AMMAN PRAKASH'));
         if (Array.isArray(appData.materials)) {
           appData.materials = appData.materials.filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk'));
         }
@@ -2564,7 +2553,7 @@
       const compPhone = (appData.company && appData.company.phone) || '';
 
       const mats = (appData.materials || []).filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk')).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-      const pays = (appData.supplierPayments || []).filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk')).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      const pays = (appData.supplierPayments || []).filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk') && p.id !== 'SPAY-09000' && !(p.amount === 9000 && p.vendor === 'AMMAN PRAKASH')).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       const projects = appData.projects || [];
       const vendors = (appData.vendors || []).filter(v => !v || !v.name || !v.name.toLowerCase().includes('palk'));
 
@@ -2798,7 +2787,7 @@
       csv += `"S.No","DATE","MATERIAL / DESCRIPTION","SITE","SUPPLIER","COST (INR)"\n`;
 
       const rawMats = (appData.materials || []).filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk'));
-      const rawPays = (appData.supplierPayments || []).filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk'));
+      const rawPays = (appData.supplierPayments || []).filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk') && p.id !== 'SPAY-09000' && !(p.amount === 9000 && p.vendor === 'AMMAN PRAKASH'));
 
       let totalMatCost = 0;
       rawMats.forEach((m, idx) => {
