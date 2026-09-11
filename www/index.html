@@ -1521,8 +1521,15 @@
           }
         }
         if (Array.isArray(appData.supplierPayments)) {
-          appData.supplierPayments = appData.supplierPayments.filter(p => !p || !p.vendor || !p.vendor.toLowerCase().includes('palk'));
+          appData.supplierPayments = appData.supplierPayments.filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk'));
         }
+        if (Array.isArray(appData.materials)) {
+          appData.materials = appData.materials.filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk'));
+        }
+        if (Array.isArray(appData.vendors)) {
+          appData.vendors = appData.vendors.filter(v => !v || !v.name || !v.name.toLowerCase().includes('palk'));
+        }
+        saveLocalState();
       } catch (err) {
         console.warn('Error reading local data:', err);
       }
@@ -2544,10 +2551,10 @@
       const compAddress = (appData.company && appData.company.address) || 'Chennai, Tamil Nadu';
       const compPhone = (appData.company && appData.company.phone) || '';
 
-      const mats = (appData.materials || []).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-      const pays = (appData.supplierPayments || []).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      const mats = (appData.materials || []).filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk')).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      const pays = (appData.supplierPayments || []).filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk')).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       const projects = appData.projects || [];
-      const vendors = appData.vendors || [];
+      const vendors = (appData.vendors || []).filter(v => !v || !v.name || !v.name.toLowerCase().includes('palk'));
 
       const totalMatCost = mats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
       const totalPaid = pays.reduce((s, p) => s + (Number(p.amount) || 0), 0);
@@ -2778,8 +2785,11 @@
       csv += `"=== 1. RAW MATERIAL PURCHASES MASTER LOG ==="\n`;
       csv += `"S.No","DATE","MATERIAL / DESCRIPTION","SITE","SUPPLIER","COST (INR)"\n`;
 
+      const rawMats = (appData.materials || []).filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk'));
+      const rawPays = (appData.supplierPayments || []).filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk'));
+
       let totalMatCost = 0;
-      (appData.materials || []).forEach((m, idx) => {
+      rawMats.forEach((m, idx) => {
         const amt = Number(m.amount) || 0;
         totalMatCost += amt;
         csv += `"${idx + 1}","${m.date || ''}","${(m.item || '').replace(/"/g, '""')}","${(m.project_name || m.project || '').replace(/"/g, '""')}","${(m.vendor || '').replace(/"/g, '""')}","${amt}"\n`;
@@ -2794,7 +2804,7 @@
       (appData.projects || []).forEach(p => {
         siteMap[p.name] = { name: p.name, loc: `${p.location || '-'} (${p.client || 'Direct'})`, count: 0, cost: 0, items: [] };
       });
-      (appData.materials || []).forEach(m => {
+      rawMats.forEach(m => {
         const sName = m.project_name || m.project || 'General Site';
         if (!siteMap[sName]) {
           siteMap[sName] = { name: sName, loc: '-', count: 0, cost: 0, items: [] };
@@ -2830,13 +2840,13 @@
 
       const suppliersList = [];
       const seenVendorNames = new Set();
-      (appData.vendors || []).forEach(v => {
+      (appData.vendors || []).filter(v => !v || !v.name || !v.name.toLowerCase().includes('palk')).forEach(v => {
         if (v.name && !seenVendorNames.has(v.name.toLowerCase())) {
           seenVendorNames.add(v.name.toLowerCase());
           suppliersList.push({ name: v.name, role: v.role || v.category || 'Raw Materials' });
         }
       });
-      (appData.materials || []).forEach(m => {
+      rawMats.forEach(m => {
         const vName = m.vendor || 'General Supplier';
         if (vName && !seenVendorNames.has(vName.toLowerCase())) {
           seenVendorNames.add(vName.toLowerCase());
@@ -2848,10 +2858,10 @@
       let grandSuppPaid = 0;
 
       suppliersList.forEach((supp, idx) => {
-        const suppMats = (appData.materials || []).filter(m => (m.vendor || '').toLowerCase() === supp.name.toLowerCase());
+        const suppMats = rawMats.filter(m => (m.vendor || '').toLowerCase() === supp.name.toLowerCase());
         const suppCost = suppMats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
         let suppPaid = 0;
-        (appData.supplierPayments || []).forEach(p => {
+        rawPays.forEach(p => {
           if ((p.vendor || '').toLowerCase() === supp.name.toLowerCase()) {
             suppPaid += (Number(p.amount) || 0);
           }
@@ -2867,10 +2877,10 @@
       csv += `"","TOTALS:","","${grandSuppCost}","${grandSuppPaid}","${grandSuppBalance}",""\n\n`;
 
       // 5. PAYMENT SETTLEMENTS LOG
-      if ((appData.supplierPayments || []).length > 0) {
+      if (rawPays.length > 0) {
         csv += `"=== 5. SUPPLIER PAYMENT SETTLEMENTS LOG ==="\n`;
         csv += `"S.No","Date","Supplier / Vendor","Project / Site","Paid Amount (INR)","Payment Mode","Remarks"\n`;
-        (appData.supplierPayments || []).forEach((p, idx) => {
+        rawPays.forEach((p, idx) => {
           csv += `"${idx + 1}","${p.date || ''}","${(p.vendor || '').replace(/"/g, '""')}","${(p.project_name || '').replace(/"/g, '""')}","${p.amount || 0}","${(p.mode || 'Cash').replace(/"/g, '""')}","${(p.notes || '').replace(/"/g, '""')}"\n`;
         });
         csv += `"","","","Total Payments Paid:","${grandSuppPaid}","",""\n`;
