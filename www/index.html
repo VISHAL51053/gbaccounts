@@ -305,16 +305,46 @@
           </div>
         </div>
 
-        <!-- 2 KPI Metrics -->
-        <div class="grid grid-cols-2 gap-2.5 sm:gap-4">
-          <div class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm">
-            <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block truncate">Active Sites</span>
-            <div id="statActiveSites" class="text-lg sm:text-2xl font-black text-white mt-1 truncate">0</div>
+        <!-- Home Dashboard KPI Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
+          <div class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-3">
+            <div class="p-2 sm:p-2.5 rounded-xl bg-blue-500/15 text-blue-400 shrink-0">
+              <i data-lucide="building-2" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+            </div>
+            <div class="min-w-0">
+              <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block truncate">Active Sites</span>
+              <div id="statActiveSites" class="text-base sm:text-2xl font-black text-white mt-0.5 truncate">0</div>
+            </div>
           </div>
 
-          <div class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm">
-            <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block truncate">Labor Workforce</span>
-            <div id="statTotalWorkers" class="text-lg sm:text-2xl font-black text-amber-400 mt-1 truncate">0 Workers</div>
+          <div class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-3">
+            <div class="p-2 sm:p-2.5 rounded-xl bg-amber-500/15 text-amber-400 shrink-0">
+              <i data-lucide="users" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+            </div>
+            <div class="min-w-0">
+              <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block truncate">Labor Workforce</span>
+              <div id="statTotalWorkers" class="text-base sm:text-2xl font-black text-amber-400 mt-0.5 truncate">0 Workers</div>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-3">
+            <div class="p-2 sm:p-2.5 rounded-xl bg-rose-500/15 text-rose-400 shrink-0">
+              <i data-lucide="indian-rupee" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+            </div>
+            <div class="min-w-0">
+              <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block truncate">Total Materials Cost</span>
+              <div id="statTotalMaterials" class="text-base sm:text-2xl font-black text-rose-400 font-mono mt-0.5 truncate">₹0</div>
+            </div>
+          </div>
+
+          <div class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-3">
+            <div class="p-2 sm:p-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0">
+              <i data-lucide="wallet" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+            </div>
+            <div class="min-w-0">
+              <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block truncate">Week Labour Amount</span>
+              <div id="statWeekLabor" class="text-base sm:text-2xl font-black text-emerald-400 font-mono mt-0.5 truncate">₹0</div>
+            </div>
           </div>
         </div>
 
@@ -3642,12 +3672,20 @@
       const reportAddr = document.getElementById('reportAddress');
       if (reportAddr) reportAddr.textContent = (appData.company && appData.company.address) || 'Chennai, Tamil Nadu';
 
-      // 2 Home KPI Metrics
+      // Home KPI Metrics
       if (document.getElementById('statActiveSites')) {
         document.getElementById('statActiveSites').textContent = (appData.projects || []).length;
       }
       if (document.getElementById('statTotalWorkers')) {
         document.getElementById('statTotalWorkers').textContent = ((appData.labor || []).length) + ' Workers';
+      }
+      const totalMatCost = (appData.materials || []).reduce((s, m) => s + (Number(m.amount) || 0), 0);
+      if (document.getElementById('statTotalMaterials')) {
+        document.getElementById('statTotalMaterials').textContent = formatINR(totalMatCost);
+      }
+      const labWeeklySum = getLabourWeeklySummary();
+      if (document.getElementById('statWeekLabor')) {
+        document.getElementById('statWeekLabor').textContent = formatINR(labWeeklySum.grandTotal);
       }
 
       const totalBank = (appData.accounts || []).reduce((s, a) => s + (Number(a.balance) || 0), 0);
