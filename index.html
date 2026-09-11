@@ -1520,6 +1520,21 @@
             appData = { ...appData, ...parsed };
           }
         }
+        
+        // Zero-Loss fallback recovery from last known good snapshot if cache was wiped
+        const totalCount = (appData.projects || []).length + (appData.materials || []).length + (appData.labor || []).length;
+        if (totalCount === 0) {
+          const backupSaved = localStorage.getItem('gb_last_known_good_backup');
+          if (backupSaved) {
+            try {
+              const backupParsed = JSON.parse(backupSaved);
+              if (backupParsed && typeof backupParsed === 'object') {
+                appData = { ...appData, ...backupParsed };
+              }
+            } catch(e) {}
+          }
+        }
+
         if (!Array.isArray(appData.supplierPayments)) {
           appData.supplierPayments = [];
         }
@@ -1543,6 +1558,10 @@
     function saveLocalState() {
       try {
         localStorage.setItem('gb_app_data', JSON.stringify(appData));
+        const totalCount = (appData.projects || []).length + (appData.materials || []).length + (appData.labor || []).length;
+        if (totalCount > 0) {
+          localStorage.setItem('gb_last_known_good_backup', JSON.stringify(appData));
+        }
       } catch (e) {
         console.warn('Local storage save failed:', e);
       }
@@ -1680,19 +1699,42 @@
           isSQLiteOnline = true;
           updateSyncBadge(true);
 
+          const serverProjects = Array.isArray(serverData.projects) ? serverData.projects : [];
+          const serverMaterials = Array.isArray(serverData.materials) ? serverData.materials : [];
+          const serverLabor = Array.isArray(serverData.labor) ? serverData.labor : [];
+          const serverVendors = Array.isArray(serverData.vendors) ? serverData.vendors : [];
+          const serverTxns = Array.isArray(serverData.transactions) ? serverData.transactions : [];
+          const serverSuppPay = Array.isArray(serverData.supplierPayments) ? serverData.supplierPayments : [];
+          const serverLaborHistory = Array.isArray(serverData.laborWeeklyHistory) ? serverData.laborWeeklyHistory : [];
+
+          const serverCount = serverProjects.length + serverMaterials.length + serverLabor.length + serverTxns.length + serverSuppPay.length;
+          const localCount = (appData.projects || []).length + (appData.materials || []).length + (appData.labor || []).length + (appData.transactions || []).length + (appData.supplierPayments || []).length;
+
+          // ZERO-LOSS DATA PROTECTION:
+          // If cloud server woke up empty (e.g., Render free tier container sleep/restart), but this device has local records:
+          // DO NOT wipe local device data! Auto-rehydrate the cloud database from device memory immediately!
+          if (serverCount === 0 && localCount > 0) {
+            console.log('Zero-Loss Shield: Auto-rehydrating cloud database from local device memory...');
+            apiFetch(`${API_URL}/sync/push`, {
+              method: 'POST',
+              body: JSON.stringify(appData)
+            }).catch(e => console.warn('Auto-rehydrate warning:', e));
+            return true;
+          }
+
           if (serverData.company && serverData.company.name) {
             appData.company = serverData.company;
           }
-          appData.projects = Array.isArray(serverData.projects) ? serverData.projects : [];
-          appData.materials = Array.isArray(serverData.materials) ? serverData.materials : [];
-          appData.labor = Array.isArray(serverData.labor) ? serverData.labor : [];
-          appData.vendors = Array.isArray(serverData.vendors) ? serverData.vendors : [];
+          appData.projects = serverProjects;
+          appData.materials = serverMaterials;
+          appData.labor = serverLabor;
+          appData.vendors = serverVendors;
           if (Array.isArray(serverData.accounts) && serverData.accounts.length > 0) {
             appData.accounts = serverData.accounts;
           }
-          appData.transactions = Array.isArray(serverData.transactions) ? serverData.transactions : [];
-          appData.supplierPayments = Array.isArray(serverData.supplierPayments) ? serverData.supplierPayments : [];
-          appData.laborWeeklyHistory = Array.isArray(serverData.laborWeeklyHistory) ? serverData.laborWeeklyHistory : [];
+          appData.transactions = serverTxns;
+          appData.supplierPayments = serverSuppPay;
+          appData.laborWeeklyHistory = serverLaborHistory;
 
           // Clean up demo residues if any
           appData.materials = appData.materials.filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk'));

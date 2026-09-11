@@ -271,5 +271,104 @@ if (checkAccounts.count === 0) {
   insertAcc.run('ACC-03', 'Site Petty Cash', 'N/A', 'Site Cash', 'Petty Cash', 0);
 }
 
+// Seed default projects if empty
+const checkProjects = db.prepare('SELECT COUNT(*) as count FROM projects').get();
+if (checkProjects.count === 0) {
+  const pStmt = db.prepare('INSERT INTO projects (id, name, client, client_phone, location, type, total_area_sqft, budget, spent, progress, status, supervisor, start_date, estimated_completion, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const defaultProjects = [
+    ['PRJ-907', 'Site RK6', 'Rangamma kovil', '', 'Sipcot', 'Residential', 0, 0, 0, 10, 'In Progress', 'Civil Engg', '', '', ''],
+    ['PRJ-918', 'Site R1', 'Ravi', '', 'Perumapalayam', 'Residential', 0, 0, 0, 10, 'In Progress', 'Civil Engg', '', '', ''],
+    ['PRJ-930', 'Site P1', 'Dharun Rani', '', 'Sullippalayam', 'Residential', 0, 0, 0, 10, 'In Progress', 'Civil Engg', '', '', ''],
+    ['PRJ-563', 'Site RV', 'Ragupathy', '', 'Veeranampalayam', 'Residential', 0, 0, 0, 10, 'In Progress', 'Civil Engg', '', '', ''],
+    ['PRJ-957', 'Site S1', 'Kannappan', '', 'Sullippalayam', 'Residential', 0, 0, 0, 10, 'In Progress', 'Civil Engg', '', '', ''],
+    ['PRJ-635', 'Site AP', 'Ashok', '', 'Vijayamagalam', 'Residential', 0, 0, 0, 10, 'In Progress', 'Civil Engg', '', '', '']
+  ];
+  for (const p of defaultProjects) {
+    pStmt.run(...p);
+  }
+}
+
+// Seed default vendors if empty
+const checkVendors = db.prepare('SELECT COUNT(*) as count FROM vendors').get();
+if (checkVendors.count === 0) {
+  const vStmt = db.prepare('INSERT INTO vendors (id, name, contact_person, phone, category, gstin, address, balance_due, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const defaultVendors = [
+    ['VND-1', 'SRIDEVI STEELS', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
+    ['VND-2', 'AMMAN PAINTS', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
+    ['VND-3', 'SEKAR KAASI', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
+    ['VND-4', 'GRIL MOHAN', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
+    ['VND-5', 'BRICK MURUGESH', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials'],
+    ['VND-6', 'ELECT AATHI', '', '', 'Materials Supplier', '', '', 0, 'Raw Materials']
+  ];
+  for (const v of defaultVendors) {
+    vStmt.run(...v);
+  }
+}
+
+// Seed default materials if empty
+const checkMats = db.prepare('SELECT COUNT(*) as count FROM materials').get();
+if (checkMats.count === 0) {
+  const mStmt = db.prepare('INSERT INTO materials (id, date, category, item, project_id, project_name, vendor, amount, tax_amount, payment_mode, bill_number, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const defaultMats = [
+    ['MAT-64218', '2026-09-11', 'Raw Materials', 'Cement 40 Bags', 'PRJ-930', 'Site P1', 'SRIDEVI STEELS', 12800, 0, 'Cash in Hand', 'VCH-MAT-64218', ''],
+    ['MAT-75392', '2026-09-11', 'Raw Materials', 'Cement 20 Bags', 'PRJ-563', 'Site RV', 'SRIDEVI STEELS', 6400, 0, 'Cash in Hand', 'VCH-MAT-75392', ''],
+    ['MAT-10519', '2026-09-11', 'Raw Materials', 'Paint', 'PRJ-957', 'Site S1', 'AMMAN PAINTS', 15087, 0, 'Cash in Hand', 'VCH-MAT-10519', ''],
+    ['MAT-13727', '2026-09-11', 'Raw Materials', 'Paint ', 'PRJ-907', 'Site RK6', 'AMMAN PAINTS', 6650, 0, 'Cash in Hand', 'VCH-MAT-13727', ''],
+    ['MAT-95488', '2026-09-11', 'Raw Materials', 'Paint ', 'PRJ-918', 'Site R1', 'AMMAN PAINTS', 26759, 0, 'Cash in Hand', 'VCH-MAT-95488', ''],
+    ['MAT-01891', '2026-09-11', 'Raw Materials', 'M sand', 'PRJ-907', 'Site RK6', 'SEKAR KAASI', 38000, 0, 'Cash in Hand', 'VCH-MAT-01891', ''],
+    ['MAT-51198', '2026-09-11', 'Raw Materials', 'Gurder', 'PRJ-957', 'Site S1', 'GRIL MOHAN', 27924, 0, 'Cash in Hand', 'VCH-MAT-51198', ''],
+    ['MAT-20824', '2026-09-11', 'Raw Materials', 'Gate work ', 'PRJ-635', 'Site AP', 'GRIL MOHAN', 57186, 0, 'Cash in Hand', 'VCH-MAT-20824', ''],
+    ['MAT-94679', '2026-09-11', 'Raw Materials', 'Gril work ', 'PRJ-918', 'Site R1', 'GRIL MOHAN', 47071, 0, 'Cash in Hand', 'VCH-MAT-94679', ''],
+    ['MAT-10058', '2026-09-11', 'Raw Materials', 'Brick ', 'PRJ-907', 'Site RK6', 'BRICK MURUGESH', 38000, 0, 'Cash in Hand', 'VCH-MAT-10058', ''],
+    ['MAT-62462', '2026-09-11', 'Raw Materials', 'Elect Pipe ', 'PRJ-635', 'Site AP', 'ELECT AATHI', 5320, 0, 'Cash in Hand', 'VCH-MAT-62462', ''],
+    ['MAT-41483', '2026-09-11', 'Raw Materials', 'Elect Pipe ', 'PRJ-907', 'Site RK6', 'ELECT AATHI', 85207, 0, 'Cash in Hand', 'VCH-MAT-41483', ''],
+    ['MAT-20985', '2026-09-11', 'Raw Materials', 'Elect Pipe ', 'PRJ-563', 'Site RV', 'ELECT AATHI', 6760, 0, 'Cash in Hand', 'VCH-MAT-20985', ''],
+    ['MAT-99981', '2026-09-11', 'Raw Materials', 'Elect Pipe ', 'PRJ-957', 'Site S1', 'ELECT AATHI', 6714, 0, 'Cash in Hand', 'VCH-MAT-99981', ''],
+    ['MAT-62297', '2026-09-11', 'Raw Materials', 'Elect Pipe ', 'PRJ-918', 'Site R1', 'ELECT AATHI', 45113, 0, 'Cash in Hand', 'VCH-MAT-62297', ''],
+    ['MAT-48005', '2026-09-11', 'Raw Materials', 'Steel cement ', 'PRJ-563', 'Site RV', 'SRIDEVI STEELS', 121400, 0, 'Cash in Hand', 'VCH-MAT-48005', ''],
+    ['MAT-25487', '2026-09-11', 'Raw Materials', 'Steel cement ', 'PRJ-930', 'Site P1', 'SRIDEVI STEELS', 76800, 0, 'Cash in Hand', 'VCH-MAT-25487', ''],
+    ['MAT-72424', '2026-09-11', 'Raw Materials', 'Steel cement ', 'PRJ-918', 'Site R1', 'SRIDEVI STEELS', 19200, 0, 'Cash in Hand', 'VCH-MAT-72424', ''],
+    ['MAT-43058', '2026-09-11', 'Raw Materials', 'Steel cement ', 'PRJ-907', 'Site RK6', 'SRIDEVI STEELS', 239423, 0, 'Cash in Hand', 'VCH-MAT-43058', '']
+  ];
+  for (const m of defaultMats) {
+    mStmt.run(...m);
+  }
+}
+
+// Seed default labor if empty
+const checkLabor = db.prepare('SELECT COUNT(*) as count FROM labor_roster').get();
+if (checkLabor.count === 0) {
+  const lStmt = db.prepare(`INSERT INTO labor_roster (
+    id, name, role, daily_rate, phone, site_assigned, day_name, duty, total_amount, days_present, advance_paid, status,
+    mon_duty, mon_amt, mon_site, tue_duty, tue_amt, tue_site, wed_duty, wed_amt, wed_site,
+    thu_duty, thu_amt, thu_site, fri_duty, fri_amt, fri_site, sat_duty, sat_amt, sat_site,
+    sun_duty, sun_amt, sun_site, week_label
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+
+  const defaultLabor = [
+    ['LAB-314', 'Alangeer', 'Ma', 950, '', 'Site RK6', 'Monday', '-', 1425, 1.5, 0, 'Active', '-', 0, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-498', 'Askar', 'Ma', 950, '', 'Site RK6', 'Monday', '-', 7125, 7.5, 0, 'Active', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site AP', '-', 0, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-854', 'Bappe', 'Ma', 950, '', 'Site RK6', 'Monday', '-', 5700, 6, 0, 'Active', '1 Duty', 950, 'Site RK6', '1 Duty', 950, 'Site RK6', '1 Duty', 950, 'Site RK6', '1 Duty', 950, 'Site RK6', '1 Duty', 950, 'Site RK6', '1 Duty', 950, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-286', 'Bisunath', 'Ma', 950, '', 'Site RK6', 'Monday', '-', 7125, 7.5, 0, 'Active', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-505', 'Deepu', 'Ma', 950, '', 'Site RK6', 'Monday', '-', 5700, 6, 0, 'Active', '1 Duty', 950, 'Site RK6', '1 Duty', 950, 'Site RK6', '1 Duty', 950, 'Site RK6', '1 Duty', 950, 'Site RK6', '1 Duty', 950, 'Site RK6', '1 Duty', 950, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-334', 'Hussain', 'Ma', 950, '', 'Site RK6', 'Monday', '-', 6650, 7, 0, 'Active', '1 Duty', 950, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '1 Duty', 950, 'Site RK6', '1 Duty', 950, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '1 Duty', 950, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-041', 'Najimul', 'Ma', 950, '', 'Site RK6', 'Monday', '-', 7125, 7.5, 0, 'Active', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-028', 'Ranjith', 'Ma', 950, '', 'Site RK6', 'Monday', '-', 7125, 7.5, 0, 'Active', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '1.5 Duty', 1425, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-546', 'Aijul', 'Mm', 750, '', 'Site RK6', 'Monday', '-', 1125, 1.5, 0, 'Active', '-', 0, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-543', 'Ali Hussain', 'Mm', 750, '', 'Site RK6', 'Monday', '-', 5625, 7.5, 0, 'Active', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-191', 'Chanthu', 'Mm', 750, '', 'Site RK6', 'Monday', '-', 5625, 7.5, 0, 'Active', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-723', 'Hussain son', 'Mm', 750, '', 'Site RK6', 'Monday', '-', 1875, 2.5, 0, 'Active', '1 Duty', 750, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-794', 'Laddu', 'Mm', 750, '', 'Site RK6', 'Monday', '-', 5625, 7.5, 0, 'Active', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-200', 'Manirul', 'Mm', 750, '', 'Site RK6', 'Monday', '-', 5625, 7.5, 0, 'Active', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-779', 'Nittai', 'Mm', 750, '', 'Site RK6', 'Monday', '-', 5625, 7.5, 0, 'Active', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-716', 'Raana', 'Mm', 750, '', 'Site RK6', 'Monday', '-', 5625, 7.5, 0, 'Active', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-001', 'Sanjith', 'Mm', 750, '', 'Site RK6', 'Monday', '-', 4125, 5.5, 0, 'Active', '1 Duty', 750, 'Site RK6', '1 Duty', 750, 'Site RK6', '1 Duty', 750, 'Site RK6', '1 Duty', 750, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', ''],
+    ['LAB-003', 'Thourn', 'Mm', 750, '', 'Site RK6', 'Monday', '-', 3375, 4.5, 0, 'Active', '1 Duty', 750, 'Site RK6', '1 Duty', 750, 'Site RK6', '1 Duty', 750, 'Site RK6', '-', 0, 'Site RK6', '1.5 Duty', 1125, 'Site RK6', '-', 0, 'Site RK6', '-', 0, 'Site RK6', '']
+  ];
+  for (const l of defaultLabor) {
+    lStmt.run(...l);
+  }
+}
+
 export default db;
 export { dbPath };
