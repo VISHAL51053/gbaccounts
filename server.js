@@ -330,16 +330,14 @@ app.get('/api/labor', (req, res) => {
 
 app.post('/api/labor', (req, res) => {
   try {
-    const { name, role, daily_rate, phone, site_assigned, day_name, duty, total_amount, days_present, advance_paid } = req.body;
+    const { name, role, daily_rate, phone, site_assigned, advance_paid } = req.body;
     const id = `LAB-${Date.now().toString().slice(-3)}`;
-    const rate = Number(daily_rate) || 950;
-    const dutyVal = duty || '1 Duty';
-    const total = total_amount !== undefined ? Number(total_amount) : rate;
+    const rate = Number(daily_rate) || (role === 'Mm' ? 750 : 950);
 
     db.prepare(`
-      INSERT INTO labor_roster (id, name, role, daily_rate, phone, site_assigned, day_name, duty, total_amount, days_present, advance_paid, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')
-    `).run(id, name, role || 'Ma', rate, phone || '', site_assigned || 'General Site', day_name || 'Monday', dutyVal, total, days_present || 1, advance_paid || 0);
+      INSERT INTO labor_roster (id, name, role, daily_rate, phone, site_assigned, day_name, duty, total_amount, days_present, advance_paid, status, mon_duty, tue_duty, wed_duty, thu_duty, fri_duty, sat_duty, sun_duty, mon_amt, tue_amt, wed_amt, thu_amt, fri_amt, sat_amt, sun_amt)
+      VALUES (?, ?, ?, ?, ?, ?, '', '-', 0, 0, ?, 'Active', '-', '-', '-', '-', '-', '-', '-', 0, 0, 0, 0, 0, 0, 0)
+    `).run(id, name, role || 'Ma', rate, phone || '', site_assigned || 'General Site', advance_paid || 0);
 
     const created = db.prepare('SELECT * FROM labor_roster WHERE id = ?').get(id);
     res.json(created);

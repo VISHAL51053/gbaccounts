@@ -1596,10 +1596,7 @@
         const name = nameInput ? nameInput.value.trim() : '';
         const role = roleInput ? roleInput.value : 'Ma';
         const site_assigned = (appData.projects && appData.projects.length > 0) ? appData.projects[0].name : 'General Site';
-        const day_name = 'Monday';
-        const duty = '1 Duty';
         const daily_rate = role === 'Mm' ? 750 : 950;
-        const total_amount = daily_rate;
 
         if (!name) {
           alert('Please enter worker / labour name.');
@@ -1610,12 +1607,19 @@
           name,
           role,
           site_assigned,
-          day_name,
-          duty,
+          day_name: '',
+          duty: '-',
           daily_rate,
-          total_amount,
-          days_present: 1,
-          advance_paid: 0
+          total_amount: 0,
+          days_present: 0,
+          advance_paid: 0,
+          mon_duty: '-', mon_amt: 0, mon_site: site_assigned,
+          tue_duty: '-', tue_amt: 0, tue_site: site_assigned,
+          wed_duty: '-', wed_amt: 0, wed_site: site_assigned,
+          thu_duty: '-', thu_amt: 0, thu_site: site_assigned,
+          fri_duty: '-', fri_amt: 0, fri_site: site_assigned,
+          sat_duty: '-', sat_amt: 0, sat_site: site_assigned,
+          sun_duty: '-', sun_amt: 0, sun_site: site_assigned
         };
 
         if (isSQLiteOnline) {
@@ -1783,7 +1787,7 @@
         const duties = {};
 
         daysKeys.forEach(d => {
-          const duty = l[`${d.key}_duty`] || (l.day_name && l.day_name.toLowerCase().startsWith(d.key) ? (l.duty || '1 Duty') : '-');
+          const duty = l[`${d.key}_duty`] || '-';
           const amt = getDutyAmount(role, duty);
           workerTotal += amt;
           duties[d.label] = duty;
@@ -1791,11 +1795,6 @@
             workerDays += (duty === '1/2 Duty' ? 0.5 : (duty === '1.5 Duty' ? 1.5 : 1));
           }
         });
-
-        if (workerTotal === 0 && Number(l.total_amount) > 0) {
-          workerTotal = Number(l.total_amount);
-          workerDays = Number(l.days_present) || 1;
-        }
 
         grandTotal += workerTotal;
         totalDaysAll += workerDays;
@@ -2933,24 +2932,19 @@
             let workerDaysCount = 0;
 
             daysKeys.forEach(d => {
-              const duty = l[`${d.key}_duty`] || (l.day_name && l.day_name.toLowerCase().startsWith(d.key) ? (l.duty || '1 Duty') : '-');
+              const duty = l[`${d.key}_duty`] || '-';
               const amt = getDutyAmount(currentRole, duty);
               workerTotal += amt;
               if (duty && duty !== '-' && duty !== 'Off') {
-                workerDaysCount += (duty === '1/2 Duty' ? 0.5 : 1);
+                workerDaysCount += (duty === '1/2 Duty' ? 0.5 : (duty === '1.5 Duty' ? 1.5 : 1));
               }
             });
-
-            if (workerTotal === 0 && Number(l.total_amount) > 0) {
-              workerTotal = Number(l.total_amount);
-              workerDaysCount = Number(l.days_present) || 1;
-            }
 
             grandWeeklyTotal += workerTotal;
 
             // Render day cells with both Duty and Site dropdown
             const daysCellsHtml = daysKeys.map(d => {
-              const duty = l[`${d.key}_duty`] || (l.day_name && l.day_name.toLowerCase().startsWith(d.key) ? (l.duty || '1 Duty') : '-');
+              const duty = l[`${d.key}_duty`] || '-';
               const daySite = l[`${d.key}_site`] || l.site_assigned || (appData.projects[0] ? appData.projects[0].name : 'General Site');
               const amt = getDutyAmount(currentRole, duty);
               const isActive = duty && duty !== '-' && duty !== 'Off';
