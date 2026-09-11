@@ -1520,8 +1520,20 @@
             appData = { ...appData, ...parsed };
           }
         }
-        if (Array.isArray(appData.supplierPayments)) {
-          appData.supplierPayments = appData.supplierPayments.filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk'));
+        if (!Array.isArray(appData.supplierPayments)) {
+          appData.supplierPayments = [];
+        }
+        appData.supplierPayments = appData.supplierPayments.filter(p => p && p.vendor && !p.vendor.toLowerCase().includes('palk'));
+        if (!appData.supplierPayments.some(p => p.id === 'SPAY-09000' || (p.amount === 9000 && p.vendor === 'AMMAN PRAKASH'))) {
+          appData.supplierPayments.push({
+            id: 'SPAY-09000',
+            vendor: 'AMMAN PRAKASH',
+            project_name: 'Site R1',
+            amount: 9000,
+            date: '2026-09-10',
+            payment_mode: 'Cash',
+            notes: 'Supplier settlement payment'
+          });
         }
         if (Array.isArray(appData.materials)) {
           appData.materials = appData.materials.filter(m => !m || !m.vendor || !m.vendor.toLowerCase().includes('palk'));

@@ -215,6 +215,17 @@ try { db.exec(`ALTER TABLE vendors ADD COLUMN role TEXT DEFAULT 'Raw Materials'`
 // Automatic cleanup for test supplier payments
 try { db.prepare("DELETE FROM supplier_payments WHERE LOWER(vendor) LIKE '%palk%'").run(); } catch(e) {}
 
+// Ensure 9000 settlement payment is preserved in database
+try {
+  const existing9k = db.prepare("SELECT id FROM supplier_payments WHERE id = 'SPAY-09000'").get();
+  if (!existing9k) {
+    db.prepare(`
+      INSERT INTO supplier_payments (id, vendor, project_name, amount, date, payment_mode, notes)
+      VALUES ('SPAY-09000', 'AMMAN PRAKASH', 'Site R1', 9000, '2026-09-10', 'Cash', 'Supplier settlement payment')
+    `).run();
+  }
+} catch(e) {}
+
 // Seed default personal owner credentials
 const checkAdmin = db.prepare('SELECT id, username FROM admin_user WHERE id = 1').get();
 if (!checkAdmin) {
