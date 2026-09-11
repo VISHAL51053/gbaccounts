@@ -346,16 +346,18 @@ app.put('/api/materials/:id', (req, res) => {
 
 app.delete('/api/materials/:id', (req, res) => {
   try {
-    const mat = db.prepare('SELECT * FROM materials WHERE id = ?').get(req.params.id);
+    const rawId = req.params.id;
+    const decodedId = decodeURIComponent(rawId).trim();
+    const mat = db.prepare('SELECT * FROM materials WHERE id = ? OR id = ? OR bill_number = ?').get(rawId, decodedId, decodedId);
     if (mat) {
       if (mat.project_id) {
-        db.prepare('UPDATE projects SET spent = MAX(0, spent - ?) WHERE id = ?').run(mat.amount, mat.project_id);
+        try { db.prepare('UPDATE projects SET spent = MAX(0, spent - ?) WHERE id = ?').run(mat.amount, mat.project_id); } catch(e) {}
       } else if (mat.project_name) {
-        db.prepare('UPDATE projects SET spent = MAX(0, spent - ?) WHERE name = ?').run(mat.amount, mat.project_name);
+        try { db.prepare('UPDATE projects SET spent = MAX(0, spent - ?) WHERE name = ?').run(mat.amount, mat.project_name); } catch(e) {}
       }
-      db.prepare('DELETE FROM materials WHERE id = ?').run(req.params.id);
     }
-    res.json({ success: true });
+    db.prepare('DELETE FROM materials WHERE id = ? OR id = ? OR bill_number = ?').run(rawId, decodedId, decodedId);
+    res.json({ success: true, deletedId: decodedId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

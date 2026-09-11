@@ -1611,8 +1611,14 @@
       if (!item) return false;
       const set = getDeletedIds();
       if (item.id && set.has(String(item.id).trim())) return true;
+      if (item.bill_number && set.has(String(item.bill_number).trim())) return true;
+      if (item.billNumber && set.has(String(item.billNumber).trim())) return true;
       if (item.name && set.has(String(item.name).trim())) return true;
       if (item.week_label && set.has(String(item.week_label).trim())) return true;
+      if (item.date && item.item && item.amount) {
+        const sig = `${item.date}_${item.item}_${item.amount}_${item.vendor || ''}`.toLowerCase();
+        if (set.has(sig)) return true;
+      }
       return false;
     }
 
@@ -1630,7 +1636,7 @@
           }
         }
       });
-      return Array.from(map.values());
+      return Array.from(map.values()).filter(item => !isItemDeleted(item));
     }
 
     function mergeVendors(localVendors, serverVendors) {
@@ -3392,16 +3398,28 @@
     async function deleteMaterial(id) {
       if (!id) return;
       if (!confirm('Permanently delete this material record?')) return;
+      
+      const targetMat = (appData.materials || []).find(m => m.id === id);
       markIdAsDeleted(id);
+      if (targetMat) {
+        if (targetMat.bill_number) markIdAsDeleted(targetMat.bill_number);
+        if (targetMat.billNumber) markIdAsDeleted(targetMat.billNumber);
+        if (targetMat.date && targetMat.item && targetMat.amount) {
+          const sig = `${targetMat.date}_${targetMat.item}_${targetMat.amount}_${targetMat.vendor || ''}`.toLowerCase();
+          markIdAsDeleted(sig);
+        }
+      }
+
       appData.materials = (appData.materials || []).filter(m => m.id !== id);
       saveLocalState();
       renderAll();
+
       try {
         const apiUrl = getApiUrl();
         await apiFetch(`${apiUrl}/materials/${encodeURIComponent(id)}`, { method: 'DELETE' });
         await apiFetch(`${apiUrl}/sync/push`, {
           method: 'POST',
-          body: JSON.stringify({ deleted_ids: [id] })
+          body: JSON.stringify({ deleted_ids: Array.from(getDeletedIds()) })
         });
         showSyncToast('Material record deleted permanently.');
       } catch(e) {
