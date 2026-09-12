@@ -1435,6 +1435,59 @@
     </div>
   </div>
 
+  <!-- Modal: In-App Universal Google Sheet Viewer (Mobile, Mac & Desktop) -->
+  <div id="modalGoogleSheetViewer" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/90 backdrop-blur-md p-2 sm:p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-700 w-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh] my-auto">
+      <!-- Google Sheets Green Header -->
+      <div class="bg-[#0f9d58] text-white p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-md">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 bg-white rounded-xl flex items-center justify-center text-[#0f9d58] font-black text-xl shadow-sm select-none">
+            📊
+          </div>
+          <div>
+            <h2 id="sheetViewerTitle" class="text-sm sm:text-base font-black tracking-tight text-white flex items-center gap-2">
+              Google Sheets Live View
+            </h2>
+            <p id="sheetViewerSubtitle" class="text-[11px] text-emerald-100 opacity-90"></p>
+          </div>
+        </div>
+
+        <div class="flex items-center flex-wrap gap-2">
+          <button type="button" id="btnSheetDownloadCsv" class="px-3 py-1.5 rounded-xl bg-[#0b8043] hover:bg-[#086334] text-white text-xs font-bold transition-all shadow flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <span>Download CSV</span>
+          </button>
+          <button type="button" id="btnSheetShareWhatsApp" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+            <span>Share</span>
+          </button>
+          <button type="button" id="btnSheetCopyTable" class="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            <span>Copy Table</span>
+          </button>
+          <button type="button" onclick="window.print()" class="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+            <span>Print / PDF</span>
+          </button>
+          <button type="button" onclick="closeModal('modalGoogleSheetViewer')" class="p-1.5 rounded-xl bg-black/20 hover:bg-black/40 text-white transition-colors cursor-pointer" title="Close">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab navigation for multi-sheet view -->
+      <div id="sheetViewerTabsContainer" class="bg-slate-950 border-b border-slate-800 px-3 sm:px-4 py-2 flex items-center gap-2 overflow-x-auto shrink-0 no-scrollbar">
+        <!-- Tabs injected dynamically -->
+      </div>
+
+      <!-- Sheet Body Container -->
+      <div id="sheetViewerContent" class="p-3 sm:p-6 overflow-y-auto grow bg-white text-slate-900">
+        <!-- Sheet content injected dynamically -->
+      </div>
+    </div>
+  </div>
+
+
   <!-- ================= SQLITE API CLIENT & JAVASCRIPT ================= -->
   <script>
     function getApiUrl() {
@@ -2418,152 +2471,221 @@
       return { rows, maRows, mmRows, grandTotal, totalDaysAll, totalWorkers: rows.length };
     }
 
+    // --- Universal File Downloader & Sharing (Works seamlessly on Android App, Mobile Web, Mac & Windows) ---
+    function downloadCSVUniversal(filename, csvContent) {
+      try {
+        const cleanContent = '\uFEFF' + csvContent; // UTF-8 BOM for Excel/Google Sheets compatibility
+        const blob = new Blob([cleanContent], { type: 'text/csv;charset=utf-8;' });
+        
+        // 1. Try Native Web Share API if on Mobile
+        if (navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: 'text/csv' })] })) {
+          const file = new File([blob], filename, { type: 'text/csv' });
+          navigator.share({
+            title: filename,
+            files: [file]
+          }).then(() => {
+            showSyncToast('✅ CSV file shared/saved successfully!');
+          }).catch(err => {
+            console.log('Share dismissed, triggering direct download fallback:', err);
+            triggerBlobDownload(blob, filename);
+          });
+          return;
+        }
+
+        // 2. Standard Anchor download
+        triggerBlobDownload(blob, filename);
+      } catch (err) {
+        console.warn('Blob download fallback to Data URI:', err);
+        triggerDataUriDownload(csvContent, filename);
+      }
+    }
+
+    function triggerBlobDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (document.body.contains(link)) document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 1000);
+      showSyncToast(`📥 Downloaded ${filename}`);
+    }
+
+    function triggerDataUriDownload(content, filename) {
+      const encodedUri = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(content);
+      const link = document.createElement('a');
+      link.href = encodedUri;
+      link.setAttribute('download', filename);
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (document.body.contains(link)) document.body.removeChild(link);
+      }, 1000);
+      showSyncToast(`📥 Downloaded ${filename}`);
+    }
+
+    async function copyTableToClipboard(containerId) {
+      try {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        const text = el.innerText || el.textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          showSyncToast('📋 Copied table to clipboard! You can paste into Google Sheets app.');
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+          showSyncToast('📋 Copied table to clipboard!');
+        }
+      } catch (err) {
+        showSyncToast('Table text ready for copying.');
+      }
+    }
+
     function openLabourGoogleSheetView() {
       const summary = getLabourWeeklySummary();
       const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       const compName = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
       const compAddress = (appData.company && appData.company.address) || 'Chennai, Tamil Nadu';
 
+      const titleEl = document.getElementById('sheetViewerTitle');
+      const subEl = document.getElementById('sheetViewerSubtitle');
+      const tabsEl = document.getElementById('sheetViewerTabsContainer');
+      const contentEl = document.getElementById('sheetViewerContent');
+
+      if (titleEl) titleEl.textContent = `📊 Google Sheets Live View • Labour Attendance`;
+      if (subEl) subEl.textContent = `${compName} • Weekly Labour & Wages Master Sheet (${today})`;
+
+      document.getElementById('btnSheetDownloadCsv').onclick = () => exportLabourGoogleSheets();
+      document.getElementById('btnSheetShareWhatsApp').onclick = () => shareWeeklyLabourWhatsApp();
+      document.getElementById('btnSheetCopyTable').onclick = () => copyTableToClipboard('sheetViewerContent');
+
+      if (tabsEl) {
+        tabsEl.innerHTML = `
+          <span class="px-3.5 py-1 rounded-full bg-[#0f9d58] text-white font-bold text-xs shadow-sm">
+            👷 Weekly Labour Attendance (${summary.totalWorkers} Workers)
+          </span>
+        `;
+      }
+
       const rowsHtml = summary.rows.map(r => `
-        <tr>
-          <td style="text-align:center;">${r.index}</td>
-          <td style="font-weight:bold;">${escapeHtml(r.name)}</td>
-          <td style="text-align:center;"><span style="display:inline-block; padding:2px 8px; border-radius:10px; font-weight:bold; font-size:11px; background:${r.role === 'Ma' ? '#fef3c7; color:#92400e' : '#e0f2fe; color:#0369a1'};">${r.role}</span></td>
-          <td style="text-align:center;">${r.duties['Mon'] || '-'}</td>
-          <td style="text-align:center;">${r.duties['Tue'] || '-'}</td>
-          <td style="text-align:center;">${r.duties['Wed'] || '-'}</td>
-          <td style="text-align:center;">${r.duties['Thu'] || '-'}</td>
-          <td style="text-align:center;">${r.duties['Fri'] || '-'}</td>
-          <td style="text-align:center;">${r.duties['Sat'] || '-'}</td>
-          <td style="text-align:center;">${r.duties['Sun'] || '-'}</td>
-          <td style="text-align:center; font-weight:bold;">${r.days}</td>
-          <td style="text-align:right; font-family:monospace; font-weight:bold; color:#059669;">${formatINR(r.amount)}</td>
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="p-2.5 text-center text-slate-500 font-semibold border border-slate-200">${r.index}</td>
+          <td class="p-2.5 font-bold text-slate-900 border border-slate-200 whitespace-nowrap">${escapeHtml(r.name)}</td>
+          <td class="p-2.5 text-center border border-slate-200">
+            <span class="inline-block px-2.5 py-0.5 rounded-full font-bold text-[11px] ${r.role === 'Ma' ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-sky-100 text-sky-900 border border-sky-300'}">
+              ${r.role}
+            </span>
+          </td>
+          <td class="p-2 text-center font-semibold text-slate-700 border border-slate-200">${r.duties['Mon'] || '-'}</td>
+          <td class="p-2 text-center font-semibold text-slate-700 border border-slate-200">${r.duties['Tue'] || '-'}</td>
+          <td class="p-2 text-center font-semibold text-slate-700 border border-slate-200">${r.duties['Wed'] || '-'}</td>
+          <td class="p-2 text-center font-semibold text-slate-700 border border-slate-200">${r.duties['Thu'] || '-'}</td>
+          <td class="p-2 text-center font-semibold text-slate-700 border border-slate-200">${r.duties['Fri'] || '-'}</td>
+          <td class="p-2 text-center font-semibold text-slate-700 border border-slate-200">${r.duties['Sat'] || '-'}</td>
+          <td class="p-2 text-center font-semibold text-slate-700 border border-slate-200">${r.duties['Sun'] || '-'}</td>
+          <td class="p-2.5 text-center font-black text-slate-900 bg-slate-100/80 border border-slate-200">${r.days}</td>
+          <td class="p-2.5 text-right font-mono font-black text-emerald-700 bg-emerald-50/50 border border-slate-200 whitespace-nowrap">${formatINR(r.amount)}</td>
         </tr>
       `).join('');
 
-      const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>${escapeHtml(compName)} - Weekly Labour Attendance Google Sheet</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f8fafc; color: #1e293b; padding: 20px; }
-    .sheet-header { background: #0f9d58; color: white; padding: 14px 20px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; }
-    .sheet-title { font-size: 18px; font-weight: bold; }
-    .sheet-actions { display: flex; gap: 8px; }
-    .btn { padding: 7px 14px; border-radius: 6px; font-weight: bold; font-size: 12px; cursor: pointer; border: none; }
-    .btn-white { background: white; color: #0f9d58; }
-    .btn-dark { background: #0b8043; color: white; }
-    .sheet-body { background: white; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 8px 8px; padding: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
-    .company-banner { display: flex; justify-content: space-between; border-bottom: 2px solid #0f9d58; padding-bottom: 14px; margin-bottom: 20px; }
-    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
-    .stat-box { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; }
-    .stat-label { font-size: 11px; text-transform: uppercase; font-weight: bold; color: #64748b; }
-    .stat-val { font-size: 20px; font-weight: 800; margin-top: 4px; font-family: monospace; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }
-    th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px 10px; font-weight: bold; text-transform: uppercase; font-size: 11px; color: #475569; }
-    td { border: 1px solid #e2e8f0; padding: 8px 10px; }
-    tr:nth-child(even) { background: #f8fafc; }
-    @media print {
-      body { padding: 0; background: white; }
-      .sheet-header, .sheet-actions, .no-print { display: none !important; }
-      .sheet-body { border: none; box-shadow: none; padding: 0; }
-      th { background: #e2e8f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      @page { margin: 1.5cm; size: landscape; }
-    }
-  </style>
-</head>
-<body>
-  <div class="sheet-header no-print">
-    <div class="sheet-title">📊 Google Sheets Live View • Labour Attendance</div>
-    <div class="sheet-actions">
-      <button onclick="window.print()" class="btn btn-white">🖨️ Print / Save PDF</button>
-      <button onclick="window.opener ? window.opener.exportLabourGoogleSheets() : window.print()" class="btn btn-dark">📥 Download CSV</button>
-      <button onclick="window.close()" class="btn btn-dark">✖ Close</button>
-    </div>
-  </div>
-  <div class="sheet-body">
-    <div class="company-banner">
-      <div>
-        <h1 style="font-size:22px; color:#0f172a; font-weight:900;">${escapeHtml(compName)}</h1>
-        <p style="font-size:12px; color:#64748b;">${escapeHtml(compAddress)}</p>
-        <p style="font-size:12px; color:#0f9d58; font-weight:bold; margin-top:4px;">WEEKLY LABOUR ATTENDANCE & WAGES MASTER SHEET</p>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:bold;">Date</div>
-        <div style="font-size:14px; font-weight:bold;">${today}</div>
-      </div>
-    </div>
-    <div class="stats-bar">
-      <div class="stat-box">
-        <div class="stat-label">Total Labour Wages</div>
-        <div class="stat-val" style="color:#059669;">${formatINR(summary.grandTotal)}</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Active Workers</div>
-        <div class="stat-val" style="color:#2563eb;">${summary.totalWorkers}</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Total Shifts / Days</div>
-        <div class="stat-val" style="color:#d97706;">${summary.totalDaysAll} Days</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Masons (Ma)</div>
-        <div class="stat-val" style="color:#92400e;">${summary.maRows.length}</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-label">Helpers (Mm)</div>
-        <div class="stat-val" style="color:#0369a1;">${summary.mmRows.length}</div>
-      </div>
-    </div>
-    <table>
-      <thead>
-        <tr>
-          <th style="width:40px; text-align:center;">S.No</th>
-          <th>Worker Name</th>
-          <th style="text-align:center;">Role</th>
-          <th style="text-align:center;">Mon</th>
-          <th style="text-align:center;">Tue</th>
-          <th style="text-align:center;">Wed</th>
-          <th style="text-align:center;">Thu</th>
-          <th style="text-align:center;">Fri</th>
-          <th style="text-align:center;">Sat</th>
-          <th style="text-align:center;">Sun</th>
-          <th style="text-align:center;">Days</th>
-          <th style="text-align:right;">Weekly Wage (₹)</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${rowsHtml || '<tr><td colspan="12" style="text-align:center; padding:16px;">No labour records.</td></tr>'}
-      </tbody>
-      <tfoot>
-        <tr style="background:#f1f5f9; font-weight:bold;">
-          <td colspan="10" style="text-align:right; text-transform:uppercase;">Grand Total Wages:</td>
-          <td style="text-align:center;">${summary.totalDaysAll}</td>
-          <td style="text-align:right; font-family:monospace; color:#059669;">${formatINR(summary.grandTotal)}</td>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
-</body>
-</html>`;
+      if (contentEl) {
+        contentEl.innerHTML = `
+          <div class="space-y-4">
+            <!-- Top Info Banner -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b-2 border-[#0f9d58] gap-2">
+              <div>
+                <h1 class="text-xl font-black text-slate-900 tracking-tight">${escapeHtml(compName)}</h1>
+                <p class="text-xs text-slate-500">${escapeHtml(compAddress)}</p>
+                <p class="text-xs text-[#0f9d58] font-black uppercase tracking-wider mt-0.5">WEEKLY LABOUR ATTENDANCE & WAGES MASTER SHEET</p>
+              </div>
+              <div class="text-left sm:text-right">
+                <span class="text-[10px] uppercase font-bold text-slate-400 block">Statement Date</span>
+                <span class="text-xs font-black text-slate-800">${today}</span>
+              </div>
+            </div>
 
-      const newWin = window.open('', '_blank');
-      if (newWin) {
-        newWin.document.open();
-        newWin.document.write(html);
-        newWin.document.close();
-      } else {
-        alert('Please allow popups to view the Google Sheet statement.');
+            <!-- KPI Summary Cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+              <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                <div class="text-[10px] uppercase font-bold text-slate-500">Total Wages</div>
+                <div class="text-lg font-black font-mono text-emerald-600 mt-0.5">${formatINR(summary.grandTotal)}</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                <div class="text-[10px] uppercase font-bold text-slate-500">Workers</div>
+                <div class="text-lg font-black text-sky-600 mt-0.5">${summary.totalWorkers}</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                <div class="text-[10px] uppercase font-bold text-slate-500">Total Days</div>
+                <div class="text-lg font-black text-amber-600 mt-0.5">${summary.totalDaysAll} Days</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                <div class="text-[10px] uppercase font-bold text-slate-500">Masons (Ma)</div>
+                <div class="text-lg font-black text-amber-800 mt-0.5">${summary.maRows.length}</div>
+              </div>
+              <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                <div class="text-[10px] uppercase font-bold text-slate-500">Helpers (Mm)</div>
+                <div class="text-lg font-black text-sky-800 mt-0.5">${summary.mmRows.length}</div>
+              </div>
+            </div>
+
+            <!-- Search Filter Bar -->
+            <div class="flex items-center gap-2">
+              <input type="text" id="sheetLabourSearch" placeholder="🔍 Search worker by name or role..." oninput="filterSheetTable('sheetLabourSearch', 'sheetLabourTable')" class="w-full p-2.5 rounded-xl border border-slate-300 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:border-[#0f9d58]" />
+            </div>
+
+            <!-- Spreadsheet Table -->
+            <div class="overflow-x-auto rounded-xl border border-slate-300 shadow-sm max-h-[55vh] overflow-y-auto">
+              <table id="sheetLabourTable" class="w-full text-left text-xs border-collapse">
+                <thead class="bg-slate-100 text-slate-700 uppercase text-[11px] font-bold sticky top-0 border-b border-slate-300 z-10">
+                  <tr>
+                    <th class="p-2.5 text-center border border-slate-300 w-10">S.No</th>
+                    <th class="p-2.5 border border-slate-300">Worker Name</th>
+                    <th class="p-2.5 text-center border border-slate-300">Role</th>
+                    <th class="p-2 text-center border border-slate-300">Mon</th>
+                    <th class="p-2 text-center border border-slate-300">Tue</th>
+                    <th class="p-2 text-center border border-slate-300">Wed</th>
+                    <th class="p-2 text-center border border-slate-300">Thu</th>
+                    <th class="p-2 text-center border border-slate-300">Fri</th>
+                    <th class="p-2 text-center border border-slate-300">Sat</th>
+                    <th class="p-2 text-center border border-slate-300">Sun</th>
+                    <th class="p-2.5 text-center border border-slate-300 bg-slate-200/70">Days</th>
+                    <th class="p-2.5 text-right border border-slate-300 bg-emerald-100/60">Wage (₹)</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 font-medium bg-white">
+                  ${rowsHtml || '<tr><td colspan="12" class="p-8 text-center text-slate-400">No labour records logged.</td></tr>'}
+                </tbody>
+                <tfoot class="bg-slate-100 font-bold border-t-2 border-slate-300 sticky bottom-0 z-10">
+                  <tr>
+                    <td colspan="10" class="p-2.5 text-right uppercase text-[11px] text-slate-600 border border-slate-300">Grand Total Labour Wages:</td>
+                    <td class="p-2.5 text-center font-black bg-slate-200/80 border border-slate-300">${summary.totalDaysAll}</td>
+                    <td class="p-2.5 text-right font-mono font-black text-emerald-700 bg-emerald-100/80 text-sm border border-slate-300">${formatINR(summary.grandTotal)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        `;
       }
+
+      openModal('modalGoogleSheetViewer');
+      safeLucideIcons();
     }
 
     function openMaterialsGoogleSheetView(defaultTab = 'purchases', filterSite = '') {
       const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       const compName = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
       const compAddress = (appData.company && appData.company.address) || 'Chennai, Tamil Nadu';
-      const compPhone = (appData.company && appData.company.phone) || '';
 
       const mats = (appData.materials || []).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
       const pays = (appData.supplierPayments || []).slice().sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
@@ -2574,219 +2696,379 @@
       const totalPaid = pays.reduce((s, p) => s + (Number(p.amount) || 0), 0);
       const totalBalance = Math.max(0, totalMatCost - totalPaid);
 
-      // Build purchases rows
-      let purchasesRows = '';
-      if (mats.length === 0) {
-        purchasesRows = '<tr><td colspan="6" style="text-align:center; padding:24px; color:#94a3b8;">No material purchases recorded yet.</td></tr>';
-      } else {
-        mats.forEach((m, idx) => {
-          purchasesRows += '<tr>' +
-            '<td style="text-align:center; width:40px; color:#64748b;">' + (idx + 1) + '</td>' +
-            '<td style="font-family:monospace; font-weight:600; width:110px;">' + escapeHtml(m.date || '-') + '</td>' +
-            '<td style="font-weight:700; color:#0f172a;">' + escapeHtml(m.item || m.material || '-') + '</td>' +
-            '<td><span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px; font-weight:700; font-size:11px;">' + escapeHtml(m.project_name || m.project || 'General') + '</span></td>' +
-            '<td style="font-weight:600; color:#334155;">' + escapeHtml(m.vendor || '-') + '</td>' +
-            '<td style="text-align:right; font-family:monospace; font-weight:800; color:#dc2626;">' + formatINR(m.amount) + '</td>' +
-          '</tr>';
-        });
+      const titleEl = document.getElementById('sheetViewerTitle');
+      const subEl = document.getElementById('sheetViewerSubtitle');
+      const tabsEl = document.getElementById('sheetViewerTabsContainer');
+
+      if (titleEl) titleEl.textContent = `📊 Google Sheets Live View • Materials & Site Statement`;
+      if (subEl) subEl.textContent = `${compName} • Up-to-Date Material Purchases & Site Statements (${today})`;
+
+      document.getElementById('btnSheetDownloadCsv').onclick = () => exportMaterialsGoogleSheets();
+      document.getElementById('btnSheetShareWhatsApp').onclick = () => {
+        const text = `🏗️ *${compName} - Material & Site Procurement Statement*\n📅 *Date:* ${today}\n📦 *Deliveries:* ${mats.length}\n💰 *Total Purchases:* ${formatINR(totalMatCost)}\n💵 *Total Paid:* ${formatINR(totalPaid)}\n⏳ *Outstanding Balance:* ${formatINR(totalBalance)}`;
+        if (navigator.share) {
+          navigator.share({ title: `${compName} Materials Statement`, text }).catch(() => {});
+        } else {
+          window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+        }
+      };
+      document.getElementById('btnSheetCopyTable').onclick = () => copyTableToClipboard('sheetViewerContent');
+
+      // Build tabs
+      const tabs = [
+        { id: 'purchases', label: `📋 Raw Material Purchases (${mats.length})` },
+        { id: 'sitewise', label: `🏗️ Site-Wise Statement (${projects.length})` },
+        { id: 'suppliers', label: `👥 Supplier Balances` },
+        { id: 'payments', label: `💳 Payment History (${pays.length})` },
+        { id: 'master', label: `📊 Comprehensive Master` }
+      ];
+
+      if (tabsEl) {
+        tabsEl.innerHTML = tabs.map(t => `
+          <button type="button" onclick="switchMaterialSheetTab('${t.id}')" id="sheetTabBtn_${t.id}" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${t.id === defaultTab ? 'bg-[#0f9d58] text-white shadow-md' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'}">
+            ${t.label}
+          </button>
+        `).join('');
       }
 
-      // Build sitewise rows
+      window.currentMaterialSheetData = { mats, pays, projects, vendors, totalMatCost, totalPaid, totalBalance, today, compName, compAddress };
+      renderMaterialSheetTabContent(defaultTab);
+
+      openModal('modalGoogleSheetViewer');
+      safeLucideIcons();
+    }
+
+    function switchMaterialSheetTab(tabId) {
+      const tabs = ['purchases', 'sitewise', 'suppliers', 'payments', 'master'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`sheetTabBtn_${t}`);
+        if (btn) {
+          if (t === tabId) {
+            btn.className = 'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer bg-[#0f9d58] text-white shadow-md';
+          } else {
+            btn.className = 'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap cursor-pointer bg-slate-800 text-slate-300 hover:bg-slate-700';
+          }
+        }
+      });
+      renderMaterialSheetTabContent(tabId);
+    }
+
+    function renderMaterialSheetTabContent(activeTab) {
+      const data = window.currentMaterialSheetData;
+      if (!data) return;
+      const { mats, pays, projects, vendors, totalMatCost, totalPaid, totalBalance, today, compName, compAddress } = data;
+      const contentEl = document.getElementById('sheetViewerContent');
+      if (!contentEl) return;
+
+      // 1. Purchases rows
+      let purchasesRows = mats.map((m, idx) => `
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="p-2.5 text-center text-slate-500 font-semibold border border-slate-200">${idx + 1}</td>
+          <td class="p-2.5 font-mono font-semibold text-slate-800 border border-slate-200 whitespace-nowrap">${escapeHtml(m.date || '-')}</td>
+          <td class="p-2.5 font-bold text-slate-900 border border-slate-200">${escapeHtml(m.item || m.material || '-')}</td>
+          <td class="p-2.5 border border-slate-200">
+            <span class="inline-block px-2.5 py-0.5 rounded-full font-bold text-[11px] bg-sky-100 text-sky-900 border border-sky-300">
+              ${escapeHtml(m.project_name || m.project || 'General Site')}
+            </span>
+          </td>
+          <td class="p-2.5 font-bold text-slate-800 border border-slate-200">${escapeHtml(m.vendor || 'Supplier')}</td>
+          <td class="p-2.5 text-right font-mono font-black text-rose-600 bg-rose-50/40 border border-slate-200 whitespace-nowrap">${formatINR(m.amount)}</td>
+        </tr>
+      `).join('');
+
+      // 2. Sitewise rows
       const siteMap = {};
-      projects.forEach(p => { if (p.name) siteMap[p.name] = { totalCost: 0, itemsCount: 0, materials: [] }; });
+      projects.forEach(p => { if (p.name) siteMap[p.name] = { totalCost: 0, itemsCount: 0, loc: `${p.location || '-'} (${p.client || 'Direct'})` }; });
       mats.forEach(m => {
-        const sName = m.project_name || m.project || 'Unassigned / General';
-        if (!siteMap[sName]) siteMap[sName] = { totalCost: 0, itemsCount: 0, materials: [] };
+        const sName = m.project_name || m.project || 'General Site';
+        if (!siteMap[sName]) siteMap[sName] = { totalCost: 0, itemsCount: 0, loc: '-' };
         siteMap[sName].totalCost += (Number(m.amount) || 0);
         siteMap[sName].itemsCount++;
-        siteMap[sName].materials.push(m);
       });
-
-      let sitewiseSummaryRows = '';
       const siteKeys = Object.keys(siteMap).sort();
-      if (siteKeys.length === 0) {
-        sitewiseSummaryRows = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#94a3b8;">No site data available.</td></tr>';
-      } else {
-        siteKeys.forEach((sName, idx) => {
-          const sObj = siteMap[sName];
-          sitewiseSummaryRows += '<tr>' +
-            '<td style="text-align:center; width:40px; color:#64748b;">' + (idx + 1) + '</td>' +
-            '<td style="font-weight:800; color:#0f172a;">' + escapeHtml(sName) + '</td>' +
-            '<td style="text-align:center; font-weight:700; color:#475569;">' + sObj.itemsCount + ' Purchases</td>' +
-            '<td style="text-align:right; font-family:monospace; font-weight:800; color:#dc2626;">' + formatINR(sObj.totalCost) + '</td>' +
-          '</tr>';
-        });
-      }
+      let sitewiseRows = siteKeys.map((sName, idx) => {
+        const sObj = siteMap[sName];
+        return `
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="p-2.5 text-center text-slate-500 font-semibold border border-slate-200">${idx + 1}</td>
+            <td class="p-2.5 font-bold text-slate-900 border border-slate-200">${escapeHtml(sName)}</td>
+            <td class="p-2.5 text-slate-600 border border-slate-200 text-xs">${escapeHtml(sObj.loc)}</td>
+            <td class="p-2.5 text-center font-bold text-slate-700 border border-slate-200">${sObj.itemsCount} Deliveries</td>
+            <td class="p-2.5 text-right font-mono font-black text-rose-600 bg-rose-50/40 border border-slate-200 whitespace-nowrap">${formatINR(sObj.totalCost)}</td>
+          </tr>
+        `;
+      }).join('');
 
-      // Build supplier balance rows
+      // 3. Supplier rows
       const suppMap = {};
-      vendors.forEach(v => { if (v.name) suppMap[v.name] = { phone: v.phone || '', totalBilled: 0, totalPaid: 0 }; });
+      vendors.forEach(v => { if (v.name) suppMap[v.name] = { role: v.role || v.category || 'Raw Materials', totalBilled: 0, totalPaid: 0 }; });
       mats.forEach(m => {
         const v = m.vendor || 'General Supplier';
-        if (!suppMap[v]) suppMap[v] = { phone: '', totalBilled: 0, totalPaid: 0 };
+        if (!suppMap[v]) suppMap[v] = { role: m.category || 'Raw Materials', totalBilled: 0, totalPaid: 0 };
         suppMap[v].totalBilled += (Number(m.amount) || 0);
       });
       pays.forEach(p => {
         const v = p.vendor || 'General Supplier';
-        if (!suppMap[v]) suppMap[v] = { phone: '', totalBilled: 0, totalPaid: 0 };
+        if (!suppMap[v]) suppMap[v] = { role: 'Raw Materials', totalBilled: 0, totalPaid: 0 };
         suppMap[v].totalPaid += (Number(p.amount) || 0);
       });
-
-      let suppRows = '';
       const suppKeys = Object.keys(suppMap).sort();
-      if (suppKeys.length === 0) {
-        suppRows = '<tr><td colspan="6" style="text-align:center; padding:24px; color:#94a3b8;">No supplier data available.</td></tr>';
-      } else {
-        suppKeys.forEach((sName, idx) => {
-          const sObj = suppMap[sName];
-          const bal = sObj.totalBilled - sObj.totalPaid;
-          const statusBadge = bal <= 0 
-            ? '<span style="background:#d1fae5; color:#065f46; padding:2px 8px; border-radius:12px; font-weight:800; font-size:11px;">PAID</span>'
-            : '<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:12px; font-weight:800; font-size:11px;">PENDING</span>';
-          suppRows += '<tr>' +
-            '<td style="text-align:center; width:40px; color:#64748b;">' + (idx + 1) + '</td>' +
-            '<td style="font-weight:800; color:#0f172a;">' + escapeHtml(sName) + (sObj.phone ? '<br><small style="color:#64748b; font-weight:normal;">' + escapeHtml(sObj.phone) + '</small>' : '') + '</td>' +
-            '<td style="text-align:right; font-family:monospace; font-weight:700; color:#dc2626;">' + formatINR(sObj.totalBilled) + '</td>' +
-            '<td style="text-align:right; font-family:monospace; font-weight:700; color:#059669;">' + formatINR(sObj.totalPaid) + '</td>' +
-            '<td style="text-align:right; font-family:monospace; font-weight:800; color:' + (bal > 0 ? '#d97706' : '#059669') + ';">' + formatINR(bal) + '</td>' +
-            '<td style="text-align:center;">' + statusBadge + '</td>' +
-          '</tr>';
-        });
+      let suppRows = suppKeys.map((sName, idx) => {
+        const sObj = suppMap[sName];
+        const bal = sObj.totalBilled - sObj.totalPaid;
+        const statusBadge = bal <= 0 
+          ? '<span class="inline-block px-2.5 py-0.5 rounded-full font-bold text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-300">SETTLED</span>'
+          : '<span class="inline-block px-2.5 py-0.5 rounded-full font-bold text-[11px] bg-rose-100 text-rose-800 border border-rose-300">PENDING</span>';
+        return `
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="p-2.5 text-center text-slate-500 font-semibold border border-slate-200">${idx + 1}</td>
+            <td class="p-2.5 font-bold text-slate-900 border border-slate-200">${escapeHtml(sName)}</td>
+            <td class="p-2.5 text-slate-600 border border-slate-200">${escapeHtml(sObj.role)}</td>
+            <td class="p-2.5 text-right font-mono font-bold text-rose-600 border border-slate-200">${formatINR(sObj.totalBilled)}</td>
+            <td class="p-2.5 text-right font-mono font-bold text-emerald-600 border border-slate-200">${formatINR(sObj.totalPaid)}</td>
+            <td class="p-2.5 text-right font-mono font-black ${bal > 0 ? 'text-rose-700 bg-rose-50/50' : 'text-emerald-700 bg-emerald-50/50'} border border-slate-200">${formatINR(bal)}</td>
+            <td class="p-2.5 text-center border border-slate-200">${statusBadge}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // 4. Payments rows
+      let payRows = pays.map((p, idx) => `
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="p-2.5 text-center text-slate-500 font-semibold border border-slate-200">${idx + 1}</td>
+          <td class="p-2.5 font-mono font-semibold text-slate-800 border border-slate-200 whitespace-nowrap">${escapeHtml(p.date || '-')}</td>
+          <td class="p-2.5 font-bold text-slate-900 border border-slate-200">${escapeHtml(p.vendor || '-')}</td>
+          <td class="p-2.5 border border-slate-200">
+            <span class="inline-block px-2.5 py-0.5 rounded-full font-bold text-[11px] bg-sky-100 text-sky-900 border border-sky-300">
+              ${escapeHtml(p.project_name || 'General Site')}
+            </span>
+          </td>
+          <td class="p-2.5 font-semibold text-slate-700 border border-slate-200">${escapeHtml(p.mode || p.payment_mode || 'Cash in Hand')}</td>
+          <td class="p-2.5 text-right font-mono font-black text-emerald-700 bg-emerald-50/40 border border-slate-200 whitespace-nowrap">${formatINR(p.amount)}</td>
+        </tr>
+      `).join('');
+
+      let tabBodyHtml = '';
+      if (activeTab === 'purchases') {
+        tabBodyHtml = `
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-black text-[#0f9d58] uppercase tracking-wider">1. Raw Material Purchases Master Log (${mats.length} Records)</h3>
+            </div>
+            <input type="text" id="sheetMatSearch" placeholder="🔍 Search material, date, supplier, site..." oninput="filterSheetTable('sheetMatSearch', 'tablePurchases')" class="w-full p-2.5 rounded-xl border border-slate-300 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:border-[#0f9d58]" />
+            <div class="overflow-x-auto rounded-xl border border-slate-300 shadow-sm max-h-[55vh] overflow-y-auto">
+              <table id="tablePurchases" class="w-full text-left text-xs border-collapse">
+                <thead class="bg-slate-100 text-slate-700 uppercase text-[11px] font-bold sticky top-0 border-b border-slate-300 z-10">
+                  <tr>
+                    <th class="p-2.5 text-center border border-slate-300 w-10">#</th>
+                    <th class="p-2.5 border border-slate-300 w-28">Date</th>
+                    <th class="p-2.5 border border-slate-300">Material Description</th>
+                    <th class="p-2.5 border border-slate-300">Site</th>
+                    <th class="p-2.5 border border-slate-300">Supplier</th>
+                    <th class="p-2.5 text-right border border-slate-300 bg-rose-100/50">Cost (₹)</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 font-medium bg-white">
+                  ${purchasesRows || '<tr><td colspan="6" class="p-8 text-center text-slate-400">No material purchases recorded yet.</td></tr>'}
+                </tbody>
+                <tfoot class="bg-slate-100 font-bold border-t-2 border-slate-300 sticky bottom-0 z-10">
+                  <tr>
+                    <td colspan="5" class="p-2.5 text-right uppercase text-[11px] text-slate-600 border border-slate-300">Total Material Purchases:</td>
+                    <td class="p-2.5 text-right font-mono font-black text-rose-700 bg-rose-100/80 text-sm border border-slate-300">${formatINR(totalMatCost)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        `;
+      } else if (activeTab === 'sitewise') {
+        tabBodyHtml = `
+          <div class="space-y-3">
+            <h3 class="text-sm font-black text-[#0f9d58] uppercase tracking-wider">2. Site-Wise Raw Material Expenses Statement</h3>
+            <input type="text" id="sheetSiteSearch" placeholder="🔍 Search site name..." oninput="filterSheetTable('sheetSiteSearch', 'tableSitewise')" class="w-full p-2.5 rounded-xl border border-slate-300 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:border-[#0f9d58]" />
+            <div class="overflow-x-auto rounded-xl border border-slate-300 shadow-sm max-h-[55vh] overflow-y-auto">
+              <table id="tableSitewise" class="w-full text-left text-xs border-collapse">
+                <thead class="bg-slate-100 text-slate-700 uppercase text-[11px] font-bold sticky top-0 border-b border-slate-300 z-10">
+                  <tr>
+                    <th class="p-2.5 text-center border border-slate-300 w-10">#</th>
+                    <th class="p-2.5 border border-slate-300">Site / Project Name</th>
+                    <th class="p-2.5 border border-slate-300">Client / Location</th>
+                    <th class="p-2.5 text-center border border-slate-300">Total Deliveries</th>
+                    <th class="p-2.5 text-right border border-slate-300 bg-rose-100/50">Total Cost (₹)</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 font-medium bg-white">
+                  ${sitewiseRows || '<tr><td colspan="5" class="p-8 text-center text-slate-400">No site material data available.</td></tr>'}
+                </tbody>
+                <tfoot class="bg-slate-100 font-bold border-t-2 border-slate-300 sticky bottom-0 z-10">
+                  <tr>
+                    <td colspan="4" class="p-2.5 text-right uppercase text-[11px] text-slate-600 border border-slate-300">Total All Sites:</td>
+                    <td class="p-2.5 text-right font-mono font-black text-rose-700 bg-rose-100/80 text-sm border border-slate-300">${formatINR(totalMatCost)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        `;
+      } else if (activeTab === 'suppliers') {
+        tabBodyHtml = `
+          <div class="space-y-3">
+            <h3 class="text-sm font-black text-[#0f9d58] uppercase tracking-wider">3. Supplier Accounts & Outstanding Balance Statement</h3>
+            <input type="text" id="sheetSuppSearch" placeholder="🔍 Search supplier name..." oninput="filterSheetTable('sheetSuppSearch', 'tableSuppliers')" class="w-full p-2.5 rounded-xl border border-slate-300 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:border-[#0f9d58]" />
+            <div class="overflow-x-auto rounded-xl border border-slate-300 shadow-sm max-h-[55vh] overflow-y-auto">
+              <table id="tableSuppliers" class="w-full text-left text-xs border-collapse">
+                <thead class="bg-slate-100 text-slate-700 uppercase text-[11px] font-bold sticky top-0 border-b border-slate-300 z-10">
+                  <tr>
+                    <th class="p-2.5 text-center border border-slate-300 w-10">#</th>
+                    <th class="p-2.5 border border-slate-300">Supplier Name</th>
+                    <th class="p-2.5 border border-slate-300">Category</th>
+                    <th class="p-2.5 text-right border border-slate-300">Total Billed (₹)</th>
+                    <th class="p-2.5 text-right border border-slate-300">Total Paid (₹)</th>
+                    <th class="p-2.5 text-right border border-slate-300">Balance Due (₹)</th>
+                    <th class="p-2.5 text-center border border-slate-300">Status</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 font-medium bg-white">
+                  ${suppRows || '<tr><td colspan="7" class="p-8 text-center text-slate-400">No supplier data logged.</td></tr>'}
+                </tbody>
+                <tfoot class="bg-slate-100 font-bold border-t-2 border-slate-300 sticky bottom-0 z-10">
+                  <tr>
+                    <td colspan="3" class="p-2.5 text-right uppercase text-[11px] text-slate-600 border border-slate-300">Total All Suppliers:</td>
+                    <td class="p-2.5 text-right font-mono font-black text-rose-600 border border-slate-300">${formatINR(totalMatCost)}</td>
+                    <td class="p-2.5 text-right font-mono font-black text-emerald-600 border border-slate-300">${formatINR(totalPaid)}</td>
+                    <td class="p-2.5 text-right font-mono font-black ${totalBalance > 0 ? 'text-rose-700 bg-rose-100/80' : 'text-emerald-700 bg-emerald-100/80'} border border-slate-300">${formatINR(totalBalance)}</td>
+                    <td class="border border-slate-300"></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        `;
+      } else if (activeTab === 'payments') {
+        tabBodyHtml = `
+          <div class="space-y-3">
+            <h3 class="text-sm font-black text-[#0f9d58] uppercase tracking-wider">4. Supplier Payment Settlements History</h3>
+            <input type="text" id="sheetPaySearch" placeholder="🔍 Search payment by supplier, date, site..." oninput="filterSheetTable('sheetPaySearch', 'tablePayments')" class="w-full p-2.5 rounded-xl border border-slate-300 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:border-[#0f9d58]" />
+            <div class="overflow-x-auto rounded-xl border border-slate-300 shadow-sm max-h-[55vh] overflow-y-auto">
+              <table id="tablePayments" class="w-full text-left text-xs border-collapse">
+                <thead class="bg-slate-100 text-slate-700 uppercase text-[11px] font-bold sticky top-0 border-b border-slate-300 z-10">
+                  <tr>
+                    <th class="p-2.5 text-center border border-slate-300 w-10">#</th>
+                    <th class="p-2.5 border border-slate-300 w-28">Date</th>
+                    <th class="p-2.5 border border-slate-300">Paid To (Supplier)</th>
+                    <th class="p-2.5 border border-slate-300">For Site</th>
+                    <th class="p-2.5 border border-slate-300">Mode</th>
+                    <th class="p-2.5 text-right border border-slate-300 bg-emerald-100/50">Amount Paid (₹)</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 font-medium bg-white">
+                  ${payRows || '<tr><td colspan="6" class="p-8 text-center text-slate-400">No payment settlement records logged yet.</td></tr>'}
+                </tbody>
+                <tfoot class="bg-slate-100 font-bold border-t-2 border-slate-300 sticky bottom-0 z-10">
+                  <tr>
+                    <td colspan="5" class="p-2.5 text-right uppercase text-[11px] text-slate-600 border border-slate-300">Total Payments Settled:</td>
+                    <td class="p-2.5 text-right font-mono font-black text-emerald-700 bg-emerald-100/80 text-sm border border-slate-300">${formatINR(totalPaid)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        `;
+      } else if (activeTab === 'master') {
+        tabBodyHtml = `
+          <div class="space-y-6">
+            <div>
+              <h3 class="text-sm font-black text-[#0f9d58] uppercase tracking-wider mb-2">1. Site-Wise Expenditures</h3>
+              <div class="overflow-x-auto rounded-xl border border-slate-300 shadow-sm">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold border-b border-slate-300">
+                    <tr><th class="p-2 border border-slate-300">#</th><th class="p-2 border border-slate-300">Site Name</th><th class="p-2 text-center border border-slate-300">Purchases</th><th class="p-2 text-right border border-slate-300">Total Cost</th></tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 bg-white font-medium">${sitewiseRows}</tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="text-sm font-black text-[#0f9d58] uppercase tracking-wider mb-2">2. Supplier Balances</h3>
+              <div class="overflow-x-auto rounded-xl border border-slate-300 shadow-sm">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold border-b border-slate-300">
+                    <tr><th class="p-2 border border-slate-300">#</th><th class="p-2 border border-slate-300">Supplier Name</th><th class="p-2 text-right border border-slate-300">Billed</th><th class="p-2 text-right border border-slate-300">Paid</th><th class="p-2 text-right border border-slate-300">Balance</th></tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 bg-white font-medium">${suppRows}</tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="text-sm font-black text-[#0f9d58] uppercase tracking-wider mb-2">3. Itemized Deliveries Log (${mats.length})</h3>
+              <div class="overflow-x-auto rounded-xl border border-slate-300 shadow-sm max-h-60 overflow-y-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold border-b border-slate-300 sticky top-0">
+                    <tr><th class="p-2 border border-slate-300">Date</th><th class="p-2 border border-slate-300">Material</th><th class="p-2 border border-slate-300">Site</th><th class="p-2 border border-slate-300">Supplier</th><th class="p-2 text-right border border-slate-300">Cost</th></tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 bg-white font-medium">${purchasesRows}</tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        `;
       }
 
-      // Build payments rows
-      let payRows = '';
-      if (pays.length === 0) {
-        payRows = '<tr><td colspan="6" style="text-align:center; padding:24px; color:#94a3b8;">No payments recorded yet.</td></tr>';
-      } else {
-        pays.forEach((p, idx) => {
-          payRows += '<tr>' +
-            '<td style="text-align:center; width:40px; color:#64748b;">' + (idx + 1) + '</td>' +
-            '<td style="font-family:monospace; font-weight:600; width:110px;">' + escapeHtml(p.date || '-') + '</td>' +
-            '<td style="font-weight:700; color:#0f172a;">' + escapeHtml(p.vendor || '-') + '</td>' +
-            '<td><span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px; font-weight:700; font-size:11px;">' + escapeHtml(p.project_name || 'General') + '</span></td>' +
-            '<td style="font-weight:600; color:#475569;">' + escapeHtml(p.mode || 'Cash') + '</td>' +
-            '<td style="text-align:right; font-family:monospace; font-weight:800; color:#059669;">' + formatINR(p.amount) + '</td>' +
-          '</tr>';
-        });
-      }
+      contentEl.innerHTML = `
+        <div class="space-y-4">
+          <!-- Top Info Banner -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b-2 border-[#0f9d58] gap-2">
+            <div>
+              <h1 class="text-xl font-black text-slate-900 tracking-tight">${escapeHtml(compName)}</h1>
+              <p class="text-xs text-slate-500">${escapeHtml(compAddress)}</p>
+              <p class="text-xs text-[#0f9d58] font-black uppercase tracking-wider mt-0.5">RAW MATERIAL PURCHASES & SITE-WISE EXPENSES STATEMENT</p>
+            </div>
+            <div class="text-left sm:text-right">
+              <span class="text-[10px] uppercase font-bold text-slate-400 block">Statement Date</span>
+              <span class="text-xs font-black text-slate-800">${today}</span>
+            </div>
+          </div>
 
-      const winHtml = '<!DOCTYPE html>' +
-'<html lang="en">' +
-'<head>' +
-'  <meta charset="UTF-8">' +
-'  <title>' + escapeHtml(compName) + ' - Material Procurement & Site Statement (Google Sheets View)</title>' +
-'  <style>' +
-'    * { box-sizing: border-box; margin: 0; padding: 0; }' +
-'    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; color: #0f172a; padding: 16px; }' +
-'    .sheet-chrome { background: #0f9d58; color: white; padding: 12px 20px; border-radius: 8px 8px 0 0; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }' +
-'    .sheet-actions { display: flex; gap: 8px; }' +
-'    .btn { padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 12px; cursor: pointer; border: none; }' +
-'    .btn-white { background: white; color: #0f9d58; }' +
-'    .btn-dark { background: #0b8043; color: white; }' +
-'    .toolbar-bar { background: #0c7a44; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }' +
-'    .tab-pills { display: flex; gap: 6px; flex-wrap: wrap; }' +
-'    .tab-pill { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; cursor: pointer; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.25); user-select: none; }' +
-'    .tab-pill.active { background: white; color: #0b8043; }' +
-'    .sheet-body { background: white; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 8px 8px; padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); }' +
-'    .company-banner { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f9d58; padding-bottom: 14px; margin-bottom: 20px; }' +
-'    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }' +
-'    .stat-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; border-left: 4px solid #0f9d58; }' +
-'    .stat-val { font-size: 20px; font-weight: 900; margin-top: 4px; font-family: monospace; }' +
-'    table { width: 100%; border-collapse: collapse; font-size: 12px; background: white; margin-bottom: 16px; }' +
-'    th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 9px 12px; font-weight: 800; text-align: left; text-transform: uppercase; font-size: 11px; color: #334155; }' +
-'    td { border: 1px solid #e2e8f0; padding: 8px 12px; color: #1e293b; }' +
-'    tr:nth-child(even) { background: #f8fafc; }' +
-'    tfoot tr { background: #f1f5f9; font-weight: 800; }' +
-'    @media print { body { padding: 0; background: white; } .sheet-chrome, .toolbar-bar, .no-print { display: none !important; } .sheet-body { border: none; padding: 0; } @page { margin: 1.2cm; size: landscape; } }' +
-'  </style>' +
-'</head>' +
-'<body>' +
-'  <div class="sheet-chrome no-print">' +
-'    <div><h1 style="font-size:16px; font-weight:900;">📊 Google Sheets Live View • Materials & Site Statement</h1><p style="font-size:11px; opacity:0.9;">' + escapeHtml(compName) + '</p></div>' +
-'    <div class="sheet-actions">' +
-'      <button onclick="window.print()" class="btn btn-white">🖨️ Print / Save PDF</button>' +
-'      <button onclick="window.close()" class="btn btn-dark">✖ Close</button>' +
-'    </div>' +
-'  </div>' +
-'  <div class="toolbar-bar no-print">' +
-'    <div class="tab-pills">' +
-'      <div id="pill-purchases" onclick="switchSheetTab(\'purchases\')" class="tab-pill active">📋 Raw Material Purchases (' + mats.length + ')</div>' +
-'      <div id="pill-sitewise" onclick="switchSheetTab(\'sitewise\')" class="tab-pill">🏗️ Site-Wise Statement (' + siteKeys.length + ')</div>' +
-'      <div id="pill-suppliers" onclick="switchSheetTab(\'suppliers\')" class="tab-pill">👥 Supplier Balances (' + suppKeys.length + ')</div>' +
-'      <div id="pill-payments" onclick="switchSheetTab(\'payments\')" class="tab-pill">💳 Payment History (' + pays.length + ')</div>' +
-'      <div id="pill-master" onclick="switchSheetTab(\'master\')" class="tab-pill">📊 Comprehensive Master</div>' +
-'    </div>' +
-'  </div>' +
-'  <div class="sheet-body">' +
-'    <div class="company-banner">' +
-'      <div>' +
-'        <h2 style="font-size:22px; font-weight:900;">' + escapeHtml(compName) + '</h2>' +
-'        <p style="font-size:12px; color:#64748b;">' + escapeHtml(compAddress) + (compPhone ? ' • ' + escapeHtml(compPhone) : '') + '</p>' +
-'        <p style="font-size:12px; color:#0f9d58; font-weight:800; text-transform:uppercase; margin-top:4px;">RAW MATERIAL PURCHASES & SITE-WISE EXPENSES STATEMENT</p>' +
-'      </div>' +
-'      <div style="text-align:right;">' +
-'        <div style="font-size:11px; color:#64748b; font-weight:800; text-transform:uppercase;">Statement Date</div>' +
-'        <div style="font-size:14px; font-weight:800;">' + today + '</div>' +
-'        <div style="font-size:11px; color:#059669; font-weight:800; margin-top:4px;">● Live SQLite Synchronized</div>' +
-'      </div>' +
-'    </div>' +
-'    <div class="stats-bar">' +
-'      <div class="stat-box" style="border-left-color:#dc2626;"><div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Total Purchases</div><div class="stat-val" style="color:#dc2626;">' + formatINR(totalMatCost) + '</div></div>' +
-'      <div class="stat-box" style="border-left-color:#059669;"><div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Total Paid</div><div class="stat-val" style="color:#059669;">' + formatINR(totalPaid) + '</div></div>' +
-'      <div class="stat-box" style="border-left-color:#d97706;"><div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Outstanding Balance</div><div class="stat-val" style="color:' + (totalBalance > 0 ? '#dc2626' : '#059669') + ';">' + formatINR(totalBalance) + '</div></div>' +
-'      <div class="stat-box" style="border-left-color:#2563eb;"><div style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Active Sites</div><div class="stat-val" style="color:#2563eb;">' + siteKeys.length + '</div></div>' +
-'    </div>' +
-'    <div id="sec-purchases" class="sheet-sec" style="display:block;">' +
-'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-bottom:8px;">1. Raw Material Purchases Log</h3>' +
-'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th style="width:110px;">DATE</th><th>MATERIAL / DESCRIPTION</th><th>SITE</th><th>SUPPLIER</th><th style="text-align:right;">COST (₹)</th></tr></thead><tbody>' + purchasesRows + '</tbody><tfoot><tr><td colspan="5" style="text-align:right;">TOTAL PURCHASES:</td><td style="text-align:right; color:#dc2626;">' + formatINR(totalMatCost) + '</td></tr></tfoot></table>' +
-'    </div>' +
-'    <div id="sec-sitewise" class="sheet-sec" style="display:none;">' +
-'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-bottom:8px;">2. Site-Wise Raw Material Expenses Statement</h3>' +
-'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th>SITE / PROJECT NAME</th><th style="text-align:center;">TOTAL PURCHASES</th><th style="text-align:right;">TOTAL MATERIAL COST (₹)</th></tr></thead><tbody>' + sitewiseSummaryRows + '</tbody><tfoot><tr><td colspan="3" style="text-align:right;">TOTAL SITE EXPENDITURES:</td><td style="text-align:right; color:#dc2626;">' + formatINR(totalMatCost) + '</td></tr></tfoot></table>' +
-'    </div>' +
-'    <div id="sec-suppliers" class="sheet-sec" style="display:none;">' +
-'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-bottom:8px;">3. Supplier Accounts & Balance Statement</h3>' +
-'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th>SUPPLIER NAME</th><th style="text-align:right;">TOTAL BILLED (₹)</th><th style="text-align:right;">TOTAL PAID (₹)</th><th style="text-align:right;">BALANCE (₹)</th><th style="text-align:center;">STATUS</th></tr></thead><tbody>' + suppRows + '</tbody><tfoot><tr><td colspan="2" style="text-align:right;">TOTALS:</td><td style="text-align:right; color:#dc2626;">' + formatINR(totalMatCost) + '</td><td style="text-align:right; color:#059669;">' + formatINR(totalPaid) + '</td><td style="text-align:right; color:' + (totalBalance > 0 ? '#dc2626' : '#059669') + ';">' + formatINR(totalBalance) + '</td><td></td></tr></tfoot></table>' +
-'    </div>' +
-'    <div id="sec-payments" class="sheet-sec" style="display:none;">' +
-'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-bottom:8px;">4. Supplier Payment Settlements History</h3>' +
-'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th style="width:110px;">DATE</th><th>PAID TO (SUPPLIER)</th><th>FOR SITE</th><th>PAYMENT MODE</th><th style="text-align:right;">AMOUNT PAID (₹)</th></tr></thead><tbody>' + payRows + '</tbody><tfoot><tr><td colspan="5" style="text-align:right;">TOTAL PAYMENTS SETTLED:</td><td style="text-align:right; color:#059669;">' + formatINR(totalPaid) + '</td></tr></tfoot></table>' +
-'    </div>' +
-'    <div id="sec-master" class="sheet-sec" style="display:none;">' +
-'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-bottom:8px;">1. Site-Wise Summary</h3>' +
-'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th>SITE / PROJECT NAME</th><th style="text-align:center;">TOTAL PURCHASES</th><th style="text-align:right;">TOTAL MATERIAL COST (₹)</th></tr></thead><tbody>' + sitewiseSummaryRows + '</tbody></table>' +
-'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-top:24px; margin-bottom:8px;">2. Itemized Purchases Log</h3>' +
-'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th style="width:110px;">DATE</th><th>MATERIAL / DESCRIPTION</th><th>SITE</th><th>SUPPLIER</th><th style="text-align:right;">COST (₹)</th></tr></thead><tbody>' + purchasesRows + '</tbody></table>' +
-'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-top:24px; margin-bottom:8px;">3. Supplier Balances</h3>' +
-'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th>SUPPLIER NAME</th><th style="text-align:right;">BILLED (₹)</th><th style="text-align:right;">PAID (₹)</th><th style="text-align:right;">BALANCE (₹)</th><th style="text-align:center;">STATUS</th></tr></thead><tbody>' + suppRows + '</tbody></table>' +
-'      <h3 style="font-size:14px; font-weight:800; color:#0f9d58; text-transform:uppercase; margin-top:24px; margin-bottom:8px;">4. Payment History</h3>' +
-'      <table><thead><tr><th style="width:40px; text-align:center;">#</th><th style="width:110px;">DATE</th><th>SUPPLIER</th><th>SITE</th><th>MODE</th><th style="text-align:right;">PAID (₹)</th></tr></thead><tbody>' + payRows + '</tbody></table>' +
-'    </div>' +
-'    <div style="text-align:center; font-size:11px; color:#94a3b8; margin-top:30px; padding-top:14px; border-top:1px solid #e2e8f0;">Generated by <strong>' + escapeHtml(compName) + ' Management System</strong> on ' + today + '. Confidential Document.</div>' +
-'  </div>' +
-'  <script>' +
-'    function switchSheetTab(tab) {' +
-'      ["purchases", "sitewise", "suppliers", "payments", "master"].forEach(function(t) {' +
-'        var sec = document.getElementById("sec-" + t);' +
-'        var pill = document.getElementById("pill-" + t);' +
-'        if (sec) sec.style.display = (t === tab) ? "block" : "none";' +
-'        if (pill) { if (t === tab) pill.classList.add("active"); else pill.classList.remove("active"); }' +
-'      });' +
-'    }' +
-'    if ("' + defaultTab + '") switchSheetTab("' + defaultTab + '");' +
-'  <' + '/script>' +
-'</body>' +
-'</html>';
+          <!-- KPI Summary Cards -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 border-l-4 border-l-rose-500">
+              <div class="text-[10px] uppercase font-bold text-slate-500">Total Purchases</div>
+              <div class="text-lg font-black font-mono text-rose-600 mt-0.5">${formatINR(totalMatCost)}</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 border-l-4 border-l-emerald-500">
+              <div class="text-[10px] uppercase font-bold text-slate-500">Total Paid</div>
+              <div class="text-lg font-black font-mono text-emerald-600 mt-0.5">${formatINR(totalPaid)}</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 border-l-4 border-l-amber-500">
+              <div class="text-[10px] uppercase font-bold text-slate-500">Outstanding Balance</div>
+              <div class="text-lg font-black font-mono ${totalBalance > 0 ? 'text-rose-600' : 'text-emerald-600'} mt-0.5">${formatINR(totalBalance)}</div>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 border-l-4 border-l-sky-500">
+              <div class="text-[10px] uppercase font-bold text-slate-500">Active Sites</div>
+              <div class="text-lg font-black text-sky-600 mt-0.5">${siteKeys.length} Sites</div>
+            </div>
+          </div>
 
-      const newWin = window.open('', '_blank');
-      if (newWin) {
-        newWin.document.open();
-        newWin.document.write(winHtml);
-        newWin.document.close();
-      } else {
-        alert('Please allow popups in your browser to view the Google Sheet statement.');
-      }
+          <!-- Active Tab Content -->
+          ${tabBodyHtml}
+        </div>
+      `;
+    }
+
+    function filterSheetTable(inputId, tableId) {
+      const input = document.getElementById(inputId);
+      const table = document.getElementById(tableId);
+      if (!input || !table) return;
+      const term = input.value.toLowerCase().trim();
+      const tbody = table.querySelector('tbody');
+      if (!tbody) return;
+      const rows = tbody.querySelectorAll('tr');
+      rows.forEach(r => {
+        const text = r.innerText.toLowerCase();
+        r.style.display = text.includes(term) ? '' : 'none';
+      });
     }
 
     function exportMaterialsGoogleSheets(exportMode = 'all') {
@@ -2795,7 +3077,7 @@
 
       let csv = `"${compName} - Up-to-Date Material Purchases & Site-Wise Statement (${today})"\n\n`;
       
-      // 1. RAW MATERIAL PURCHASES LOG (Exact format: DATE | MATERIAL / DESCRIPTION | SITE | SUPPLIER | COST)
+      // 1. RAW MATERIAL PURCHASES LOG
       csv += `"=== 1. RAW MATERIAL PURCHASES MASTER LOG ==="\n`;
       csv += `"S.No","DATE","MATERIAL / DESCRIPTION","SITE","SUPPLIER","COST (INR)"\n`;
 
@@ -2900,13 +3182,7 @@
         csv += `"","","","Total Payments Paid:","${grandSuppPaid}","",""\n`;
       }
 
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.setAttribute('download', `GURUBARAN_BUILDERS_Materials_SiteStatement_${today}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadCSVUniversal(`GURUBARAN_BUILDERS_Materials_SiteStatement_${today}.csv`, csv);
     }
 
     function printMaterialsPaymentStatement() {
@@ -2953,8 +3229,13 @@
       msg += `_Sent via ${compName} Mobile App_`;
 
       const encoded = encodeURIComponent(msg);
-      const whatsappUrl = `https://api.whatsapp.com/send?text=${encoded}`;
-      window.open(whatsappUrl, '_blank');
+      if (navigator.share) {
+        navigator.share({ title: `${compName} Weekly Labour Wages`, text: msg }).catch(() => {
+          window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+        });
+      } else {
+        window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+      }
     }
 
     function exportLabourGoogleSheets() {
@@ -2976,14 +3257,7 @@
 
       csv += `\n"","","","","","","","","","Total Labour Charges:","${summary.totalDaysAll} Days","${summary.grandTotal}"\n`;
 
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `Labour_Attendance_Weekly_${today}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
+      downloadCSVUniversal(`Labour_Attendance_Weekly_${today}.csv`, csv);
     }
 
     // --- Weekly Labour History & Site-Wise Archive Handlers ---
