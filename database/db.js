@@ -302,40 +302,8 @@ if (checkVendors.count === 0) {
   }
 }
 
-// Seed default materials if empty
-const checkMats = db.prepare('SELECT COUNT(*) as count FROM materials').get();
-if (checkMats.count === 0) {
-  const mStmt = db.prepare('INSERT INTO materials (id, date, category, item, project_id, project_name, vendor, amount, tax_amount, payment_mode, bill_number, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  const defaultMats = [
-    ['MAT-64218', '2026-09-11', 'Raw Materials', 'Cement 40 Bags', 'PRJ-930', 'Site P1', 'SRIDEVI STEELS', 12800, 0, 'Cash in Hand', 'VCH-MAT-64218', ''],
-    ['MAT-75392', '2026-09-11', 'Raw Materials', 'Cement 20 Bags', 'PRJ-563', 'Site RV', 'SRIDEVI STEELS', 6400, 0, 'Cash in Hand', 'VCH-MAT-75392', ''],
-    ['MAT-10519', '2026-09-11', 'Raw Materials', 'Paint', 'PRJ-957', 'Site S1', 'AMMAN PAINTS', 15087, 0, 'Cash in Hand', 'VCH-MAT-10519', ''],
-    ['MAT-13727', '2026-09-11', 'Raw Materials', 'Paint ', 'PRJ-907', 'Site RK6', 'AMMAN PAINTS', 6650, 0, 'Cash in Hand', 'VCH-MAT-13727', ''],
-    ['MAT-95488', '2026-09-11', 'Raw Materials', 'Paint ', 'PRJ-918', 'Site R1', 'AMMAN PRAKASH', 26759, 0, 'Cash in Hand', 'VCH-MAT-95488', ''],
-    ['MAT-44673', '2026-09-11', 'Raw Materials', 'M sand', 'PRJ-930', 'Site P1', 'PALLKARAR', 12000, 0, 'Cash in Hand', 'VCH-MAT-44673', ''],
-    ['MAT-27817', '2026-09-11', 'Raw Materials', 'M sand', 'PRJ-563', 'Site RV', 'PALLKARAR', 13000, 0, 'Cash in Hand', 'VCH-MAT-27817', ''],
-    ['MAT-94776', '2026-09-11', 'Raw Materials', 'M sand ', 'PRJ-918', 'Site R1', 'PALLKARAR', 14000, 0, 'Cash in Hand', 'VCH-MAT-94776', ''],
-    ['MAT-77438', '2026-09-11', 'Raw Materials', 'M sand ', 'PRJ-957', 'Site S1', 'PALLKARAR', 5000, 0, 'Cash in Hand', 'VCH-MAT-77438', ''],
-    ['MAT-55381', '2026-09-11', 'Raw Materials', 'M sand ', 'PRJ-907', 'Site RK6', 'PALLKARAR', 50500, 0, 'Cash in Hand', 'VCH-MAT-55381', ''],
-    ['MAT-01891', '2026-09-11', 'Raw Materials', 'M sand', 'PRJ-907', 'Site RK6', 'SEKAR KAASI', 38000, 0, 'Cash in Hand', 'VCH-MAT-01891', ''],
-    ['MAT-51198', '2026-09-11', 'Raw Materials', 'Gurder', 'PRJ-957', 'Site S1', 'GRIL MOHAN', 27924, 0, 'Cash in Hand', 'VCH-MAT-51198', ''],
-    ['MAT-20824', '2026-09-11', 'Raw Materials', 'Gate work ', 'PRJ-635', 'Site AP', 'GRIL MOHAN', 57186, 0, 'Cash in Hand', 'VCH-MAT-20824', ''],
-    ['MAT-94679', '2026-09-11', 'Raw Materials', 'Gril work ', 'PRJ-918', 'Site R1', 'GRIL MOHAN', 47071, 0, 'Cash in Hand', 'VCH-MAT-94679', ''],
-    ['MAT-10058', '2026-09-11', 'Raw Materials', 'Brick ', 'PRJ-907', 'Site RK6', 'BRICK MURUGESH', 38000, 0, 'Cash in Hand', 'VCH-MAT-10058', ''],
-    ['MAT-62462', '2026-09-11', 'Raw Materials', 'Elect Pipe ', 'PRJ-635', 'Site AP', 'ELECT AATHI', 5320, 0, 'Cash in Hand', 'VCH-MAT-62462', ''],
-    ['MAT-41483', '2026-09-11', 'Raw Materials', 'Elect Pipe ', 'PRJ-907', 'Site RK6', 'ELECT AATHI', 85207, 0, 'Cash in Hand', 'VCH-MAT-41483', ''],
-    ['MAT-20985', '2026-09-11', 'Raw Materials', 'Elect Pipe ', 'PRJ-563', 'Site RV', 'ELECT AATHI', 6760, 0, 'Cash in Hand', 'VCH-MAT-20985', ''],
-    ['MAT-99981', '2026-09-11', 'Raw Materials', 'Elect Pipe ', 'PRJ-957', 'Site S1', 'ELECT AATHI', 6714, 0, 'Cash in Hand', 'VCH-MAT-99981', ''],
-    ['MAT-62297', '2026-09-11', 'Raw Materials', 'Elect Pipe ', 'PRJ-918', 'Site R1', 'ELECT AATHI', 45113, 0, 'Cash in Hand', 'VCH-MAT-62297', ''],
-    ['MAT-48005', '2026-09-11', 'Raw Materials', 'Steel cement ', 'PRJ-563', 'Site RV', 'SRIDEVI STEELS', 121400, 0, 'Cash in Hand', 'VCH-MAT-48005', ''],
-    ['MAT-25487', '2026-09-11', 'Raw Materials', 'Steel cement ', 'PRJ-930', 'Site P1', 'SRIDEVI STEELS', 76800, 0, 'Cash in Hand', 'VCH-MAT-25487', ''],
-    ['MAT-72424', '2026-09-11', 'Raw Materials', 'Steel cement ', 'PRJ-918', 'Site R1', 'SRIDEVI STEELS', 19200, 0, 'Cash in Hand', 'VCH-MAT-72424', ''],
-    ['MAT-43058', '2026-09-11', 'Raw Materials', 'Steel cement ', 'PRJ-907', 'Site RK6', 'SRIDEVI STEELS', 239423, 0, 'Cash in Hand', 'VCH-MAT-43058', '']
-  ];
-  for (const m of defaultMats) {
-    mStmt.run(...m);
-  }
-}
+// Materials table: manual entry and manual delete only (no automatic seeding)
+
 
 // Seed default labor if empty
 const checkLabor = db.prepare('SELECT COUNT(*) as count FROM labor_roster').get();

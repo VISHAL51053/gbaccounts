@@ -1535,6 +1535,15 @@
           }
         }
 
+        const filterDeleted = (list) => (list || []).filter(item => !isItemDeleted(item));
+        appData.projects = filterDeleted(appData.projects);
+        appData.materials = filterDeleted(appData.materials);
+        appData.labor = filterDeleted(appData.labor);
+        appData.vendors = filterDeleted(appData.vendors);
+        appData.transactions = filterDeleted(appData.transactions);
+        appData.supplierPayments = filterDeleted(appData.supplierPayments);
+        appData.laborWeeklyHistory = filterDeleted(appData.laborWeeklyHistory);
+
         if (!Array.isArray(appData.supplierPayments)) {
           appData.supplierPayments = [];
         }
@@ -1718,19 +1727,21 @@
             return true;
           }
 
+          const filterDeleted = (list) => (list || []).filter(item => !isItemDeleted(item));
+
           if (serverData.company && serverData.company.name) {
             appData.company = serverData.company;
           }
-          appData.projects = serverProjects;
-          appData.materials = serverMaterials;
-          appData.labor = serverLabor;
-          appData.vendors = serverVendors;
+          appData.projects = filterDeleted(serverProjects);
+          appData.materials = filterDeleted(serverMaterials);
+          appData.labor = filterDeleted(serverLabor);
+          appData.vendors = filterDeleted(serverVendors);
           if (Array.isArray(serverData.accounts) && serverData.accounts.length > 0) {
             appData.accounts = serverData.accounts;
           }
-          appData.transactions = serverTxns;
-          appData.supplierPayments = serverSuppPay;
-          appData.laborWeeklyHistory = serverLaborHistory;
+          appData.transactions = filterDeleted(serverTxns);
+          appData.supplierPayments = filterDeleted(serverSuppPay);
+          appData.laborWeeklyHistory = filterDeleted(serverLaborHistory);
 
           saveLocalState();
           renderAll();
@@ -3555,31 +3566,26 @@
             renderAll();
           }
         } else {
-          const firstId = mats[0].id;
+          const mat = mats[0];
           const payload = {
-            date: mats[0].date || new Date().toISOString().split('T')[0],
-            category: mats[0].category || 'Raw Materials',
-            item: mats[0].item || 'Materials Delivery',
-            project_id: mats[0].project_id || project_id,
-            project_name: mats[0].project_name || mats[0].project || project_name,
-            vendor: mats[0].vendor || vendor,
+            date: mat.date || new Date().toISOString().split('T')[0],
+            category: mat.category || 'Raw Materials',
+            item: mat.item || 'Materials Delivery',
+            project_id: mat.project_id || project_id,
+            project_name: mat.project_name || mat.project || project_name,
+            vendor: mat.vendor || vendor,
             amount: newAmount,
-            bill_number: mats[0].bill_number || mats[0].billNumber || ''
+            bill_number: mat.bill_number || mat.billNumber || ''
           };
 
           if (isSQLiteOnline) {
-            await apiFetch(`${API_URL}/materials/${encodeURIComponent(firstId)}`, {
+            await apiFetch(`${API_URL}/materials/${encodeURIComponent(mat.id)}`, {
               method: 'PUT',
               body: JSON.stringify(payload)
             });
-            for (let i = 1; i < mats.length; i++) {
-              await apiFetch(`${API_URL}/materials/${encodeURIComponent(mats[i].id)}`, { method: 'DELETE' });
-            }
             await fetchFromSQLite();
           } else {
-            Object.assign(mats[0], payload);
-            const toDelete = new Set(mats.slice(1).map(m => m.id));
-            appData.materials = appData.materials.filter(m => !toDelete.has(m.id));
+            Object.assign(mat, payload);
             saveLocalState();
             renderAll();
           }
@@ -4838,7 +4844,7 @@
                                     <i data-lucide="wallet" class="w-3 h-3"></i>
                                     <span>Pay</span>
                                   </button>
-                                  <button type="button" onclick="openEditMaterialAmountModal(decodeURIComponent('${encodeURIComponent(supp.name)}'), decodeURIComponent('${encodeURIComponent(row.siteName)}'), ${row.totalAmount})" class="px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 hover:text-sky-300 border border-sky-500/30 text-xs font-bold mr-1.5 cursor-pointer transition-colors inline-flex items-center gap-1">
+                                  <button type="button" onclick="openEditMaterialForSiteModal(decodeURIComponent('${encodeURIComponent(supp.name)}'), decodeURIComponent('${encodeURIComponent(row.siteName)}'))" class="px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-400 hover:text-sky-300 border border-sky-500/30 text-xs font-bold mr-1.5 cursor-pointer transition-colors inline-flex items-center gap-1">
                                     <i data-lucide="edit-3" class="w-3 h-3"></i>
                                     <span>Edit</span>
                                   </button>
