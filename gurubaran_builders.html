@@ -1542,10 +1542,7 @@
       labor: [],
       vendors: [],
       supplierPayments: [],
-      accounts: [
-        { id: 'ACC-1', name: 'Primary Current Account', balance: 0 },
-        { id: 'ACC-2', name: 'Site Cash in Hand', balance: 0 }
-      ],
+      accounts: [],
       transactions: [],
       laborWeeklyHistory: []
     };
@@ -1582,12 +1579,14 @@
         appData.transactions = filterDeleted(appData.transactions);
         appData.supplierPayments = filterDeleted(appData.supplierPayments);
         appData.laborWeeklyHistory = filterDeleted(appData.laborWeeklyHistory);
+        appData.accounts = filterDeleted(appData.accounts);
 
         if (!Array.isArray(appData.projects)) appData.projects = [];
         if (!Array.isArray(appData.supplierPayments)) appData.supplierPayments = [];
         if (!Array.isArray(appData.materials)) appData.materials = [];
         if (!Array.isArray(appData.labor)) appData.labor = [];
         if (!Array.isArray(appData.vendors)) appData.vendors = [];
+        if (!Array.isArray(appData.accounts)) appData.accounts = [];
         if (!Array.isArray(appData.transactions)) appData.transactions = [];
         if (!Array.isArray(appData.laborWeeklyHistory)) appData.laborWeeklyHistory = [];
         saveLocalState();
@@ -1749,23 +1748,6 @@
           const serverSuppPay = Array.isArray(serverData.supplierPayments) ? serverData.supplierPayments : [];
           const serverLaborHistory = Array.isArray(serverData.laborWeeklyHistory) ? serverData.laborWeeklyHistory : [];
 
-          const serverCount = serverProjects.length + serverMaterials.length + serverLabor.length + serverVendors.length + serverTxns.length + serverSuppPay.length;
-          const localCount = (appData.projects || []).length + (appData.materials || []).length + (appData.labor || []).length + (appData.vendors || []).length + (appData.transactions || []).length + (appData.supplierPayments || []).length;
-
-          // If server is empty/clean but device has local records, sync device records up to server so they are never lost!
-          if (serverCount === 0 && localCount > 0) {
-            try {
-              await apiFetch(`${API_URL}/sync/push`, {
-                method: 'POST',
-                body: JSON.stringify(appData)
-              });
-            } catch (pushErr) {
-              console.warn('Auto-sync push to cloud deferred:', pushErr);
-            }
-            saveLocalState();
-            return true;
-          }
-
           if (serverData.company && serverData.company.name) {
             appData.company = serverData.company;
           }
@@ -1773,9 +1755,7 @@
           appData.materials = serverMaterials;
           appData.labor = serverLabor;
           appData.vendors = serverVendors;
-          if (Array.isArray(serverData.accounts) && serverData.accounts.length > 0) {
-            appData.accounts = serverData.accounts;
-          }
+          appData.accounts = Array.isArray(serverData.accounts) ? serverData.accounts : [];
           appData.transactions = serverTxns;
           appData.supplierPayments = serverSuppPay;
           appData.laborWeeklyHistory = serverLaborHistory;
