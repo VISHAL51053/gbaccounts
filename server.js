@@ -1778,12 +1778,14 @@ app.post('/api/reset', (req, res) => {
       DELETE FROM projects;
       DELETE FROM materials;
       DELETE FROM labor_roster;
+      DELETE FROM labor_weekly_history;
       DELETE FROM vendors;
       DELETE FROM transactions;
       DELETE FROM supplier_payments;
       UPDATE accounts SET balance = 0;
     `);
-    res.json({ success: true, message: 'All site, labor, materials and accounts data reset.' });
+    db.pragma('wal_checkpoint(TRUNCATE)');
+    res.json({ success: true, message: 'All site, labor, materials, supplier, and history data reset cleanly.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

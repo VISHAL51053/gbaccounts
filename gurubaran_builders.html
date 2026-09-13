@@ -1564,27 +1564,32 @@
       }
     }
 
+    const CURRENT_DATA_VERSION = 'v5_clean_fresh_wipe';
+
     function loadLocalData() {
       try {
+        if (localStorage.getItem('gb_data_version') !== CURRENT_DATA_VERSION) {
+          localStorage.removeItem('gb_app_data');
+          localStorage.removeItem('gb_last_known_good_backup');
+          localStorage.removeItem('gb_deleted_ids');
+          localStorage.setItem('gb_data_version', CURRENT_DATA_VERSION);
+          appData.projects = [];
+          appData.materials = [];
+          appData.labor = [];
+          appData.vendors = [];
+          appData.supplierPayments = [];
+          appData.transactions = [];
+          appData.laborWeeklyHistory = [];
+          saveLocalState();
+          renderAll();
+          return;
+        }
+
         const saved = localStorage.getItem('gb_app_data');
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed && typeof parsed === 'object') {
             appData = { ...appData, ...parsed };
-          }
-        }
-        
-        // Zero-Loss fallback recovery from last known good snapshot if cache was wiped
-        const totalCount = (appData.projects || []).length + (appData.materials || []).length + (appData.labor || []).length;
-        if (totalCount === 0) {
-          const backupSaved = localStorage.getItem('gb_last_known_good_backup');
-          if (backupSaved) {
-            try {
-              const backupParsed = JSON.parse(backupSaved);
-              if (backupParsed && typeof backupParsed === 'object') {
-                appData = { ...appData, ...backupParsed };
-              }
-            } catch(e) {}
           }
         }
 
@@ -1597,15 +1602,13 @@
         appData.supplierPayments = filterDeleted(appData.supplierPayments);
         appData.laborWeeklyHistory = filterDeleted(appData.laborWeeklyHistory);
 
-        if (!Array.isArray(appData.supplierPayments)) {
-          appData.supplierPayments = [];
-        }
-        if (!Array.isArray(appData.materials)) {
-          appData.materials = [];
-        }
-        if (!Array.isArray(appData.vendors)) {
-          appData.vendors = [];
-        }
+        if (!Array.isArray(appData.projects)) appData.projects = [];
+        if (!Array.isArray(appData.supplierPayments)) appData.supplierPayments = [];
+        if (!Array.isArray(appData.materials)) appData.materials = [];
+        if (!Array.isArray(appData.labor)) appData.labor = [];
+        if (!Array.isArray(appData.vendors)) appData.vendors = [];
+        if (!Array.isArray(appData.transactions)) appData.transactions = [];
+        if (!Array.isArray(appData.laborWeeklyHistory)) appData.laborWeeklyHistory = [];
         saveLocalState();
       } catch (err) {
         console.warn('Error reading local data:', err);
@@ -1616,10 +1619,6 @@
     function saveLocalState() {
       try {
         localStorage.setItem('gb_app_data', JSON.stringify(appData));
-        const totalCount = (appData.projects || []).length + (appData.materials || []).length + (appData.labor || []).length;
-        if (totalCount > 0) {
-          localStorage.setItem('gb_last_known_good_backup', JSON.stringify(appData));
-        }
       } catch (e) {
         console.warn('Local storage save failed:', e);
       }
@@ -1764,21 +1763,6 @@
           const serverTxns = Array.isArray(serverData.transactions) ? serverData.transactions : [];
           const serverSuppPay = Array.isArray(serverData.supplierPayments) ? serverData.supplierPayments : [];
           const serverLaborHistory = Array.isArray(serverData.laborWeeklyHistory) ? serverData.laborWeeklyHistory : [];
-
-          const serverCount = serverProjects.length + serverMaterials.length + serverLabor.length + serverTxns.length + serverSuppPay.length;
-          const localCount = (appData.projects || []).length + (appData.materials || []).length + (appData.labor || []).length + (appData.transactions || []).length + (appData.supplierPayments || []).length;
-
-          // ZERO-LOSS DATA PROTECTION:
-          // If cloud server woke up empty (e.g., Render free tier container sleep/restart), but this device has local records:
-          // DO NOT wipe local device data! Auto-rehydrate the cloud database from device memory immediately!
-          if (serverCount === 0 && localCount > 0) {
-            console.log('Zero-Loss Shield: Auto-rehydrating cloud database from local device memory...');
-            apiFetch(`${API_URL}/sync/push`, {
-              method: 'POST',
-              body: JSON.stringify(appData)
-            }).catch(e => console.warn('Auto-rehydrate warning:', e));
-            return true;
-          }
 
           const filterDeleted = (list) => (list || []).filter(item => !isItemDeleted(item));
 
