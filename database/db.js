@@ -258,6 +258,14 @@ if (!checkProfile) {
   `).run();
 }
 
+const checkAccounts = db.prepare('SELECT COUNT(*) as count FROM accounts').get();
+if (checkAccounts.count === 0) {
+  const insertAcc = db.prepare('INSERT INTO accounts (id, name, account_number, bank, type, balance) VALUES (?, ?, ?, ?, ?, ?)');
+  insertAcc.run('ACC-01', 'Primary Bank Current Account', 'XXXXXXXXXXXX', 'State Bank of India', 'Current Account', 0);
+  insertAcc.run('ACC-02', 'Cash in Hand (HQ)', 'N/A', 'Cash Vault', 'Cash', 0);
+  insertAcc.run('ACC-03', 'Site Petty Cash', 'N/A', 'Site Cash', 'Petty Cash', 0);
+}
+
 // All tables: pure manual entry (no automatic demo seeding)
 
 

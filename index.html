@@ -1542,7 +1542,11 @@
       labor: [],
       vendors: [],
       supplierPayments: [],
-      accounts: [],
+      accounts: [
+        { id: 'ACC-01', name: 'Primary Bank Current Account', bank: 'State Bank of India', type: 'Current Account', balance: 0 },
+        { id: 'ACC-02', name: 'Cash in Hand (HQ)', bank: 'Cash Vault', type: 'Cash', balance: 0 },
+        { id: 'ACC-03', name: 'Site Petty Cash', bank: 'Site Cash', type: 'Petty Cash', balance: 0 }
+      ],
       transactions: [],
       laborWeeklyHistory: []
     };
