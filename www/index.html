@@ -1769,16 +1769,16 @@
           if (serverData.company && serverData.company.name) {
             appData.company = serverData.company;
           }
-          appData.projects = mergeById(appData.projects, serverProjects);
-          appData.materials = mergeById(appData.materials, serverMaterials);
-          appData.labor = mergeById(appData.labor, serverLabor);
-          appData.vendors = mergeVendors(appData.vendors, serverVendors);
+          appData.projects = serverProjects;
+          appData.materials = serverMaterials;
+          appData.labor = serverLabor;
+          appData.vendors = serverVendors;
           if (Array.isArray(serverData.accounts) && serverData.accounts.length > 0) {
             appData.accounts = serverData.accounts;
           }
-          appData.transactions = mergeById(appData.transactions, serverTxns);
-          appData.supplierPayments = mergeById(appData.supplierPayments, serverSuppPay);
-          appData.laborWeeklyHistory = mergeById(appData.laborWeeklyHistory, serverLaborHistory);
+          appData.transactions = serverTxns;
+          appData.supplierPayments = serverSuppPay;
+          appData.laborWeeklyHistory = serverLaborHistory;
 
           saveLocalState();
 

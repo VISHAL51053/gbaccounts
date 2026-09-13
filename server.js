@@ -236,6 +236,7 @@ app.delete('/api/projects/:id', (req, res) => {
     });
 
     delTxn();
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
     res.json({ success: true, message: `Site ${decoded} removed successfully` });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -357,6 +358,7 @@ app.delete('/api/materials/:id', (req, res) => {
       }
     }
     db.prepare('DELETE FROM materials WHERE id = ? OR id = ? OR bill_number = ?').run(rawId, decodedId, decodedId);
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
     res.json({ success: true, deletedId: decodedId });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -411,6 +413,7 @@ app.delete('/api/supplier-payments/:id', (req, res) => {
     const rawId = req.params.id;
     const decodedId = decodeURIComponent(rawId).trim();
     db.prepare('DELETE FROM supplier_payments WHERE id = ? OR id = ?').run(rawId, decodedId);
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
     res.json({ success: true, deletedId: decodedId });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -509,6 +512,7 @@ app.put('/api/labor/:id', (req, res) => {
 app.delete('/api/labor/:id', (req, res) => {
   try {
     db.prepare('DELETE FROM labor_roster WHERE id = ?').run(req.params.id);
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -914,6 +918,7 @@ app.delete(['/api/labor/history/:id', '/api/labour/history/:id'], (req, res) => 
     const { id } = req.params;
     const decoded = decodeURIComponent(id).trim();
     db.prepare('DELETE FROM labor_weekly_history WHERE id = ? OR week_label = ? OR id LIKE ?').run(decoded, decoded, `%${decoded}%`);
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
     res.json({ success: true, message: 'Archived week deleted from history.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1306,6 +1311,7 @@ app.post('/api/vendors', (req, res) => {
 app.delete('/api/vendors/:id', (req, res) => {
   try {
     db.prepare('DELETE FROM vendors WHERE id = ?').run(req.params.id);
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
     res.json({ success: true, message: 'Vendor deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1360,6 +1366,7 @@ app.post('/api/transactions', (req, res) => {
 app.delete('/api/transactions/:id', (req, res) => {
   try {
     db.prepare('DELETE FROM transactions WHERE id = ?').run(req.params.id);
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
