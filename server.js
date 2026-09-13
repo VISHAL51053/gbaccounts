@@ -875,7 +875,7 @@ app.post(['/api/labor/history', '/api/labour/history'], (req, res) => {
         typeof workers_data_json === 'string' ? workers_data_json : JSON.stringify(workers_data_json || [])
       );
 
-      // 2. If requested, reset the current roster for a fresh week (preserving names, roles, rates)
+      // 2. Reset the current roster for a fresh week (preserving names, roles, rates, and projects)
       if (reset_roster !== false) {
         db.prepare(`
           UPDATE labor_roster
@@ -886,10 +886,13 @@ app.post(['/api/labor/history', '/api/labour/history'], (req, res) => {
               fri_duty = '-', fri_amt = 0,
               sat_duty = '-', sat_amt = 0,
               sun_duty = '-', sun_amt = 0,
+              duty = '-',
               days_present = 0,
               total_amount = 0,
+              advance_paid = 0,
               week_label = ''
         `).run();
+        try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
       }
     });
 

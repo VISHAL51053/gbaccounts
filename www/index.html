@@ -3355,30 +3355,37 @@
       };
 
       try {
+        // 1. Immediately reset active week attendance in local memory while keeping names, roles, rates, and projects intact
+        if (resetRoster !== false) {
+          (appData.labor || []).forEach(l => {
+            ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(d => {
+              l[`${d}_duty`] = '-';
+              l[`${d}_amt`] = 0;
+            });
+            l.duty = '-';
+            l.total_amount = 0;
+            l.days_present = 0;
+            l.advance_paid = 0;
+            l.week_label = '';
+          });
+        }
+
+        // 2. Prepend the archived week to local Weekly History
+        appData.laborWeeklyHistory = [historyRecord, ...(appData.laborWeeklyHistory || []).filter(h => h.id !== historyRecord.id)];
+        saveLocalState();
+        renderAll();
+
+        // 3. Post to backend and re-sync
         if (isSQLiteOnline) {
           await apiFetch(`${API_URL}/labor/history`, {
             method: 'POST',
             body: JSON.stringify({ ...historyRecord, reset_roster: resetRoster })
           });
           await fetchFromSQLite();
-        } else {
-          appData.laborWeeklyHistory = [historyRecord, ...(appData.laborWeeklyHistory || [])];
-          if (resetRoster) {
-            (appData.labor || []).forEach(l => {
-              ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(d => {
-                l[`${d}_duty`] = '-';
-                l[`${d}_amt`] = 0;
-              });
-              l.total_amount = 0;
-              l.days_present = 0;
-            });
-          }
-          saveLocalState();
-          renderAll();
         }
 
         closeModal('modalArchiveWeek');
-        showSyncToast('✅ Weekly attendance successfully archived to history!');
+        showSyncToast('✅ Weekly attendance successfully archived to history and active week reset!');
       } catch (err) {
         console.error('Error archiving week:', err);
         alert('Failed to archive week: ' + (err.message || err));
