@@ -4537,17 +4537,18 @@
           dashSites.innerHTML = '<div class="col-span-3 text-center py-6 text-slate-500 text-xs">No active project sites logged yet.</div>';
         } else {
           dashSites.innerHTML = appData.projects.map(p => {
-            const siteMaterials = (appData.materials || []).filter(m => (m.project_name === p.name || m.project === p.name));
+            const pName = (p.name || '').trim().toLowerCase();
+            const siteMaterials = (appData.materials || []).filter(m => (m.project_name || m.project || '').trim().toLowerCase() === pName);
             const siteMatCost = siteMaterials.reduce((s, m) => s + (Number(m.amount) || 0), 0);
 
             let siteLabCost = 0;
             let siteShiftsCount = 0;
             (appData.labor || []).forEach(l => {
               ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(d => {
-                const dSite = l[`${d}_site`] || l.site_assigned;
+                const dSite = (l[`${d}_site`] || l.site_assigned || '').trim().toLowerCase();
                 const dAmt = Number(l[`${d}_amt`]) || 0;
                 const dDuty = l[`${d}_duty`] || '-';
-                if (dSite === p.name && dAmt > 0) {
+                if (dSite === pName && dAmt > 0) {
                   siteLabCost += dAmt;
                   siteShiftsCount += (dDuty === '1/2 Duty' ? 0.5 : (dDuty === '1.5 Duty' ? 1.5 : 1));
                 }
@@ -4635,17 +4636,18 @@
           allProj.innerHTML = '<div class="col-span-2 text-center py-10 text-slate-500 text-sm">No construction sites added yet. Click "+ Add New Site" to create one.</div>';
         } else {
           allProj.innerHTML = appData.projects.map(p => {
-            const siteMaterials = (appData.materials || []).filter(m => (m.project_name === p.name || m.project === p.name));
+            const pName = (p.name || '').trim().toLowerCase();
+            const siteMaterials = (appData.materials || []).filter(m => (m.project_name || m.project || '').trim().toLowerCase() === pName);
             const siteMatCost = siteMaterials.reduce((s, m) => s + (Number(m.amount) || 0), 0);
 
             let siteLabCost = 0;
             let siteShiftsCount = 0;
             (appData.labor || []).forEach(l => {
               ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(d => {
-                const dSite = l[`${d}_site`] || l.site_assigned;
+                const dSite = (l[`${d}_site`] || l.site_assigned || '').trim().toLowerCase();
                 const dAmt = Number(l[`${d}_amt`]) || 0;
                 const dDuty = l[`${d}_duty`] || '-';
-                if (dSite === p.name && dAmt > 0) {
+                if (dSite === pName && dAmt > 0) {
                   siteLabCost += dAmt;
                   siteShiftsCount += (dDuty === '1/2 Duty' ? 0.5 : (dDuty === '1.5 Duty' ? 1.5 : 1));
                 }
