@@ -1751,20 +1751,79 @@
           const serverTxns = Array.isArray(serverData.transactions) ? serverData.transactions : [];
           const serverSuppPay = Array.isArray(serverData.supplierPayments) ? serverData.supplierPayments : [];
           const serverLaborHistory = Array.isArray(serverData.laborWeeklyHistory) ? serverData.laborWeeklyHistory : [];
+          const serverAccounts = Array.isArray(serverData.accounts) ? serverData.accounts : [];
 
+          const serverCount = serverProjects.length + serverMaterials.length + serverLabor.length + serverVendors.length + serverTxns.length + serverSuppPay.length + serverLaborHistory.length;
+          const localCount = (appData.projects || []).length + (appData.materials || []).length + (appData.labor || []).length + (appData.vendors || []).length + (appData.transactions || []).length + (appData.supplierPayments || []).length + (appData.laborWeeklyHistory || []).length;
+
+          // SCENARIO 1: Server was restarted/empty, but device has valid records -> Auto-Rehydrate Server!
+          if (serverCount === 0 && localCount > 0) {
+            try {
+              await apiFetch(`${API_URL}/sync/push`, {
+                method: 'POST',
+                body: JSON.stringify({
+                  ...appData,
+                  deleted_ids: Array.from(getDeletedIds())
+                })
+              });
+              showSyncToast('☁️ Cloud database auto-restored from device!');
+            } catch (pushErr) {
+              console.warn('Auto-sync push to cloud deferred:', pushErr);
+            }
+            saveLocalState();
+            return true;
+          }
+
+          // SCENARIO 2: Server has records and local is clean -> Adopt server state directly
+          if (serverCount > 0 && localCount === 0) {
+            if (serverData.company && serverData.company.name) {
+              appData.company = serverData.company;
+            }
+            appData.projects = serverProjects.filter(p => !isItemDeleted(p));
+            appData.materials = serverMaterials.filter(m => !isItemDeleted(m));
+            appData.labor = serverLabor.filter(l => !isItemDeleted(l));
+            appData.vendors = serverVendors.filter(v => !isItemDeleted(v));
+            appData.transactions = serverTxns.filter(t => !isItemDeleted(t));
+            appData.supplierPayments = serverSuppPay.filter(s => !isItemDeleted(s));
+            appData.laborWeeklyHistory = serverLaborHistory.filter(h => !isItemDeleted(h));
+            if (serverAccounts.length > 0) appData.accounts = serverAccounts;
+            saveLocalState();
+            renderAll();
+            return true;
+          }
+
+          // SCENARIO 3: Both have records -> Bidirectional smart merge without resurrecting deleted items
           if (serverData.company && serverData.company.name) {
             appData.company = serverData.company;
           }
-          appData.projects = serverProjects;
-          appData.materials = serverMaterials;
-          appData.labor = serverLabor;
-          appData.vendors = serverVendors;
-          appData.accounts = Array.isArray(serverData.accounts) ? serverData.accounts : [];
-          appData.transactions = serverTxns;
-          appData.supplierPayments = serverSuppPay;
-          appData.laborWeeklyHistory = serverLaborHistory;
+          const prevMatCount = (appData.materials || []).length;
+          const prevLaborCount = (appData.labor || []).length;
+
+          appData.projects = mergeById(appData.projects, serverProjects);
+          appData.materials = mergeById(appData.materials, serverMaterials);
+          appData.labor = mergeById(appData.labor, serverLabor);
+          appData.vendors = mergeVendors(appData.vendors, serverVendors);
+          appData.transactions = mergeById(appData.transactions, serverTxns);
+          appData.supplierPayments = mergeById(appData.supplierPayments, serverSuppPay);
+          appData.laborWeeklyHistory = mergeById(appData.laborWeeklyHistory, serverLaborHistory);
+          if (serverAccounts.length > 0) {
+            appData.accounts = serverAccounts;
+          }
 
           saveLocalState();
+
+          // If device had unsynced offline records that weren't on server yet, push them in background
+          if (appData.materials.length > serverMaterials.length || appData.labor.length > serverLabor.length || appData.projects.length > serverProjects.length) {
+            try {
+              apiFetch(`${API_URL}/sync/push`, {
+                method: 'POST',
+                body: JSON.stringify({
+                  ...appData,
+                  deleted_ids: Array.from(getDeletedIds())
+                })
+              });
+            } catch(e) {}
+          }
 
           const activeTag = document.activeElement ? document.activeElement.tagName : '';
           if (activeTag !== 'INPUT' && activeTag !== 'SELECT' && activeTag !== 'TEXTAREA') {

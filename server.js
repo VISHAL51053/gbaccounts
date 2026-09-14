@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import db, { dbPath } from './database/db.js';
+import db, { dbPath, saveSnapshot } from './database/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -208,6 +208,7 @@ app.post('/api/projects', (req, res) => {
     );
 
     const created = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+    try { saveSnapshot(); } catch(e) {}
     res.json({ ...created, spent: 0 });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -236,7 +237,7 @@ app.delete('/api/projects/:id', (req, res) => {
     });
 
     delTxn();
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
     res.json({ success: true, message: `Site ${decoded} removed successfully` });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -288,6 +289,7 @@ app.post('/api/materials', (req, res) => {
     insertMat();
 
     const created = db.prepare('SELECT * FROM materials WHERE id = ?').get(id);
+    try { saveSnapshot(); } catch(e) {}
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -339,6 +341,7 @@ app.put('/api/materials/:id', (req, res) => {
     updateMat();
 
     const updated = db.prepare('SELECT * FROM materials WHERE id = ?').get(id);
+    try { saveSnapshot(); } catch(e) {}
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -358,7 +361,7 @@ app.delete('/api/materials/:id', (req, res) => {
       }
     }
     db.prepare('DELETE FROM materials WHERE id = ? OR id = ? OR bill_number = ?').run(rawId, decodedId, decodedId);
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
     res.json({ success: true, deletedId: decodedId });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -402,6 +405,7 @@ app.post('/api/supplier-payments', (req, res) => {
     insertPay();
 
     const created = db.prepare('SELECT * FROM supplier_payments WHERE id = ?').get(id);
+    try { saveSnapshot(); } catch(e) {}
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -413,7 +417,7 @@ app.delete('/api/supplier-payments/:id', (req, res) => {
     const rawId = req.params.id;
     const decodedId = decodeURIComponent(rawId).trim();
     db.prepare('DELETE FROM supplier_payments WHERE id = ? OR id = ?').run(rawId, decodedId);
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
     res.json({ success: true, deletedId: decodedId });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -445,6 +449,7 @@ app.post('/api/labor', (req, res) => {
     `).run(id, name, role || 'Ma', rate, phone || '', site_assigned || 'General Site', advance_paid || 0);
 
     const created = db.prepare('SELECT * FROM labor_roster WHERE id = ?').get(id);
+    try { saveSnapshot(); } catch(e) {}
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -503,6 +508,7 @@ app.put('/api/labor/:id', (req, res) => {
     );
 
     const updated = db.prepare('SELECT * FROM labor_roster WHERE id = ?').get(req.params.id);
+    try { saveSnapshot(); } catch(e) {}
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -512,7 +518,7 @@ app.put('/api/labor/:id', (req, res) => {
 app.delete('/api/labor/:id', (req, res) => {
   try {
     db.prepare('DELETE FROM labor_roster WHERE id = ?').run(req.params.id);
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -903,6 +909,7 @@ app.post(['/api/labor/history', '/api/labour/history'], (req, res) => {
     archiveTxn();
 
     const created = db.prepare('SELECT * FROM labor_weekly_history WHERE id = ?').get(recordId);
+    try { saveSnapshot(); } catch(e) {}
     res.json({
       success: true,
       message: 'Weekly labour attendance archived to history and current week reset successfully.',
@@ -918,7 +925,7 @@ app.delete(['/api/labor/history/:id', '/api/labour/history/:id'], (req, res) => 
     const { id } = req.params;
     const decoded = decodeURIComponent(id).trim();
     db.prepare('DELETE FROM labor_weekly_history WHERE id = ? OR week_label = ? OR id LIKE ?').run(decoded, decoded, `%${decoded}%`);
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
     res.json({ success: true, message: 'Archived week deleted from history.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1302,6 +1309,7 @@ app.post('/api/vendors', (req, res) => {
     `).run(id, name, role || category || 'Raw Materials', contact_person || '', phone || '', category || role || 'Raw Materials', gstin || '', address || '', balance_due || 0);
 
     const created = db.prepare('SELECT * FROM vendors WHERE id = ?').get(id);
+    try { saveSnapshot(); } catch(e) {}
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1311,7 +1319,7 @@ app.post('/api/vendors', (req, res) => {
 app.delete('/api/vendors/:id', (req, res) => {
   try {
     db.prepare('DELETE FROM vendors WHERE id = ?').run(req.params.id);
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
     res.json({ success: true, message: 'Vendor deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1357,6 +1365,7 @@ app.post('/api/transactions', (req, res) => {
     );
 
     const created = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id);
+    try { saveSnapshot(); } catch(e) {}
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1366,7 +1375,7 @@ app.post('/api/transactions', (req, res) => {
 app.delete('/api/transactions/:id', (req, res) => {
   try {
     db.prepare('DELETE FROM transactions WHERE id = ?').run(req.params.id);
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1747,6 +1756,7 @@ app.post('/api/sync/push', (req, res) => {
     });
 
     syncTransaction();
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
 
     const count = (projects ? projects.length : 0) + (materials ? materials.length : 0) + (labor ? labor.length : 0) + (transactions ? transactions.length : 0) + (supplierPayments ? supplierPayments.length : 0) + (laborWeeklyHistory ? laborWeeklyHistory.length : 0);
 
@@ -1795,6 +1805,7 @@ app.post('/api/reset', (req, res) => {
       UPDATE accounts SET balance = 0;
     `);
     db.pragma('wal_checkpoint(TRUNCATE)');
+    try { saveSnapshot(); } catch(e) {}
     res.json({ success: true, message: 'All site, labor, materials, supplier, and history data reset cleanly.' });
   } catch (err) {
     res.status(500).json({ error: err.message });

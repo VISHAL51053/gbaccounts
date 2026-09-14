@@ -266,9 +266,113 @@ if (checkAccounts.count === 0) {
   insertAcc.run('ACC-03', 'Site Petty Cash', 'N/A', 'Site Cash', 'Petty Cash', 0);
 }
 
-// All tables: pure manual entry (no automatic demo seeding)
+// Auto-rehydrate from backup snapshot if database is fresh/empty
+function rehydrateFromSnapshot() {
+  try {
+    const totalRecords = db.prepare('SELECT (SELECT COUNT(*) FROM projects) + (SELECT COUNT(*) FROM materials) + (SELECT COUNT(*) FROM labor_roster) + (SELECT COUNT(*) FROM transactions) + (SELECT COUNT(*) FROM supplier_payments) + (SELECT COUNT(*) FROM labor_weekly_history) AS total').get().total;
 
+    if (totalRecords === 0) {
+      const possibleSnapshotPaths = [
+        path.join(dbDir, 'backup_snapshot.json'),
+        path.join(__dirname, 'backup_snapshot.json'),
+        path.join(process.cwd(), 'database', 'backup_snapshot.json')
+      ];
 
+      for (const p of possibleSnapshotPaths) {
+        if (fs.existsSync(p)) {
+          const content = fs.readFileSync(p, 'utf-8');
+          const data = JSON.parse(content);
+          if (data && typeof data === 'object') {
+            const hasData = (data.projects && data.projects.length > 0) ||
+                            (data.materials && data.materials.length > 0) ||
+                            (data.labor && data.labor.length > 0) ||
+                            (data.transactions && data.transactions.length > 0) ||
+                            (data.supplierPayments && data.supplierPayments.length > 0) ||
+                            (data.laborWeeklyHistory && data.laborWeeklyHistory.length > 0);
+            if (hasData) {
+              console.log(`🔄 Auto-restoring database from snapshot: ${p}`);
+              const restoreTxn = db.transaction(() => {
+                if (Array.isArray(data.projects)) {
+                  const stmt = db.prepare(`INSERT OR REPLACE INTO projects (id, name, client, client_phone, location, type, total_area_sqft, budget, spent, progress, status, supervisor, start_date, estimated_completion, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+                  data.projects.forEach(x => { if (x.id && x.name) stmt.run(x.id, x.name, x.client || 'Direct Client', x.client_phone || '', x.location || 'Site Location', x.type || 'Residential', Number(x.total_area_sqft) || 0, Number(x.budget) || 0, Number(x.spent) || 0, Number(x.progress) || 10, x.status || 'In Progress', x.supervisor || 'Civil Engg', x.start_date || '', x.estimated_completion || '', x.notes || '', x.created_at || new Date().toISOString()); });
+                }
+                if (Array.isArray(data.materials)) {
+                  const stmt = db.prepare(`INSERT OR REPLACE INTO materials (id, date, category, item, project_id, project_name, vendor, amount, tax_amount, payment_mode, bill_number, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+                  data.materials.forEach(x => { if (x.id && x.item) stmt.run(x.id, x.date, x.category || 'Raw Materials', x.item, x.project_id || null, x.project_name || 'General Site', x.vendor || 'Supplier', Number(x.amount) || 0, Number(x.tax_amount) || 0, x.payment_mode || 'Cash in Hand', x.bill_number || `VCH-${x.id}`, x.notes || '', x.created_at || new Date().toISOString()); });
+                }
+                if (Array.isArray(data.labor)) {
+                  const stmt = db.prepare(`INSERT OR REPLACE INTO labor_roster (id, name, role, daily_rate, phone, site_assigned, day_name, duty, total_amount, days_present, advance_paid, status, mon_duty, mon_amt, mon_site, tue_duty, tue_amt, tue_site, wed_duty, wed_amt, wed_site, thu_duty, thu_amt, thu_site, fri_duty, fri_amt, fri_site, sat_duty, sat_amt, sat_site, sun_duty, sun_amt, sun_site, week_label, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+                  data.labor.forEach(x => { if (x.id && x.name) stmt.run(x.id, x.name, x.role || 'Ma', Number(x.daily_rate) || 950, x.phone || '', x.site_assigned || 'General Site', x.day_name || 'Monday', x.duty || '-', Number(x.total_amount) || 0, Number(x.days_present) || 0, Number(x.advance_paid) || 0, x.status || 'Active', x.mon_duty || '-', Number(x.mon_amt) || 0, x.mon_site || '', x.tue_duty || '-', Number(x.tue_amt) || 0, x.tue_site || '', x.wed_duty || '-', Number(x.wed_amt) || 0, x.wed_site || '', x.thu_duty || '-', Number(x.thu_amt) || 0, x.thu_site || '', x.fri_duty || '-', Number(x.fri_amt) || 0, x.fri_site || '', x.sat_duty || '-', Number(x.sat_amt) || 0, x.sat_site || '', x.sun_duty || '-', Number(x.sun_amt) || 0, x.sun_site || '', x.week_label || '', x.created_at || new Date().toISOString()); });
+                }
+                if (Array.isArray(data.vendors)) {
+                  const stmt = db.prepare(`INSERT OR REPLACE INTO vendors (id, name, contact_person, phone, category, gstin, address, balance_due, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+                  data.vendors.forEach(x => { if (x.id && x.name) stmt.run(x.id, x.name, x.contact_person || '', x.phone || '', x.category || 'Raw Materials', x.gstin || '', x.address || '', Number(x.balance_due) || 0, x.role || 'Raw Materials', x.created_at || new Date().toISOString()); });
+                }
+                if (Array.isArray(data.transactions)) {
+                  const stmt = db.prepare(`INSERT OR REPLACE INTO transactions (id, date, type, account_id, account_name, category, amount, party, project, reference, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+                  data.transactions.forEach(x => { if (x.id && x.amount) stmt.run(x.id, x.date, x.type || 'Expense', x.account_id || 'ACC-01', x.account_name || 'Primary Bank Current Account', x.category || 'General', Number(x.amount) || 0, x.party || 'Self', x.project || 'General / HQ', x.reference || 'Cash', x.created_at || new Date().toISOString()); });
+                }
+                if (Array.isArray(data.supplierPayments)) {
+                  const stmt = db.prepare(`INSERT OR REPLACE INTO supplier_payments (id, vendor, project_name, amount, date, payment_mode, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+                  data.supplierPayments.forEach(x => { if (x.id && x.amount) stmt.run(x.id, x.vendor || 'Supplier', x.project_name || 'General Site', Number(x.amount) || 0, x.date, x.payment_mode || 'Cash in Hand', x.notes || '', x.created_at || new Date().toISOString()); });
+                }
+                if (Array.isArray(data.laborWeeklyHistory)) {
+                  const stmt = db.prepare(`INSERT OR REPLACE INTO labor_weekly_history (id, week_label, week_ending, total_workers, total_shifts, total_wages, masons_count, helpers_count, site_breakdown_json, workers_data_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+                  data.laborWeeklyHistory.forEach(x => { if (x.id && x.week_ending) stmt.run(x.id, x.week_label || `Week ending ${x.week_ending}`, x.week_ending, Number(x.total_workers) || 0, Number(x.total_shifts) || 0, Number(x.total_wages) || 0, Number(x.masons_count) || 0, Number(x.helpers_count) || 0, typeof x.site_breakdown_json === 'string' ? x.site_breakdown_json : JSON.stringify(x.site_breakdown_json || []), typeof x.workers_data_json === 'string' ? x.workers_data_json : JSON.stringify(x.workers_data_json || []), x.created_at || new Date().toISOString()); });
+                }
+              });
+              restoreTxn();
+              console.log('✅ SQLite database successfully auto-restored from snapshot.');
+              break;
+            }
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Auto-rehydrate from snapshot skipped:', err.message);
+  }
+}
+
+export function saveSnapshot() {
+  try {
+    const company = db.prepare('SELECT * FROM company_profile WHERE id = 1').get() || {};
+    const projects = db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
+    const materials = db.prepare('SELECT * FROM materials ORDER BY date DESC, created_at DESC').all();
+    const labor = db.prepare("SELECT * FROM labor_roster ORDER BY CASE WHEN role = 'Ma' THEN 1 WHEN role = 'Mm' THEN 2 ELSE 3 END, name ASC").all();
+    const vendors = db.prepare('SELECT * FROM vendors ORDER BY name ASC').all();
+    const accounts = db.prepare('SELECT * FROM accounts').all();
+    const transactions = db.prepare('SELECT * FROM transactions ORDER BY date DESC, created_at DESC').all();
+    const supplierPayments = db.prepare('SELECT * FROM supplier_payments ORDER BY date DESC, created_at DESC').all();
+    const laborWeeklyHistory = db.prepare('SELECT * FROM labor_weekly_history ORDER BY created_at DESC').all();
+
+    const snapshot = {
+      version: '3.0.0',
+      saved_at: new Date().toISOString(),
+      company,
+      projects,
+      materials,
+      labor,
+      vendors,
+      accounts,
+      transactions,
+      supplierPayments,
+      laborWeeklyHistory
+    };
+
+    const snapshotFile = path.join(dbDir, 'backup_snapshot.json');
+    fs.writeFileSync(snapshotFile, JSON.stringify(snapshot, null, 2), 'utf-8');
+
+    const localSnapshot = path.join(__dirname, 'backup_snapshot.json');
+    if (snapshotFile !== localSnapshot) {
+      try { fs.writeFileSync(localSnapshot, JSON.stringify(snapshot, null, 2), 'utf-8'); } catch(e) {}
+    }
+  } catch (err) {
+    console.warn('Failed to save auto-snapshot:', err);
+  }
+}
+
+rehydrateFromSnapshot();
 
 // Ensure all changes are flushed to the database file on disk
 db.pragma('wal_checkpoint(TRUNCATE)');
