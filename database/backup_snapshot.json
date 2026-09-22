@@ -1,41 +1,25 @@
 {
   "version": "3.0.0",
-  "saved_at": "2026-09-22T15:25:58.919Z",
+  "saved_at": "2026-09-22T15:49:37.206Z",
   "company": {
     "id": 1,
     "name": "GURUBARAN BUILDERS",
     "tagline": "Civil Engineering Excellence",
     "gstin": "",
-    "pan": null,
+    "pan": "",
     "phone": "9842751053",
-    "email": null,
-    "website": null,
+    "email": "",
+    "website": "",
     "address": "perundurai sullipalayam ,erode",
-    "bank_name": null,
-    "account_name": null,
-    "account_number": null,
-    "ifsc_code": null,
-    "branch": null,
-    "terms": null
+    "bank_name": "",
+    "account_name": "",
+    "account_number": "",
+    "ifsc_code": "",
+    "branch": "",
+    "terms": ""
   },
   "projects": [],
-  "materials": [
-    {
-      "id": "MAT-TEST-1790090701433",
-      "date": "2026-09-22",
-      "category": "Cement",
-      "item": "Ultratech 50kg Bags (Updated)",
-      "project_id": null,
-      "project_name": "General Site",
-      "vendor": "Supreme Cement",
-      "amount": 15500,
-      "tax_amount": 0,
-      "payment_mode": "Cash in Hand",
-      "bill_number": "VCH-MAT-TEST-1790090701433",
-      "notes": "",
-      "created_at": "2026-09-22 15:25:01"
-    }
-  ],
+  "materials": [],
   "labor": [],
   "vendors": [],
   "accounts": [
@@ -64,32 +48,7 @@
       "balance": 0
     }
   ],
-  "transactions": [
-    {
-      "id": "TXN-SPAY-TEST-1790090701440",
-      "date": "2026-09-22",
-      "type": "Expense",
-      "account_id": null,
-      "account_name": null,
-      "category": "Supplier Payment",
-      "amount": 10000,
-      "party": "Supreme Cement",
-      "project": "Automated Test Site",
-      "reference": "Cash in Hand - Payment to Supreme Cement (Automated Test Site)",
-      "created_at": "2026-09-22 15:25:01"
-    }
-  ],
-  "supplierPayments": [
-    {
-      "id": "SPAY-TEST-1790090701440",
-      "vendor": "Supreme Cement",
-      "project_name": "General Site",
-      "amount": 10000,
-      "date": "2026-09-22",
-      "payment_mode": "Cash in Hand",
-      "notes": "Advance settlement",
-      "created_at": "2026-09-22 15:25:01"
-    }
-  ],
+  "transactions": [],
+  "supplierPayments": [],
   "laborWeeklyHistory": []
 }
