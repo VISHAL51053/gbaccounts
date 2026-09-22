@@ -934,7 +934,7 @@
         </div>
         <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
           <button type="button" onclick="closeModal('modalLabor')" class="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300">Cancel</button>
-          <button type="submit" class="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition-colors">Add Labour</button>
+          <button type="submit" id="btnSubmitLabor" class="px-4 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition-colors cursor-pointer">Add Labour</button>
         </div>
       </form>
     </div>
@@ -1522,9 +1522,9 @@
         }
 
         const filterDeleted = (list) => deduplicateById((list || []).filter(item => !isItemDeleted(item)));
-        appData.projects = filterDeleted(appData.projects);
+        appData.projects = deduplicateProjects(filterDeleted(appData.projects));
         appData.materials = filterDeleted(appData.materials);
-        appData.labor = filterDeleted(appData.labor);
+        appData.labor = deduplicateLabor(filterDeleted(appData.labor));
         appData.vendors = filterDeleted(appData.vendors);
         appData.transactions = filterDeleted(appData.transactions);
         appData.supplierPayments = filterDeleted(appData.supplierPayments);
@@ -1651,6 +1651,78 @@
       return result;
     }
 
+    function deduplicateProjects(list) {
+      if (!Array.isArray(list)) return [];
+      const seenIds = new Set();
+      const seenNames = new Set();
+      const result = [];
+      for (const item of list) {
+        if (!item) continue;
+        const id = item.id ? String(item.id).trim() : null;
+        const nameKey = (item.name || '').trim().toLowerCase();
+        if (id && seenIds.has(id)) continue;
+        if (nameKey && seenNames.has(nameKey)) continue;
+        if (id) seenIds.add(id);
+        if (nameKey) seenNames.add(nameKey);
+        result.push(item);
+      }
+      return result;
+    }
+
+    function deduplicateLabor(list) {
+      if (!Array.isArray(list)) return [];
+      const seenIds = new Set();
+      const seenNames = new Set();
+      const result = [];
+      for (const item of list) {
+        if (!item) continue;
+        const id = item.id ? String(item.id).trim() : null;
+        const nameKey = (item.name || '').trim().toLowerCase();
+        if (id && seenIds.has(id)) continue;
+        if (nameKey && seenNames.has(nameKey)) continue;
+        if (id) seenIds.add(id);
+        if (nameKey) seenNames.add(nameKey);
+        result.push(item);
+      }
+      return result;
+    }
+
+    function mergeProjects(localProjects, serverProjects) {
+      const nameMap = new Map();
+      (serverProjects || []).forEach(p => {
+        if (p && p.name && !isItemDeleted(p)) {
+          nameMap.set(p.name.trim().toLowerCase(), p);
+        }
+      });
+      (localProjects || []).forEach(p => {
+        if (p && p.name && !isItemDeleted(p)) {
+          const key = p.name.trim().toLowerCase();
+          if (!nameMap.has(key)) {
+            nameMap.set(key, p);
+          }
+        }
+      });
+      return deduplicateProjects(Array.from(nameMap.values()).filter(p => !isItemDeleted(p)));
+    }
+
+    function mergeLabor(localLabor, serverLabor) {
+      const nameMap = new Map();
+      (serverLabor || []).forEach(l => {
+        if (l && l.name && !isItemDeleted(l)) {
+          nameMap.set(l.name.trim().toLowerCase(), l);
+        }
+      });
+      (localLabor || []).forEach(l => {
+        if (l && l.name && !isItemDeleted(l)) {
+          const key = l.name.trim().toLowerCase();
+          if (!nameMap.has(key)) {
+            nameMap.set(key, l);
+          }
+        }
+      });
+      return deduplicateLabor(Array.from(nameMap.values()).filter(l => !isItemDeleted(l)));
+    }
+
     function mergeById(localArr, serverArr) {
       const map = new Map();
       (serverArr || []).forEach(item => {
@@ -1742,9 +1814,9 @@
             if (serverData.company && serverData.company.name) {
               appData.company = serverData.company;
             }
-            appData.projects = deduplicateById(serverProjects.filter(p => !isItemDeleted(p)));
+            appData.projects = deduplicateProjects(serverProjects.filter(p => !isItemDeleted(p)));
             appData.materials = deduplicateById(serverMaterials.filter(m => !isItemDeleted(m)));
-            appData.labor = deduplicateById(serverLabor.filter(l => !isItemDeleted(l)));
+            appData.labor = deduplicateLabor(serverLabor.filter(l => !isItemDeleted(l)));
             appData.vendors = deduplicateById(serverVendors.filter(v => !isItemDeleted(v)));
             appData.transactions = deduplicateById(serverTxns.filter(t => !isItemDeleted(t)));
             appData.supplierPayments = deduplicateById(serverSuppPay.filter(s => !isItemDeleted(s)));
@@ -1762,9 +1834,9 @@
           const prevMatCount = (appData.materials || []).length;
           const prevLaborCount = (appData.labor || []).length;
 
-          appData.projects = mergeById(appData.projects, serverProjects);
+          appData.projects = mergeProjects(appData.projects, serverProjects);
           appData.materials = mergeById(appData.materials, serverMaterials);
-          appData.labor = mergeById(appData.labor, serverLabor);
+          appData.labor = mergeLabor(appData.labor, serverLabor);
           appData.vendors = mergeVendors(appData.vendors, serverVendors);
           appData.transactions = mergeById(appData.transactions, serverTxns);
           appData.supplierPayments = mergeById(appData.supplierPayments, serverSuppPay);
@@ -2057,8 +2129,14 @@
     }
 
     // --- Handlers: Create Project in SQLite ---
+    let isCreatingProject = false;
     async function handleCreateProject(e) {
       if (e) e.preventDefault();
+      if (isCreatingProject) return;
+
+      const submitBtn = document.getElementById('btnCreateSite') || (e && e.target && e.target.querySelector('button[type="submit"]'));
+      const originalBtnText = submitBtn ? submitBtn.textContent : 'Create Site';
+
       try {
         const nameInput = document.getElementById('projName');
         const clientInput = document.getElementById('projClient');
@@ -2071,6 +2149,21 @@
         if (!name) {
           alert('Please enter a site / project name.');
           return;
+        }
+
+        // Prevent duplicate site name creation
+        if (!appData.projects) appData.projects = [];
+        const existingProj = appData.projects.find(p => (p.name || '').trim().toLowerCase() === name.toLowerCase());
+        if (existingProj) {
+          alert(`Site "${existingProj.name}" is already created.`);
+          closeModal('modalProject');
+          return;
+        }
+
+        isCreatingProject = true;
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Creating...';
         }
 
         const newId = 'PRJ-' + Date.now();
@@ -2089,9 +2182,8 @@
           created_at: new Date().toISOString()
         };
 
-        // 1. Instant local persistence for 0ms lag & durability
-        if (!appData.projects) appData.projects = [];
-        appData.projects.unshift(newProj);
+        // 1. Instant local persistence with deduplication
+        appData.projects = deduplicateProjects([newProj, ...appData.projects]);
         saveLocalState();
         renderAll();
         populateProjectDropdowns();
@@ -2114,6 +2206,12 @@
         }
       } catch (err) {
         console.error('Failed to create project:', err);
+      } finally {
+        isCreatingProject = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalBtnText;
+        }
       }
     }
 
@@ -2198,8 +2296,14 @@
     }
 
     // --- Handlers: Create Labor in SQLite ---
+    let isCreatingLabor = false;
     async function handleCreateLabor(e) {
       if (e) e.preventDefault();
+      if (isCreatingLabor) return;
+
+      const submitBtn = document.getElementById('btnSubmitLabor') || (e && e.target && e.target.querySelector('button[type="submit"]'));
+      const originalBtnText = submitBtn ? submitBtn.textContent : 'Add Labour';
+
       try {
         const nameInput = document.getElementById('labName');
         const roleInput = document.getElementById('labRole');
@@ -2212,6 +2316,21 @@
         if (!name) {
           alert('Please enter worker / labour name.');
           return;
+        }
+
+        // Prevent duplicate worker name creation
+        if (!appData.labor) appData.labor = [];
+        const existingWorker = appData.labor.find(l => (l.name || '').trim().toLowerCase() === name.toLowerCase());
+        if (existingWorker) {
+          alert(`Worker "${existingWorker.name}" is already enrolled in the muster roll.`);
+          closeModal('modalLabor');
+          return;
+        }
+
+        isCreatingLabor = true;
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.textContent = 'Adding...';
         }
 
         const newId = 'LAB-' + Date.now();
@@ -2237,8 +2356,7 @@
           sun_duty: '-', sun_amt: 0, sun_site: site_assigned
         };
 
-        if (!appData.labor) appData.labor = [];
-        appData.labor.push(payload);
+        appData.labor = deduplicateLabor([...appData.labor, payload]);
         saveLocalState();
         renderAll();
 
@@ -2256,6 +2374,12 @@
       } catch (err) {
         console.error('Error creating labor:', err);
         closeModal('modalLabor');
+      } finally {
+        isCreatingLabor = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalBtnText;
+        }
       }
     }
 
@@ -4433,6 +4557,10 @@
 
     // --- Render Functions ---
     function renderAll() {
+      // Ensure projects and labor arrays are always clean and free of duplicate names
+      appData.projects = deduplicateProjects(appData.projects || []);
+      appData.labor = deduplicateLabor(appData.labor || []);
+
       // Header and Company Info (safely guarded against null elements)
       const headerComp = document.getElementById('headerCompanyName');
       if (headerComp) headerComp.textContent = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';

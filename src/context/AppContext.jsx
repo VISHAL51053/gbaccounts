@@ -81,7 +81,42 @@ export const AppProvider = ({ children }) => {
 
         if (projRes.ok) {
           const projData = await projRes.json();
-          if (Array.isArray(projData)) setProjects(projData);
+          if (Array.isArray(projData)) {
+            const seenProj = new Set();
+            const uniqueProj = [];
+            for (const p of projData) {
+              const k = (p.name || '').trim().toLowerCase();
+              if (k && !seenProj.has(k)) {
+                seenProj.add(k);
+                uniqueProj.push(p);
+              }
+            }
+            setProjects(uniqueProj);
+          }
+        }
+        if (labRes.ok) {
+          const labData = await labRes.json();
+          if (Array.isArray(labData)) {
+            const seenLab = new Set();
+            const uniqueLab = [];
+            for (const w of labData) {
+              const k = (w.name || '').trim().toLowerCase();
+              if (k && !seenLab.has(k)) {
+                seenLab.add(k);
+                uniqueLab.push({
+                  id: w.id || `LAB-${Date.now()}`,
+                  name: w.name,
+                  role: w.role || 'Mason',
+                  wagePerDay: Number(w.wage_per_day || w.wagePerDay || 800),
+                  phone: w.phone || '',
+                  status: 'Active',
+                  daysPresentThisMonth: 0,
+                  advancePaid: 0
+                });
+              }
+            }
+            if (uniqueLab.length > 0) setLaborRoster(uniqueLab);
+          }
         }
         if (expRes.ok) {
           const expData = await expRes.json();
@@ -155,9 +190,20 @@ export const AppProvider = ({ children }) => {
 
   // Project Actions
   const addProject = async (projectData) => {
+    const trimmedName = (projectData.name || '').trim();
+    if (!trimmedName) return null;
+
+    // Guard against duplicates
+    const existing = projects.find(p => (p.name || '').trim().toLowerCase() === trimmedName.toLowerCase());
+    if (existing) {
+      console.warn('Project with this name already exists:', trimmedName);
+      return existing;
+    }
+
     const tempId = `PRJ-${Math.floor(100 + Math.random() * 900)}`;
     const newProject = {
       ...projectData,
+      name: trimmedName,
       id: tempId,
       spent: 0,
       progress: projectData.progress || 10,
@@ -165,7 +211,10 @@ export const AppProvider = ({ children }) => {
     };
     
     // Instant optimistic update
-    setProjects(prev => [newProject, ...prev]);
+    setProjects(prev => {
+      if (prev.some(p => (p.name || '').trim().toLowerCase() === trimmedName.toLowerCase())) return prev;
+      return [newProject, ...prev];
+    });
 
     // Persist to SQLite Database
     try {
@@ -173,6 +222,7 @@ export const AppProvider = ({ children }) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          id: tempId,
           name: newProject.name,
           client: newProject.client,
           location: newProject.location,
@@ -183,7 +233,7 @@ export const AppProvider = ({ children }) => {
       if (res.ok) {
         const created = await res.json();
         if (created && created.id) {
-          setProjects(prev => prev.map(p => p.id === tempId ? created : p));
+          setProjects(prev => prev.map(p => p.id === tempId ? { ...newProject, ...created } : p));
         }
       }
     } catch (err) {
@@ -365,15 +415,56 @@ export const AppProvider = ({ children }) => {
   };
 
   // Labor Actions
-  const addLabor = (laborData) => {
+  const addLabor = async (laborData) => {
+    const trimmedName = (laborData.name || '').trim();
+    if (!trimmedName) return null;
+
+    // Guard against duplicates
+    const existing = laborRoster.find(w => (w.name || '').trim().toLowerCase() === trimmedName.toLowerCase());
+    if (existing) {
+      console.warn('Labor worker with this name already exists:', trimmedName);
+      return existing;
+    }
+
+    const tempId = `LAB-${Date.now()}`;
     const newWorker = {
       ...laborData,
-      id: `LAB-${String(laborRoster.length + 1).padStart(2, '0')}`,
+      name: trimmedName,
+      id: tempId,
       status: 'Active',
       daysPresentThisMonth: Number(laborData.daysPresentThisMonth || 0),
       advancePaid: Number(laborData.advancePaid || 0)
     };
-    setLaborRoster(prev => [newWorker, ...prev]);
+
+    setLaborRoster(prev => {
+      if (prev.some(w => (w.name || '').trim().toLowerCase() === trimmedName.toLowerCase())) return prev;
+      return [newWorker, ...prev];
+    });
+
+    // Persist to SQLite
+    try {
+      const res = await fetch('http://localhost:5000/api/labor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: tempId,
+          name: trimmedName,
+          role: newWorker.role || 'Mason',
+          wage_per_day: Number(newWorker.wagePerDay || 800),
+          phone: newWorker.phone || ''
+        })
+      });
+      if (res.ok) {
+        const created = await res.json();
+        if (created && created.id) {
+          setLaborRoster(prev => prev.map(w => w.id === tempId ? { ...newWorker, ...created } : w));
+        }
+      }
+    } catch (err) {
+      console.warn('SQLite labor sync error:', err);
+    }
+
+    return newWorker;
   };
 
   const updateLabor = (id, updatedData) => {

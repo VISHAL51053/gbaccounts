@@ -23,6 +23,22 @@ app.use((req, res, next) => {
 });
 app.use(express.static(__dirname));
 
+// Clean up any legacy duplicate projects and labor rows by name
+try {
+  db.exec(`
+    DELETE FROM projects 
+    WHERE rowid NOT IN (
+      SELECT MIN(rowid) FROM projects GROUP BY LOWER(TRIM(name))
+    );
+    DELETE FROM labor_roster 
+    WHERE rowid NOT IN (
+      SELECT MIN(rowid) FROM labor_roster GROUP BY LOWER(TRIM(name))
+    );
+  `);
+} catch (e) {
+  console.warn('Initial duplicate cleanup note:', e.message);
+}
+
 // ================= API ENDPOINTS =================
 
 // 1. Health & Status
@@ -187,7 +203,10 @@ app.post('/api/projects', (req, res) => {
       return res.status(400).json({ error: 'Project / Site name is required' });
     }
 
-    const id = (req.body.id && String(req.body.id).trim()) || `PRJ-${Date.now()}`;
+    const trimmedName = name.trim();
+    // Check if project with same name already exists in database
+    const existing = db.prepare('SELECT id FROM projects WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))').get(trimmedName);
+    const id = existing ? existing.id : ((req.body.id && String(req.body.id).trim()) || `PRJ-${Date.now()}`);
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
     db.prepare(`
@@ -205,7 +224,7 @@ app.post('/api/projects', (req, res) => {
         notes = excluded.notes
     `).run(
       id,
-      name.trim(),
+      trimmedName,
       client ? client.trim() : 'Direct Client',
       client_phone || '',
       location ? location.trim() : 'Site Location',
@@ -476,7 +495,14 @@ app.get('/api/labor', (req, res) => {
 app.post('/api/labor', (req, res) => {
   try {
     const { name, role, daily_rate, phone, site_assigned, advance_paid, mon_duty, tue_duty, wed_duty, thu_duty, fri_duty, sat_duty, sun_duty, mon_amt, tue_amt, wed_amt, thu_amt, fri_amt, sat_amt, sun_amt, mon_site, tue_site, wed_site, thu_site, fri_site, sat_site, sun_site, total_amount, days_present } = req.body;
-    const id = (req.body.id && String(req.body.id).trim()) || `LAB-${Date.now()}`;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Worker / labour name is required' });
+    }
+
+    const trimmedName = name.trim();
+    // Check if worker with same name already exists in database
+    const existing = db.prepare('SELECT id FROM labor_roster WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))').get(trimmedName);
+    const id = existing ? existing.id : ((req.body.id && String(req.body.id).trim()) || `LAB-${Date.now()}`);
     const rate = Number(daily_rate) || (role === 'Mm' ? 750 : 950);
 
     db.prepare(`
@@ -499,7 +525,7 @@ app.post('/api/labor', (req, res) => {
         mon_amt = excluded.mon_amt, tue_amt = excluded.tue_amt, wed_amt = excluded.wed_amt, thu_amt = excluded.thu_amt, fri_amt = excluded.fri_amt, sat_amt = excluded.sat_amt, sun_amt = excluded.sun_amt,
         mon_site = excluded.mon_site, tue_site = excluded.tue_site, wed_site = excluded.wed_site, thu_site = excluded.thu_site, fri_site = excluded.fri_site, sat_site = excluded.sat_site, sun_site = excluded.sun_site
     `).run(
-      id, name, role || 'Ma', rate, phone || '', site_assigned || 'General Site',
+      id, trimmedName, role || 'Ma', rate, phone || '', site_assigned || 'General Site',
       Number(total_amount) || 0, Number(days_present) || 0, Number(advance_paid) || 0,
       mon_duty || '-', tue_duty || '-', wed_duty || '-', thu_duty || '-', fri_duty || '-', sat_duty || '-', sun_duty || '-',
       Number(mon_amt) || 0, Number(tue_amt) || 0, Number(wed_amt) || 0, Number(thu_amt) || 0, Number(fri_amt) || 0, Number(sat_amt) || 0, Number(sun_amt) || 0,
@@ -1577,11 +1603,14 @@ app.post('/api/sync/push', (req, res) => {
             supervisor = excluded.supervisor,
             notes = excluded.notes
         `);
+        const findProjByName = db.prepare('SELECT id FROM projects WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))');
         for (const p of projects) {
           if (!p.id || !p.name) continue;
+          const existP = findProjByName.get(p.name);
+          const targetId = existP ? existP.id : p.id;
           stmt.run(
-            p.id,
-            p.name,
+            targetId,
+            p.name.trim(),
             p.client || 'Direct Client',
             p.client_phone || '',
             p.location || 'Site Location',
@@ -1673,11 +1702,14 @@ app.post('/api/sync/push', (req, res) => {
             sun_duty = excluded.sun_duty, sun_amt = excluded.sun_amt, sun_site = excluded.sun_site,
             week_label = excluded.week_label
         `);
+        const findLaborByName = db.prepare('SELECT id FROM labor_roster WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))');
         for (const l of labor) {
           if (!l.id || !l.name) continue;
+          const existL = findLaborByName.get(l.name);
+          const targetId = existL ? existL.id : l.id;
           stmt.run(
-            l.id,
-            l.name,
+            targetId,
+            l.name.trim(),
             l.role || 'Ma',
             Number(l.daily_rate) || (l.role === 'Mm' ? 750 : 950),
             l.phone || '',
