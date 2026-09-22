@@ -1,28 +1,95 @@
 {
   "version": "3.0.0",
-  "generated_at": "2026-09-13T05:08:00.799Z",
+  "saved_at": "2026-09-22T15:25:58.919Z",
   "company": {
     "id": 1,
     "name": "GURUBARAN BUILDERS",
-    "tagline": "Quality Construction & Civil Engineering Excellence",
+    "tagline": "Civil Engineering Excellence",
     "gstin": "",
     "pan": null,
-    "phone": "+91 98401 23456",
-    "email": "info@gurubaranbuilders.com",
-    "website": "www.gurubaranbuilders.com",
-    "address": "Chennai, Tamil Nadu",
-    "bank_name": "State Bank of India",
-    "account_name": "GURUBARAN BUILDERS",
-    "account_number": "",
-    "ifsc_code": "",
-    "branch": "Chennai Branch",
-    "terms": ""
+    "phone": "9842751053",
+    "email": null,
+    "website": null,
+    "address": "perundurai sullipalayam ,erode",
+    "bank_name": null,
+    "account_name": null,
+    "account_number": null,
+    "ifsc_code": null,
+    "branch": null,
+    "terms": null
   },
   "projects": [],
-  "materials": [],
+  "materials": [
+    {
+      "id": "MAT-TEST-1790090701433",
+      "date": "2026-09-22",
+      "category": "Cement",
+      "item": "Ultratech 50kg Bags (Updated)",
+      "project_id": null,
+      "project_name": "General Site",
+      "vendor": "Supreme Cement",
+      "amount": 15500,
+      "tax_amount": 0,
+      "payment_mode": "Cash in Hand",
+      "bill_number": "VCH-MAT-TEST-1790090701433",
+      "notes": "",
+      "created_at": "2026-09-22 15:25:01"
+    }
+  ],
   "labor": [],
   "vendors": [],
-  "supplierPayments": [],
-  "transactions": [],
+  "accounts": [
+    {
+      "id": "ACC-01",
+      "name": "Primary Bank Current Account",
+      "account_number": "XXXXXXXXXXXX",
+      "bank": "State Bank of India",
+      "type": "Current Account",
+      "balance": 0
+    },
+    {
+      "id": "ACC-02",
+      "name": "Cash in Hand (HQ)",
+      "account_number": "N/A",
+      "bank": "Cash Vault",
+      "type": "Cash",
+      "balance": 0
+    },
+    {
+      "id": "ACC-03",
+      "name": "Site Petty Cash",
+      "account_number": "N/A",
+      "bank": "Site Cash",
+      "type": "Petty Cash",
+      "balance": 0
+    }
+  ],
+  "transactions": [
+    {
+      "id": "TXN-SPAY-TEST-1790090701440",
+      "date": "2026-09-22",
+      "type": "Expense",
+      "account_id": null,
+      "account_name": null,
+      "category": "Supplier Payment",
+      "amount": 10000,
+      "party": "Supreme Cement",
+      "project": "Automated Test Site",
+      "reference": "Cash in Hand - Payment to Supreme Cement (Automated Test Site)",
+      "created_at": "2026-09-22 15:25:01"
+    }
+  ],
+  "supplierPayments": [
+    {
+      "id": "SPAY-TEST-1790090701440",
+      "vendor": "Supreme Cement",
+      "project_name": "General Site",
+      "amount": 10000,
+      "date": "2026-09-22",
+      "payment_mode": "Cash in Hand",
+      "notes": "Advance settlement",
+      "created_at": "2026-09-22 15:25:01"
+    }
+  ],
   "laborWeeklyHistory": []
 }

@@ -31,15 +31,10 @@
     },
     "files": [
       "**/*",
-      "!android/**",
-      "!*.apk",
       "!dist/**"
     ]
   },
   "dependencies": {
-    "@capacitor/android": "^8.5.1",
-    "@capacitor/cli": "^8.5.1",
-    "@capacitor/core": "^8.5.1",
     "@tailwindcss/vite": "^4.3.3",
     "better-sqlite3": "^13.0.3",
     "clsx": "^2.1.1",

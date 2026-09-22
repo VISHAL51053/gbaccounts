@@ -2,17 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>GURUBARAN BUILDERS - ERP</title>
-
-  <!-- PWA Meta Tags -->
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="GB ERP" />
-  <meta name="theme-color" content="#0b0f19" />
-  <meta name="application-name" content="GB ERP" />
-  <link rel="manifest" href="/manifest.json" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GURUBARAN BUILDERS - Construction ERP & Accounts</title>
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -37,89 +28,44 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <style>
-    * { -webkit-tap-highlight-color: transparent; touch-action: manipulation; box-sizing: border-box; }
+    * { box-sizing: border-box; }
     body {
-      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background-color: #0b0f19;
       color: #f1f5f9;
-      overscroll-behavior: none;
       -webkit-font-smoothing: antialiased;
     }
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    /* Sleek Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: #0f172a; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 6px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-    /* Safe area for iPhone notch/home bar */
-    .safe-top    { padding-top: env(safe-area-inset-top); }
-    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-
-    /* Bottom nav spacing so content isn't hidden behind it on mobile */
-    @media (max-width: 767px) {
-      #mainContent { padding-bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
-    }
-
-    /* Mobile bottom navigation bar */
-    #mobileBottomNav {
-      display: none;
-      position: fixed;
-      bottom: 0; left: 0; right: 0;
-      z-index: 40;
-      background: #0f172a;
-      border-top: 1px solid #1e293b;
-      padding-bottom: env(safe-area-inset-bottom);
-    }
-    @media (max-width: 767px) { #mobileBottomNav { display: flex; } }
-
-    /* Mobile bottom nav buttons */
-    .mob-nav-btn {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 8px 4px 6px;
-      color: #64748b;
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 0.03em;
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      transition: color 0.15s;
-      gap: 3px;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .mob-nav-btn.active { color: #f59e0b; }
-    .mob-nav-btn svg { width: 22px; height: 22px; }
-
-    /* Overflow-more tab button */
-    #moreNavBtn.active { color: #f59e0b; }
-
-    /* More menu drawer */
-    #moreDrawer {
-      display: none;
-      position: fixed;
-      bottom: calc(4.5rem + env(safe-area-inset-bottom));
-      left: 0; right: 0;
-      background: #0f172a;
-      border-top: 1px solid #1e293b;
-      z-index: 39;
-      padding: 8px;
-    }
-    #moreDrawer.open { display: block; }
-
-    /* Make modals scroll on small phones */
+    /* Modals */
     .modal-inner {
       max-height: 90vh;
       overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
     }
 
-    /* Touch-friendly table scroll */
+    /* Tables */
     .tbl-scroll {
       overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Off-canvas sidebar for tablet / mobile */
+    @media (max-width: 767px) {
+      #appSidebar {
+        position: fixed;
+        top: 0; bottom: 0; left: 0;
+        z-index: 50;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease-in-out;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+      }
+      #appSidebar.sidebar-open {
+        transform: translateX(0);
+        display: flex !important;
+      }
     }
 
     @media print {
@@ -195,12 +141,15 @@
   </div>
 
   <!-- ================= TOP NAVIGATION HEADER ================= -->
-  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-md no-print safe-top">
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-md no-print">
     <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between h-14 sm:h-16">
 
-        <!-- Company Logo & Name -->
+        <!-- Mobile Menu Toggle & Company Logo -->
         <div class="flex items-center gap-2 sm:gap-3">
+          <button type="button" onclick="toggleSidebar()" class="md:hidden p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors cursor-pointer mr-1" title="Toggle Navigation Menu">
+            <i data-lucide="menu" class="w-5 h-5"></i>
+          </button>
           <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/20 border border-amber-400/40 shrink-0">
             <i data-lucide="building-2" class="w-5 h-5 sm:w-6 sm:h-6 text-slate-950"></i>
           </div>
@@ -210,11 +159,18 @@
                 GURUBARAN BUILDERS
               </h1>
             </div>
+            <p class="text-[10px] text-amber-400 font-semibold tracking-wider uppercase hidden sm:block mt-0.5">Construction ERP • Personal Owner Portal</p>
           </div>
         </div>
 
         <!-- Header Actions -->
         <div class="flex items-center gap-2">
+          <!-- Database Status Pill -->
+          <div id="dbStatusBadge" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>SQLite Active</span>
+          </div>
+
           <button onclick="openModal('modalProject')" class="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer">
             <i data-lucide="plus-circle" class="w-4 h-4"></i>
             <span>+ Add Site</span>
@@ -232,13 +188,21 @@
     </div>
   </header>
 
+  <!-- Mobile Sidebar Backdrop -->
+  <div id="sidebarBackdrop" onclick="closeSidebar()" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-40 hidden transition-opacity md:hidden"></div>
+
   <!-- ================= MAIN LAYOUT WITH SIDEBAR ================= -->
   <div class="flex-1 flex flex-row max-w-7xl w-full mx-auto">
 
-    <!-- SIDEBAR NAVIGATION (desktop only) -->
-    <aside class="hidden md:flex w-64 bg-slate-900/90 border-r border-slate-800 p-4 flex-col justify-between shrink-0 no-print">
+    <!-- SIDEBAR NAVIGATION (Desktop & Responsive Mobile Off-Canvas) -->
+    <aside id="appSidebar" class="hidden md:flex w-64 bg-slate-900 border-r border-slate-800 p-4 flex-col justify-between shrink-0 no-print">
       <div class="space-y-4">
-        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-2">Navigation</p>
+        <div class="flex items-center justify-between px-2">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Navigation</p>
+          <button type="button" onclick="closeSidebar()" class="md:hidden text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer" title="Close Menu">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
         <nav class="space-y-1">
           <button onclick="switchTab('tab-dashboard')" id="btn-tab-dashboard" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-sm bg-amber-500 text-slate-950 transition-all text-left">
             <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
@@ -877,52 +841,6 @@
     </main>
   </div>
 
-  <!-- ================= MOBILE BOTTOM NAVIGATION ================= -->
-  <!-- "More" drawer (slides up above bottom nav) -->
-  <div id="moreDrawer">
-    <div class="grid grid-cols-2 gap-2 p-2">
-      <button onclick="switchTab('tab-materials-directory'); closeMoreDrawer()" class="mob-nav-btn flex-row gap-2 px-3 py-3 rounded-xl bg-slate-800/80 border border-slate-700/50 text-slate-300 text-xs font-semibold justify-start">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/><rect width="22" height="8" x="1" y="8" rx="1"/></svg>
-        Material Payment
-      </button>
-      <button onclick="switchTab('tab-income-expense'); closeMoreDrawer()" class="mob-nav-btn flex-row gap-2 px-3 py-3 rounded-xl bg-slate-800/80 border border-slate-700/50 text-slate-300 text-xs font-semibold justify-start">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 16V4m0 0L3 8m4-4 4 4"/><path d="M17 8v12m0 0 4-4m-4 4-4-4"/></svg>
-        Payment History
-      </button>
-      <button onclick="switchTab('tab-settings'); closeMoreDrawer()" class="mob-nav-btn flex-row gap-2 px-3 py-3 rounded-xl bg-slate-800/80 border border-slate-700/50 text-slate-300 text-xs font-semibold justify-start">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-        Settings
-      </button>
-      <button onclick="openModal('modalProject'); closeMoreDrawer()" class="mob-nav-btn flex-row gap-2 px-3 py-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-semibold justify-start">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-        New Site
-      </button>
-    </div>
-  </div>
-
-  <!-- Mobile Bottom Tab Bar -->
-  <nav id="mobileBottomNav" class="no-print">
-    <button onclick="switchTab('tab-dashboard'); closeMoreDrawer()" id="mob-btn-dashboard" class="mob-nav-btn active">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-      <span>Home</span>
-    </button>
-    <button onclick="switchTab('tab-projects'); closeMoreDrawer()" id="mob-btn-projects" class="mob-nav-btn">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-      <span>Sites</span>
-    </button>
-    <button onclick="switchTab('tab-labor'); closeMoreDrawer()" id="mob-btn-labor" class="mob-nav-btn">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      <span>Labour</span>
-    </button>
-    <button onclick="switchTab('tab-materials'); closeMoreDrawer()" id="mob-btn-materials" class="mob-nav-btn">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
-      <span>Materials</span>
-    </button>
-    <button id="moreNavBtn" onclick="toggleMoreDrawer()" class="mob-nav-btn">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
-      <span>More</span>
-    </button>
-  </nav>
 
   <!-- ================= MODALS ================= -->
 
@@ -1500,14 +1418,9 @@
         return url;
       }
       if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.protocol.startsWith('http')) {
-        const isCapacitor = window.location.hostname.includes('capacitor') || (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
-        if (!isCapacitor) {
-          if (window.location.port === '5000' || window.location.hostname.includes('onrender.com')) {
-            return `${window.location.origin}/api`;
-          }
-        }
+        return `${window.location.origin}/api`;
       }
-      return 'https://gbaccounts.onrender.com/api';
+      return 'http://localhost:5000/api';
     }
 
     async function apiFetch(url, options = {}) {
@@ -1517,17 +1430,50 @@
       if (options.body && typeof options.body === 'string' && (!options.headers || !options.headers['Content-Type'])) {
         defaultHeaders['Content-Type'] = 'application/json';
       }
-      return fetch(url, {
-        ...options,
-        headers: {
-          ...defaultHeaders,
-          ...(options.headers || {})
+      try {
+        const res = await fetch(url, {
+          ...options,
+          headers: {
+            ...defaultHeaders,
+            ...(options.headers || {})
+          }
+        });
+        if (res.ok) {
+          isSQLiteOnline = true;
+          updateSyncBadge(true);
         }
-      });
+        return res;
+      } catch (err) {
+        isSQLiteOnline = false;
+        updateSyncBadge(false);
+        throw err;
+      }
     }
 
     let API_URL = getApiUrl();
-    let isSQLiteOnline = false;
+    let isSQLiteOnline = true;
+    let lastServerFingerprint = '';
+    const closedAccordions = new Set();
+
+    function handleAccordionToggle(key, isOpen) {
+      if (!key) return;
+      if (!isOpen) closedAccordions.add(key);
+      else closedAccordions.delete(key);
+    }
+
+    function toggleSidebar() {
+      const sidebar = document.getElementById('appSidebar');
+      const backdrop = document.getElementById('sidebarBackdrop');
+      if (sidebar) sidebar.classList.toggle('sidebar-open');
+      if (backdrop) backdrop.classList.toggle('hidden');
+    }
+
+    function closeSidebar() {
+      const sidebar = document.getElementById('appSidebar');
+      const backdrop = document.getElementById('sidebarBackdrop');
+      if (sidebar) sidebar.classList.remove('sidebar-open');
+      if (backdrop) backdrop.classList.add('hidden');
+    }
 
     let appData = {
       company: {
@@ -1575,7 +1521,7 @@
           }
         }
 
-        const filterDeleted = (list) => (list || []).filter(item => !isItemDeleted(item));
+        const filterDeleted = (list) => deduplicateById((list || []).filter(item => !isItemDeleted(item)));
         appData.projects = filterDeleted(appData.projects);
         appData.materials = filterDeleted(appData.materials);
         appData.labor = filterDeleted(appData.labor);
@@ -1689,21 +1635,38 @@
       return false;
     }
 
+    function deduplicateById(list) {
+      if (!Array.isArray(list)) return [];
+      const seen = new Set();
+      const result = [];
+      for (const item of list) {
+        if (!item) continue;
+        const rawId = item.id ? String(item.id).trim() : null;
+        if (rawId) {
+          if (seen.has(rawId)) continue;
+          seen.add(rawId);
+        }
+        result.push(item);
+      }
+      return result;
+    }
+
     function mergeById(localArr, serverArr) {
       const map = new Map();
       (serverArr || []).forEach(item => {
         if (item && item.id && !isItemDeleted(item)) {
-          map.set(item.id, item);
+          map.set(String(item.id).trim(), item);
         }
       });
       (localArr || []).forEach(item => {
         if (item && item.id && !isItemDeleted(item)) {
-          if (!map.has(item.id)) {
-            map.set(item.id, item);
+          const id = String(item.id).trim();
+          if (!map.has(id)) {
+            map.set(id, item);
           }
         }
       });
-      return Array.from(map.values()).filter(item => !isItemDeleted(item));
+      return deduplicateById(Array.from(map.values()).filter(item => !isItemDeleted(item)));
     }
 
     function mergeVendors(localVendors, serverVendors) {
@@ -1779,13 +1742,13 @@
             if (serverData.company && serverData.company.name) {
               appData.company = serverData.company;
             }
-            appData.projects = serverProjects.filter(p => !isItemDeleted(p));
-            appData.materials = serverMaterials.filter(m => !isItemDeleted(m));
-            appData.labor = serverLabor.filter(l => !isItemDeleted(l));
-            appData.vendors = serverVendors.filter(v => !isItemDeleted(v));
-            appData.transactions = serverTxns.filter(t => !isItemDeleted(t));
-            appData.supplierPayments = serverSuppPay.filter(s => !isItemDeleted(s));
-            appData.laborWeeklyHistory = serverLaborHistory.filter(h => !isItemDeleted(h));
+            appData.projects = deduplicateById(serverProjects.filter(p => !isItemDeleted(p)));
+            appData.materials = deduplicateById(serverMaterials.filter(m => !isItemDeleted(m)));
+            appData.labor = deduplicateById(serverLabor.filter(l => !isItemDeleted(l)));
+            appData.vendors = deduplicateById(serverVendors.filter(v => !isItemDeleted(v)));
+            appData.transactions = deduplicateById(serverTxns.filter(t => !isItemDeleted(t)));
+            appData.supplierPayments = deduplicateById(serverSuppPay.filter(s => !isItemDeleted(s)));
+            appData.laborWeeklyHistory = deduplicateById(serverLaborHistory.filter(h => !isItemDeleted(h)));
             if (serverAccounts.length > 0) appData.accounts = serverAccounts;
             saveLocalState();
             renderAll();
@@ -1825,9 +1788,15 @@
             } catch(e) {}
           }
 
-          const activeTag = document.activeElement ? document.activeElement.tagName : '';
-          if (activeTag !== 'INPUT' && activeTag !== 'SELECT' && activeTag !== 'TEXTAREA') {
-            renderAll();
+          const serverFingerprint = `${serverCount}_${serverMaterials.length}_${serverLabor.length}_${serverTxns.length}_${serverSuppPay.length}_${serverProjects.length}_${serverData.company?.name || ''}_${(serverMaterials[0] || {}).amount}_${(serverLabor[0] || {}).total_amount}_${(serverTxns[0] || {}).amount}_${(serverSuppPay[0] || {}).amount}`;
+          const dataChanged = (serverFingerprint !== lastServerFingerprint);
+          lastServerFingerprint = serverFingerprint;
+
+          if (dataChanged) {
+            const activeTag = document.activeElement ? document.activeElement.tagName : '';
+            if (activeTag !== 'INPUT' && activeTag !== 'SELECT' && activeTag !== 'TEXTAREA') {
+              renderAll();
+            }
           }
 
           return true;
@@ -1945,7 +1914,7 @@
       }
     }
 
-    // --- Tab Navigation (syncs both sidebar and mobile bottom nav) ---
+    // --- Tab Navigation (syncs desktop sidebar & mobile drawer) ---
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       const activeEl = document.getElementById(tabId);
@@ -1962,38 +1931,14 @@
         activeBtn.classList.add('bg-amber-500', 'text-slate-950', 'font-bold');
       }
 
-      // Sync mobile bottom nav
-      document.querySelectorAll('.mob-nav-btn').forEach(btn => btn.classList.remove('active'));
-      const mobMap = {
-        'tab-dashboard': 'mob-btn-dashboard',
-        'tab-projects': 'mob-btn-projects',
-        'tab-labor': 'mob-btn-labor',
-        'tab-materials': 'mob-btn-materials'
-      };
-      if (mobMap[tabId]) {
-        const mobBtn = document.getElementById(mobMap[tabId]);
-        if (mobBtn) mobBtn.classList.add('active');
-      }
+      // Close mobile sidebar if open
+      closeSidebar();
 
-      // Scroll to top on mobile
+      // Scroll to top
       const mc = document.getElementById('mainContent');
       if (mc) mc.scrollTop = 0;
 
       safeLucideIcons();
-    }
-
-    // Mobile "More" drawer toggle
-    function toggleMoreDrawer() {
-      const drawer = document.getElementById('moreDrawer');
-      const moreBtn = document.getElementById('moreNavBtn');
-      drawer.classList.toggle('open');
-      moreBtn.classList.toggle('active', drawer.classList.contains('open'));
-    }
-    function closeMoreDrawer() {
-      const drawer = document.getElementById('moreDrawer');
-      const moreBtn = document.getElementById('moreNavBtn');
-      if (drawer) drawer.classList.remove('open');
-      if (moreBtn) moreBtn.classList.remove('active');
     }
 
     let activeMaterialSupplierFilter = 'ALL';
@@ -3731,13 +3676,16 @@
     async function deleteSupplierPayment(id) {
       if (!id) return;
       if (!confirm('Permanently delete this payment settlement record?')) return;
-      markIdAsDeleted(id);
-      appData.supplierPayments = (appData.supplierPayments || []).filter(p => p.id !== id);
+      const cleanId = String(id).trim();
+      markIdAsDeleted(cleanId);
+      markIdAsDeleted(`TXN-${cleanId}`);
+      appData.supplierPayments = (appData.supplierPayments || []).filter(p => p.id !== cleanId && p.id !== id);
+      appData.transactions = (appData.transactions || []).filter(t => t.id !== cleanId && t.id !== `TXN-${cleanId}`);
       saveLocalState();
       renderAll();
       try {
         const apiUrl = getApiUrl();
-        await apiFetch(`${apiUrl}/supplier-payments/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        await apiFetch(`${apiUrl}/supplier-payments/${encodeURIComponent(cleanId)}`, { method: 'DELETE' });
         showSyncToast('Payment settlement record deleted.');
       } catch(e) {
         console.warn('Error deleting supplier payment:', e);
@@ -3860,88 +3808,51 @@
         (m.project_name || m.project || 'General Site').toLowerCase() === (siteName || '').toLowerCase()
       );
 
-      const select = document.getElementById('editMatProjectSelect');
-      if (select) {
-        select.innerHTML = '';
-        (appData.projects || []).forEach(p => {
-          const opt = document.createElement('option');
-          opt.value = p.name;
-          opt.textContent = p.name;
-          if (p.name.toLowerCase() === (siteName || '').toLowerCase()) opt.selected = true;
-          select.appendChild(opt);
-        });
-        if (!appData.projects.some(p => p.name.toLowerCase() === (siteName || '').toLowerCase())) {
-          const opt = document.createElement('option');
-          opt.value = siteName;
-          opt.textContent = siteName;
-          opt.selected = true;
-          select.prepend(opt);
-        }
+      if (mats.length === 1) {
+        openEditSingleMaterialModal(mats[0].id);
+        return;
       }
 
-      document.getElementById('editMatOriginalVendor').value = suppName;
-      document.getElementById('editMatOriginalSite').value = siteName;
-      document.getElementById('editMatVendor').value = suppName;
-
-      if (mats.length === 1) {
-        const m = mats[0];
-        document.getElementById('editMatId').value = m.id;
-        document.getElementById('editMatItem').value = m.item || '';
-        document.getElementById('editMatCategory').value = m.category || 'Raw Materials';
-        document.getElementById('editMatDate').value = m.date || new Date().toISOString().split('T')[0];
-        document.getElementById('editMatAmount').value = m.amount || 0;
-        document.getElementById('editMatBillNumber').value = m.bill_number || m.billNumber || '';
-        document.getElementById('editMatMultiRecordsList').classList.add('hidden');
-        document.getElementById('editMatSubtitle').textContent = `Editing delivery for ${suppName} at ${siteName}`;
-      } else if (mats.length > 1) {
-        const m = mats[0];
-        const totalSiteAmt = mats.reduce((s, x) => s + (Number(x.amount) || 0), 0);
-        document.getElementById('editMatId').value = mats.map(x => x.id).join(',');
-        document.getElementById('editMatItem').value = mats.map(x => x.item).join(', ');
-        document.getElementById('editMatCategory').value = m.category || 'Raw Materials';
-        document.getElementById('editMatDate').value = m.date || new Date().toISOString().split('T')[0];
-        document.getElementById('editMatAmount').value = totalSiteAmt;
-        document.getElementById('editMatBillNumber').value = m.bill_number || m.billNumber || '';
-        
+      if (mats.length > 1) {
+        // Open the first voucher for editing, and list all other vouchers distinctly
+        openEditSingleMaterialModal(mats[0].id);
         const container = document.getElementById('editMatMultiRecordsContainer');
         if (container) {
           container.innerHTML = mats.map((x) => `
-            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-800/90 border border-slate-700/60">
+            <div class="flex items-center justify-between p-2 rounded-lg ${x.id === mats[0].id ? 'bg-sky-950/60 border border-sky-500/40' : 'bg-slate-800/90 border border-slate-700/60'}">
               <div>
-                <div class="font-bold text-white">${escapeHtml(x.item || 'Material Delivery')}</div>
-                <div class="text-[10px] text-slate-400">${x.date || ''} • ${escapeHtml(x.category || 'Raw Materials')}</div>
+                <div class="font-bold text-white text-xs">${escapeHtml(x.item || 'Material Delivery')} ${x.id === mats[0].id ? '<span class="text-[10px] text-sky-400 font-normal">(Currently Editing)</span>' : ''}</div>
+                <div class="text-[10px] text-slate-400">${x.date || ''} • ${escapeHtml(x.category || 'Raw Materials')} • Voucher: ${escapeHtml(x.bill_number || x.billNumber || '-')}</div>
               </div>
-              <div class="flex items-center gap-2">
-                <span class="font-mono font-bold text-emerald-400">${formatINR(x.amount)}</span>
-                <button type="button" onclick="openEditSingleMaterialModal('${x.id}')" class="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 text-[10px] font-bold cursor-pointer">Edit Single</button>
+              <div class="flex items-center gap-1.5">
+                <span class="font-mono font-bold text-emerald-400 text-xs">${formatINR(x.amount)}</span>
+                ${x.id !== mats[0].id ? `
+                  <button type="button" onclick="openEditSingleMaterialModal('${x.id}')" class="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 text-[10px] font-bold cursor-pointer">Edit</button>
+                  <button type="button" onclick="deleteMaterial('${x.id}')" class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[10px] font-bold cursor-pointer">Delete</button>
+                ` : ''}
               </div>
             </div>
           `).join('');
+          document.getElementById('editMatMultiRecordsList').classList.remove('hidden');
+          document.getElementById('editMatSubtitle').textContent = `Editing voucher for ${suppName} at ${siteName} (${mats.length} total deliveries)`;
         }
-        document.getElementById('editMatMultiRecordsList').classList.remove('hidden');
-        document.getElementById('editMatSubtitle').textContent = `${mats.length} deliveries for ${suppName} at ${siteName}`;
-      } else {
-        document.getElementById('editMatId').value = '';
-        document.getElementById('editMatItem').value = 'Raw Materials';
-        document.getElementById('editMatCategory').value = 'Raw Materials';
-        document.getElementById('editMatDate').value = new Date().toISOString().split('T')[0];
-        document.getElementById('editMatAmount').value = 0;
-        document.getElementById('editMatBillNumber').value = '';
-        document.getElementById('editMatMultiRecordsList').classList.add('hidden');
+        return;
       }
 
-      openModal('modalEditMaterial');
-      safeLucideIcons();
+      // No materials yet, open create
+      openModalMaterialForSupplier(suppName, 'Raw Materials');
     }
 
     function openEditSingleMaterialModal(matId) {
       const m = (appData.materials || []).find(x => x.id === matId);
       if (!m) return;
 
+      const currentSite = m.project_name || m.project || 'General Site';
+      const suppName = m.vendor || '';
+
       const select = document.getElementById('editMatProjectSelect');
       if (select) {
         select.innerHTML = '';
-        const currentSite = m.project_name || m.project || 'General Site';
         (appData.projects || []).forEach(p => {
           const opt = document.createElement('option');
           opt.value = p.name;
@@ -3959,16 +3870,44 @@
       }
 
       document.getElementById('editMatId').value = m.id;
-      document.getElementById('editMatOriginalVendor').value = m.vendor || '';
-      document.getElementById('editMatOriginalSite').value = m.project_name || m.project || 'General Site';
-      document.getElementById('editMatVendor').value = m.vendor || '';
+      document.getElementById('editMatOriginalVendor').value = suppName;
+      document.getElementById('editMatOriginalSite').value = currentSite;
+      document.getElementById('editMatVendor').value = suppName;
       document.getElementById('editMatItem').value = m.item || '';
       document.getElementById('editMatCategory').value = m.category || 'Raw Materials';
       document.getElementById('editMatDate').value = m.date || new Date().toISOString().split('T')[0];
       document.getElementById('editMatAmount').value = m.amount || 0;
       document.getElementById('editMatBillNumber').value = m.bill_number || m.billNumber || '';
-      document.getElementById('editMatMultiRecordsList').classList.add('hidden');
-      document.getElementById('editMatSubtitle').textContent = `Editing delivery ${m.id} (${m.item})`;
+
+      // Check if sibling deliveries exist for this supplier and site
+      const siblingMats = (appData.materials || []).filter(x => 
+        (x.vendor || '').toLowerCase() === suppName.toLowerCase() &&
+        (x.project_name || x.project || 'General Site').toLowerCase() === currentSite.toLowerCase()
+      );
+
+      const multiList = document.getElementById('editMatMultiRecordsList');
+      const container = document.getElementById('editMatMultiRecordsContainer');
+      if (siblingMats.length > 1 && container && multiList) {
+        container.innerHTML = siblingMats.map(x => `
+          <div class="flex items-center justify-between p-2 rounded-lg ${x.id === m.id ? 'bg-sky-950/60 border border-sky-500/40' : 'bg-slate-800/90 border border-slate-700/60'}">
+            <div>
+              <div class="font-bold text-white text-xs">${escapeHtml(x.item || 'Material Delivery')} ${x.id === m.id ? '<span class="text-[10px] text-sky-400 font-normal">(Currently Editing)</span>' : ''}</div>
+              <div class="text-[10px] text-slate-400">${x.date || ''} • ${escapeHtml(x.category || 'Raw Materials')} • Voucher: ${escapeHtml(x.bill_number || x.billNumber || '-')}</div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="font-mono font-bold text-emerald-400 text-xs">${formatINR(x.amount)}</span>
+              ${x.id !== m.id ? `
+                <button type="button" onclick="openEditSingleMaterialModal('${x.id}')" class="px-2 py-0.5 rounded bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 text-[10px] font-bold cursor-pointer">Edit</button>
+              ` : ''}
+            </div>
+          </div>
+        `).join('');
+        multiList.classList.remove('hidden');
+        document.getElementById('editMatSubtitle').textContent = `Editing voucher ${m.bill_number || m.id} for ${suppName} at ${currentSite}`;
+      } else if (multiList) {
+        multiList.classList.add('hidden');
+        document.getElementById('editMatSubtitle').textContent = `Editing delivery ${m.bill_number || m.id} (${m.item})`;
+      }
 
       openModal('modalEditMaterial');
       safeLucideIcons();
@@ -4003,40 +3942,9 @@
       const project_id = targetProj ? targetProj.id : null;
 
       try {
-        if (idVal.includes(',')) {
-          const ids = idVal.split(',');
-          const firstId = ids[0];
+        if (idVal) {
           const payload = {
-            date,
-            category,
-            item,
-            project_id,
-            project_name,
-            vendor,
-            amount,
-            bill_number
-          };
-
-          const mat = (appData.materials || []).find(m => m.id === firstId);
-          if (mat) {
-            Object.assign(mat, payload);
-          }
-          const toDeleteIds = new Set(ids.slice(1));
-          appData.materials = (appData.materials || []).filter(m => !toDeleteIds.has(m.id));
-          saveLocalState();
-          renderAll();
-
-          if (isSQLiteOnline) {
-            await apiFetch(`${API_URL}/materials/${encodeURIComponent(firstId)}`, {
-              method: 'PUT',
-              body: JSON.stringify(payload)
-            });
-            for (let i = 1; i < ids.length; i++) {
-              await apiFetch(`${API_URL}/materials/${encodeURIComponent(ids[i])}`, { method: 'DELETE' });
-            }
-          }
-        } else if (idVal) {
-          const payload = {
+            id: idVal,
             date,
             category,
             item,
@@ -4049,17 +3957,15 @@
 
           const mat = (appData.materials || []).find(m => m.id === idVal);
           if (mat) {
-            Object.assign(mat, payload);
+            Object.assign(mat, payload, { billNumber: bill_number });
           }
           saveLocalState();
           renderAll();
 
-          if (isSQLiteOnline) {
-            await apiFetch(`${API_URL}/materials/${encodeURIComponent(idVal)}`, {
-              method: 'PUT',
-              body: JSON.stringify(payload)
-            });
-          }
+          await apiFetch(`${API_URL}/materials/${encodeURIComponent(idVal)}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload)
+          });
         } else {
           const newId = 'MAT-' + Date.now();
           unmarkIdAsDeleted(newId);
@@ -4079,16 +3985,14 @@
           saveLocalState();
           renderAll();
 
-          if (isSQLiteOnline) {
-            await apiFetch(`${API_URL}/materials`, {
-              method: 'POST',
-              body: JSON.stringify(payload)
-            });
-          }
+          await apiFetch(`${API_URL}/materials`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
         }
 
         closeModal('modalEditMaterial');
-        showSyncToast('✅ Material details and amount updated successfully!');
+        showSyncToast('✅ Material delivery updated successfully in SQLite!');
       } catch (err) {
         console.error('Error saving material edit:', err);
         alert('Failed to save material changes: ' + (err.message || err));
@@ -4128,12 +4032,13 @@
       }
 
       const newId = 'SPAY-' + Date.now();
-      const newTxnId = 'TXN-SPAY-' + Date.now();
+      const newTxnId = 'TXN-' + newId;
       unmarkIdAsDeleted(newId);
       unmarkIdAsDeleted(newTxnId);
 
       const payload = {
         id: newId,
+        txnId: newTxnId,
         vendor,
         project_name,
         amount,
@@ -4153,7 +4058,7 @@
         amount,
         party: vendor,
         project: project_name,
-        reference: `Payment to ${vendor} (${project_name})`
+        reference: `${payment_mode} - Payment to ${vendor} (${project_name})`
       });
       saveLocalState();
       renderAll();
@@ -4162,12 +4067,10 @@
       if (e && e.target && typeof e.target.reset === 'function') e.target.reset();
 
       try {
-        if (isSQLiteOnline) {
-          await apiFetch(`${API_URL}/supplier-payments`, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-          });
-        }
+        await apiFetch(`${getApiUrl()}/supplier-payments`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
       } catch (err) {
         console.warn('Backend supplier payment sync deferred:', err);
       }
@@ -4199,12 +4102,10 @@
       e.target.reset();
 
       try {
-        if (isSQLiteOnline) {
-          await apiFetch(`${API_URL}/transactions`, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-          });
-        }
+        await apiFetch(`${getApiUrl()}/transactions`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
       } catch (err) {
         console.warn('Backend income sync deferred:', err);
       }
@@ -4235,12 +4136,10 @@
       e.target.reset();
 
       try {
-        if (isSQLiteOnline) {
-          await apiFetch(`${API_URL}/transactions`, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-          });
-        }
+        await apiFetch(`${getApiUrl()}/transactions`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
       } catch (err) {
         console.warn('Backend expense sync deferred:', err);
       }
@@ -4857,11 +4756,13 @@
             const totalCost = suppMats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
             const suppTotalPaid = (appData.supplierPayments || []).filter(p => (p.vendor || '').toLowerCase() === supp.name.toLowerCase()).reduce((s, p) => s + (Number(p.amount) || 0), 0);
             const suppTotalBalance = totalCost - suppTotalPaid;
+            const accKey = 'supp-mat-' + supp.name;
+            const isFolderOpen = !closedAccordions.has(accKey);
 
             return `
               <div class="bg-slate-900/90 border border-slate-800 rounded-2xl shadow-md overflow-hidden transition-all hover:border-slate-700">
                 <!-- Folder Header / Accordion Summary -->
-                <details class="group" open>
+                <details class="group" ${isFolderOpen ? 'open' : ''} ontoggle="handleAccordionToggle('${escapeHtml(accKey)}', this.open)">
                   <summary class="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-800/40 hover:bg-slate-800/70 cursor-pointer select-none border-b border-slate-800 gap-3">
                     <div class="flex items-center gap-3">
                       <div class="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
@@ -5040,10 +4941,12 @@
 
             const siteRows = Object.values(siteGroupMap);
             const suppTotalBalance = totalCost - suppTotalPaid;
+            const ledgerKey = 'supp-ledger-' + supp.name;
+            const isLedgerOpen = !closedAccordions.has(ledgerKey);
 
             return `
               <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-md overflow-hidden transition-all hover:border-slate-700">
-                <details class="group" open>
+                <details class="group" ${isLedgerOpen ? 'open' : ''} ontoggle="handleAccordionToggle('${escapeHtml(ledgerKey)}', this.open)">
                   <summary class="flex flex-col sm:flex-row sm:items-center justify-between p-4.5 bg-slate-800/50 hover:bg-slate-800/80 cursor-pointer select-none border-b border-slate-800 gap-3">
                     <div class="flex items-center gap-3.5">
                       <div class="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
@@ -5287,10 +5190,12 @@
       if (appData.vendors.length === 0) {
         vndList.innerHTML = '<div class="col-span-2 text-center py-10 text-slate-500 text-sm">No suppliers added yet. Click "+ Add Vendor" to add one.</div>';
       } else {
+        const uniquePayments = deduplicateById(appData.supplierPayments || []);
+        const uniqueMaterials = deduplicateById(appData.materials || []);
         vndList.innerHTML = appData.vendors.map(v => {
-          const suppMats = (appData.materials || []).filter(m => (m.vendor || '').toLowerCase() === v.name.toLowerCase());
+          const suppMats = uniqueMaterials.filter(m => (m.vendor || '').toLowerCase() === v.name.toLowerCase());
           const totalCost = suppMats.reduce((s, m) => s + (Number(m.amount) || 0), 0);
-          const suppPaid = (appData.supplierPayments || []).filter(p => (p.vendor || '').toLowerCase() === v.name.toLowerCase()).reduce((s, p) => s + (Number(p.amount) || 0), 0);
+          const suppPaid = uniquePayments.filter(p => (p.vendor || '').toLowerCase() === v.name.toLowerCase()).reduce((s, p) => s + (Number(p.amount) || 0), 0);
           const suppBalance = totalCost - suppPaid;
           return `
             <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl space-y-3 hover:border-slate-700 transition-all shadow-md">

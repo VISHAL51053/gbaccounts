@@ -187,12 +187,22 @@ app.post('/api/projects', (req, res) => {
       return res.status(400).json({ error: 'Project / Site name is required' });
     }
 
-    const id = `PRJ-${Math.floor(100 + Math.random() * 900)}`;
+    const id = (req.body.id && String(req.body.id).trim()) || `PRJ-${Date.now()}`;
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
     db.prepare(`
       INSERT INTO projects (id, name, client, client_phone, location, type, total_area_sqft, budget, spent, progress, status, supervisor, notes, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 10, 'In Progress', ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        client = excluded.client,
+        client_phone = excluded.client_phone,
+        location = excluded.location,
+        type = excluded.type,
+        total_area_sqft = excluded.total_area_sqft,
+        budget = excluded.budget,
+        supervisor = excluded.supervisor,
+        notes = excluded.notes
     `).run(
       id,
       name.trim(),
@@ -257,12 +267,24 @@ app.get('/api/materials', (req, res) => {
 app.post('/api/materials', (req, res) => {
   try {
     const { date, category, item, project_id, project_name, vendor, amount, tax_amount, payment_mode, bill_number, notes } = req.body;
-    const id = `MAT-${Date.now().toString().slice(-5)}`;
+    const id = (req.body.id && String(req.body.id).trim()) || `MAT-${Date.now()}`;
     
     const insertMat = db.transaction(() => {
       db.prepare(`
         INSERT INTO materials (id, date, category, item, project_id, project_name, vendor, amount, tax_amount, payment_mode, bill_number, notes)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          date = excluded.date,
+          category = excluded.category,
+          item = excluded.item,
+          project_id = excluded.project_id,
+          project_name = excluded.project_name,
+          vendor = excluded.vendor,
+          amount = excluded.amount,
+          tax_amount = excluded.tax_amount,
+          payment_mode = excluded.payment_mode,
+          bill_number = excluded.bill_number,
+          notes = excluded.notes
       `).run(
         id, 
         date || new Date().toISOString().split('T')[0], 
@@ -380,8 +402,8 @@ app.get('/api/supplier-payments', (req, res) => {
 
 app.post('/api/supplier-payments', (req, res) => {
   try {
-    const { vendor, project_name, amount, date, payment_mode, notes } = req.body;
-    const id = `SPAY-${Date.now().toString().slice(-5)}`;
+    const { vendor, project_name, amount, date, payment_mode, notes, txnId } = req.body;
+    const id = (req.body.id && String(req.body.id).trim()) || `SPAY-${Date.now()}`;
     const amt = Number(amount) || 0;
     const payDate = date || new Date().toISOString().split('T')[0];
     const mode = payment_mode || 'Cash in Hand';
@@ -392,14 +414,27 @@ app.post('/api/supplier-payments', (req, res) => {
       db.prepare(`
         INSERT INTO supplier_payments (id, vendor, project_name, amount, date, payment_mode, notes)
         VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          vendor = excluded.vendor,
+          project_name = excluded.project_name,
+          amount = excluded.amount,
+          date = excluded.date,
+          payment_mode = excluded.payment_mode,
+          notes = excluded.notes
       `).run(id, vendName, siteName, amt, payDate, mode, notes || '');
 
-      // Also record in transactions for financial accounting integration
-      const txnId = `TXN-SPAY-${Date.now().toString().slice(-4)}`;
+      // Also record in transactions with deterministic ID to prevent duplication
+      const transactionId = txnId || `TXN-${id}`;
       db.prepare(`
         INSERT INTO transactions (id, date, type, category, amount, party, project, reference)
         VALUES (?, ?, 'Expense', 'Supplier Payment', ?, ?, ?, ?)
-      `).run(txnId, payDate, amt, vendName, siteName, `${mode} - Payment to ${vendName} (${siteName})`);
+        ON CONFLICT(id) DO UPDATE SET
+          date = excluded.date,
+          amount = excluded.amount,
+          party = excluded.party,
+          project = excluded.project,
+          reference = excluded.reference
+      `).run(transactionId, payDate, amt, vendName, siteName, `${mode} - Payment to ${vendName} (${siteName})`);
     });
 
     insertPay();
@@ -417,6 +452,7 @@ app.delete('/api/supplier-payments/:id', (req, res) => {
     const rawId = req.params.id;
     const decodedId = decodeURIComponent(rawId).trim();
     db.prepare('DELETE FROM supplier_payments WHERE id = ? OR id = ?').run(rawId, decodedId);
+    db.prepare('DELETE FROM transactions WHERE id = ? OR id = ? OR id = ? OR id = ?').run(rawId, decodedId, `TXN-${rawId}`, `TXN-${decodedId}`);
     try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
     res.json({ success: true, deletedId: decodedId });
   } catch (err) {
@@ -439,14 +475,36 @@ app.get('/api/labor', (req, res) => {
 
 app.post('/api/labor', (req, res) => {
   try {
-    const { name, role, daily_rate, phone, site_assigned, advance_paid } = req.body;
-    const id = `LAB-${Date.now().toString().slice(-3)}`;
+    const { name, role, daily_rate, phone, site_assigned, advance_paid, mon_duty, tue_duty, wed_duty, thu_duty, fri_duty, sat_duty, sun_duty, mon_amt, tue_amt, wed_amt, thu_amt, fri_amt, sat_amt, sun_amt, mon_site, tue_site, wed_site, thu_site, fri_site, sat_site, sun_site, total_amount, days_present } = req.body;
+    const id = (req.body.id && String(req.body.id).trim()) || `LAB-${Date.now()}`;
     const rate = Number(daily_rate) || (role === 'Mm' ? 750 : 950);
 
     db.prepare(`
-      INSERT INTO labor_roster (id, name, role, daily_rate, phone, site_assigned, day_name, duty, total_amount, days_present, advance_paid, status, mon_duty, tue_duty, wed_duty, thu_duty, fri_duty, sat_duty, sun_duty, mon_amt, tue_amt, wed_amt, thu_amt, fri_amt, sat_amt, sun_amt)
-      VALUES (?, ?, ?, ?, ?, ?, '', '-', 0, 0, ?, 'Active', '-', '-', '-', '-', '-', '-', '-', 0, 0, 0, 0, 0, 0, 0)
-    `).run(id, name, role || 'Ma', rate, phone || '', site_assigned || 'General Site', advance_paid || 0);
+      INSERT INTO labor_roster (
+        id, name, role, daily_rate, phone, site_assigned, day_name, duty, total_amount, days_present, advance_paid, status,
+        mon_duty, tue_duty, wed_duty, thu_duty, fri_duty, sat_duty, sun_duty,
+        mon_amt, tue_amt, wed_amt, thu_amt, fri_amt, sat_amt, sun_amt,
+        mon_site, tue_site, wed_site, thu_site, fri_site, sat_site, sun_site
+      ) VALUES (?, ?, ?, ?, ?, ?, '', '-', ?, ?, ?, 'Active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        role = excluded.role,
+        daily_rate = excluded.daily_rate,
+        phone = excluded.phone,
+        site_assigned = excluded.site_assigned,
+        total_amount = excluded.total_amount,
+        days_present = excluded.days_present,
+        advance_paid = excluded.advance_paid,
+        mon_duty = excluded.mon_duty, tue_duty = excluded.tue_duty, wed_duty = excluded.wed_duty, thu_duty = excluded.thu_duty, fri_duty = excluded.fri_duty, sat_duty = excluded.sat_duty, sun_duty = excluded.sun_duty,
+        mon_amt = excluded.mon_amt, tue_amt = excluded.tue_amt, wed_amt = excluded.wed_amt, thu_amt = excluded.thu_amt, fri_amt = excluded.fri_amt, sat_amt = excluded.sat_amt, sun_amt = excluded.sun_amt,
+        mon_site = excluded.mon_site, tue_site = excluded.tue_site, wed_site = excluded.wed_site, thu_site = excluded.thu_site, fri_site = excluded.fri_site, sat_site = excluded.sat_site, sun_site = excluded.sun_site
+    `).run(
+      id, name, role || 'Ma', rate, phone || '', site_assigned || 'General Site',
+      Number(total_amount) || 0, Number(days_present) || 0, Number(advance_paid) || 0,
+      mon_duty || '-', tue_duty || '-', wed_duty || '-', thu_duty || '-', fri_duty || '-', sat_duty || '-', sun_duty || '-',
+      Number(mon_amt) || 0, Number(tue_amt) || 0, Number(wed_amt) || 0, Number(thu_amt) || 0, Number(fri_amt) || 0, Number(sat_amt) || 0, Number(sun_amt) || 0,
+      mon_site || site_assigned || '', tue_site || site_assigned || '', wed_site || site_assigned || '', thu_site || site_assigned || '', fri_site || site_assigned || '', sat_site || site_assigned || '', sun_site || site_assigned || ''
+    );
 
     const created = db.prepare('SELECT * FROM labor_roster WHERE id = ?').get(id);
     try { saveSnapshot(); } catch(e) {}
@@ -494,7 +552,7 @@ app.put('/api/labor/:id', (req, res) => {
       updates.day_name || 'Monday',
       updates.duty || '1 Duty',
       Number(updates.total_amount) || 0,
-      Number(updates.days_present) || 1,
+      (updates.days_present !== undefined && updates.days_present !== null) ? Number(updates.days_present) : 0,
       Number(updates.advance_paid) || 0,
       updates.mon_duty || '-', Number(updates.mon_amt) || 0, updates.mon_site || updates.site_assigned || '',
       updates.tue_duty || '-', Number(updates.tue_amt) || 0, updates.tue_site || updates.site_assigned || '',
@@ -1302,10 +1360,19 @@ app.get('/api/vendors', (req, res) => {
 app.post('/api/vendors', (req, res) => {
   try {
     const { name, role, contact_person, phone, category, gstin, address, balance_due } = req.body;
-    const id = `VND-${Date.now().toString().slice(-4)}`;
+    const id = (req.body.id && String(req.body.id).trim()) || `VND-${Date.now()}`;
     db.prepare(`
       INSERT INTO vendors (id, name, role, contact_person, phone, category, gstin, address, balance_due)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        name = excluded.name,
+        role = excluded.role,
+        contact_person = excluded.contact_person,
+        phone = excluded.phone,
+        category = excluded.category,
+        gstin = excluded.gstin,
+        address = excluded.address,
+        balance_due = excluded.balance_due
     `).run(id, name, role || category || 'Raw Materials', contact_person || '', phone || '', category || role || 'Raw Materials', gstin || '', address || '', balance_due || 0);
 
     const created = db.prepare('SELECT * FROM vendors WHERE id = ?').get(id);
@@ -1348,11 +1415,19 @@ app.get('/api/transactions', (req, res) => {
 app.post('/api/transactions', (req, res) => {
   try {
     const { type, category, amount, party, project, reference, date } = req.body;
-    const id = `TXN-${Date.now().toString().slice(-5)}`;
+    const id = (req.body.id && String(req.body.id).trim()) || `TXN-${Date.now()}`;
     
     db.prepare(`
       INSERT INTO transactions (id, date, type, category, amount, party, project, reference)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        date = excluded.date,
+        type = excluded.type,
+        category = excluded.category,
+        amount = excluded.amount,
+        party = excluded.party,
+        project = excluded.project,
+        reference = excluded.reference
     `).run(
       id,
       date || new Date().toISOString().split('T')[0],
