@@ -3,7 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import db, { dbPath, saveSnapshot } from './database/db.js';
+import db, { dbPath, saveSnapshot, bumpRevision, getMeta, setMeta, recordDeletedId, getDeletedIds } from './database/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,7 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') || req.path === '/' || req.path === '') {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -22,6 +22,44 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.static(__dirname));
+
+// Live Multi-Device SSE Broadcast Manager
+const sseClients = new Set();
+
+export function notifyChange(action, table, extra = {}) {
+  try {
+    const rev = bumpRevision();
+    saveSnapshot();
+    const payload = JSON.stringify({
+      type: 'sync_event',
+      action,
+      table,
+      revision: rev.revision,
+      last_updated_at: rev.last_updated_at,
+      ...extra
+    });
+    for (const client of sseClients) {
+      try {
+        client.write(`data: ${payload}\n\n`);
+      } catch (e) {
+        sseClients.delete(client);
+      }
+    }
+  } catch (err) {
+    console.warn('notifyChange warning:', err.message);
+  }
+}
+
+// Keep SSE alive through proxies with 25s ping
+setInterval(() => {
+  for (const client of sseClients) {
+    try {
+      client.write(`: heartbeat\n\n`);
+    } catch (e) {
+      sseClients.delete(client);
+    }
+  }
+}, 25000);
 
 // Clean up any legacy duplicate projects and labor rows by name
 try {
@@ -168,6 +206,7 @@ app.post('/api/company', (req, res) => {
         branch = excluded.branch,
         terms = excluded.terms
     `).run(name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms);
+    notifyChange('update', 'company');
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -237,7 +276,7 @@ app.post('/api/projects', (req, res) => {
     );
 
     const created = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
-    try { saveSnapshot(); } catch(e) {}
+    notifyChange('create', 'projects', { id });
     res.json({ ...created, spent: 0 });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -266,7 +305,9 @@ app.delete('/api/projects/:id', (req, res) => {
     });
 
     delTxn();
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
+    recordDeletedId(decoded, 'projects');
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    notifyChange('delete', 'projects', { id: decoded });
     res.json({ success: true, message: `Site ${decoded} removed successfully` });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -330,7 +371,7 @@ app.post('/api/materials', (req, res) => {
     insertMat();
 
     const created = db.prepare('SELECT * FROM materials WHERE id = ?').get(id);
-    try { saveSnapshot(); } catch(e) {}
+    notifyChange('create', 'materials', { id });
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -382,7 +423,7 @@ app.put('/api/materials/:id', (req, res) => {
     updateMat();
 
     const updated = db.prepare('SELECT * FROM materials WHERE id = ?').get(id);
-    try { saveSnapshot(); } catch(e) {}
+    notifyChange('update', 'materials', { id });
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -402,7 +443,10 @@ app.delete('/api/materials/:id', (req, res) => {
       }
     }
     db.prepare('DELETE FROM materials WHERE id = ? OR id = ? OR bill_number = ?').run(rawId, decodedId, decodedId);
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
+    recordDeletedId(rawId, 'materials');
+    if (decodedId !== rawId) recordDeletedId(decodedId, 'materials');
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    notifyChange('delete', 'materials', { id: decodedId });
     res.json({ success: true, deletedId: decodedId });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -459,7 +503,7 @@ app.post('/api/supplier-payments', (req, res) => {
     insertPay();
 
     const created = db.prepare('SELECT * FROM supplier_payments WHERE id = ?').get(id);
-    try { saveSnapshot(); } catch(e) {}
+    notifyChange('create', 'supplier_payments', { id });
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -472,7 +516,10 @@ app.delete('/api/supplier-payments/:id', (req, res) => {
     const decodedId = decodeURIComponent(rawId).trim();
     db.prepare('DELETE FROM supplier_payments WHERE id = ? OR id = ?').run(rawId, decodedId);
     db.prepare('DELETE FROM transactions WHERE id = ? OR id = ? OR id = ? OR id = ?').run(rawId, decodedId, `TXN-${rawId}`, `TXN-${decodedId}`);
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
+    recordDeletedId(rawId, 'supplier_payments');
+    if (decodedId !== rawId) recordDeletedId(decodedId, 'supplier_payments');
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    notifyChange('delete', 'supplier_payments', { id: decodedId });
     res.json({ success: true, deletedId: decodedId });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -533,7 +580,7 @@ app.post('/api/labor', (req, res) => {
     );
 
     const created = db.prepare('SELECT * FROM labor_roster WHERE id = ?').get(id);
-    try { saveSnapshot(); } catch(e) {}
+    notifyChange('create', 'labor', { id });
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -592,7 +639,7 @@ app.put('/api/labor/:id', (req, res) => {
     );
 
     const updated = db.prepare('SELECT * FROM labor_roster WHERE id = ?').get(req.params.id);
-    try { saveSnapshot(); } catch(e) {}
+    notifyChange('update', 'labor', { id: req.params.id });
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -602,7 +649,9 @@ app.put('/api/labor/:id', (req, res) => {
 app.delete('/api/labor/:id', (req, res) => {
   try {
     db.prepare('DELETE FROM labor_roster WHERE id = ?').run(req.params.id);
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
+    recordDeletedId(req.params.id, 'labor');
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    notifyChange('delete', 'labor', { id: req.params.id });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -993,7 +1042,7 @@ app.post(['/api/labor/history', '/api/labour/history'], (req, res) => {
     archiveTxn();
 
     const created = db.prepare('SELECT * FROM labor_weekly_history WHERE id = ?').get(recordId);
-    try { saveSnapshot(); } catch(e) {}
+    notifyChange('archive', 'labor_history', { id: recordId });
     res.json({
       success: true,
       message: 'Weekly labour attendance archived to history and current week reset successfully.',
@@ -1009,7 +1058,9 @@ app.delete(['/api/labor/history/:id', '/api/labour/history/:id'], (req, res) => 
     const { id } = req.params;
     const decoded = decodeURIComponent(id).trim();
     db.prepare('DELETE FROM labor_weekly_history WHERE id = ? OR week_label = ? OR id LIKE ?').run(decoded, decoded, `%${decoded}%`);
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
+    recordDeletedId(decoded, 'labor_history');
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    notifyChange('delete', 'labor_history', { id: decoded });
     res.json({ success: true, message: 'Archived week deleted from history.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1402,7 +1453,7 @@ app.post('/api/vendors', (req, res) => {
     `).run(id, name, role || category || 'Raw Materials', contact_person || '', phone || '', category || role || 'Raw Materials', gstin || '', address || '', balance_due || 0);
 
     const created = db.prepare('SELECT * FROM vendors WHERE id = ?').get(id);
-    try { saveSnapshot(); } catch(e) {}
+    notifyChange('create', 'vendors', { id });
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1412,7 +1463,9 @@ app.post('/api/vendors', (req, res) => {
 app.delete('/api/vendors/:id', (req, res) => {
   try {
     db.prepare('DELETE FROM vendors WHERE id = ?').run(req.params.id);
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
+    recordDeletedId(req.params.id, 'vendors');
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    notifyChange('delete', 'vendors', { id: req.params.id });
     res.json({ success: true, message: 'Vendor deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1466,7 +1519,7 @@ app.post('/api/transactions', (req, res) => {
     );
 
     const created = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id);
-    try { saveSnapshot(); } catch(e) {}
+    notifyChange('create', 'transactions', { id });
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1476,14 +1529,65 @@ app.post('/api/transactions', (req, res) => {
 app.delete('/api/transactions/:id', (req, res) => {
   try {
     db.prepare('DELETE FROM transactions WHERE id = ?').run(req.params.id);
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
+    recordDeletedId(req.params.id, 'transactions');
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    notifyChange('delete', 'transactions', { id: req.params.id });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 8. Bulk Sync, Auto-Rehydration & Cloud Backup
+// 8. Bulk Sync, Auto-Rehydration & Real-time Live Multi-Device Events
+app.get('/api/sync/live', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
+
+  sseClients.add(res);
+  const rev = parseInt(getMeta('data_revision', '1'), 10) || 1;
+  const lastUpdate = getMeta('last_updated_at', Date.now().toString());
+  res.write(`data: ${JSON.stringify({ type: 'connected', revision: rev, last_updated_at: lastUpdate })}\n\n`);
+
+  req.on('close', () => {
+    sseClients.delete(res);
+  });
+});
+
+app.get('/api/sync/status', (req, res) => {
+  try {
+    const rev = parseInt(getMeta('data_revision', '1'), 10) || 1;
+    const lastUpdate = getMeta('last_updated_at', Date.now().toString());
+    const projectsCount = db.prepare('SELECT COUNT(*) as c FROM projects').get().c;
+    const materialsCount = db.prepare('SELECT COUNT(*) as c FROM materials').get().c;
+    const laborCount = db.prepare('SELECT COUNT(*) as c FROM labor_roster').get().c;
+    const txnsCount = db.prepare('SELECT COUNT(*) as c FROM transactions').get().c;
+    const suppCount = db.prepare('SELECT COUNT(*) as c FROM supplier_payments').get().c;
+    const histCount = db.prepare('SELECT COUNT(*) as c FROM labor_weekly_history').get().c;
+    const deletedCount = db.prepare('SELECT COUNT(*) as c FROM deleted_items').get().c;
+
+    res.json({
+      status: 'online',
+      revision: rev,
+      last_updated_at: lastUpdate,
+      recordCount: projectsCount + materialsCount + laborCount + txnsCount + suppCount + histCount,
+      counts: {
+        projects: projectsCount,
+        materials: materialsCount,
+        labor: laborCount,
+        transactions: txnsCount,
+        supplierPayments: suppCount,
+        laborWeeklyHistory: histCount,
+        deletedItems: deletedCount
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/sync/full', (req, res) => {
   try {
     const company = db.prepare('SELECT * FROM company_profile WHERE id = 1').get() || {};
@@ -1495,11 +1599,17 @@ app.get('/api/sync/full', (req, res) => {
     const transactions = db.prepare('SELECT * FROM transactions ORDER BY date DESC, created_at DESC').all();
     const supplierPayments = db.prepare('SELECT * FROM supplier_payments ORDER BY date DESC, created_at DESC').all();
     const laborWeeklyHistory = db.prepare('SELECT * FROM labor_weekly_history ORDER BY created_at DESC').all();
+    const deleted_ids = getDeletedIds();
+    const rev = parseInt(getMeta('data_revision', '1'), 10) || 1;
+    const lastUpdate = getMeta('last_updated_at', Date.now().toString());
 
     const recordCount = projects.length + materials.length + labor.length + transactions.length + supplierPayments.length + laborWeeklyHistory.length;
 
     res.json({
       success: true,
+      revision: rev,
+      last_updated_at: lastUpdate,
+      deleted_ids,
       company,
       projects,
       materials,
@@ -1531,11 +1641,12 @@ app.post('/api/sync/push', (req, res) => {
         db.prepare('DELETE FROM labor_weekly_history').run();
       }
 
-      // 0. Purge explicitly deleted IDs across all tables
+      // 0. Purge explicitly deleted IDs across all tables and register in tombstones
       if (Array.isArray(deleted_ids) && deleted_ids.length > 0) {
         for (const delId of deleted_ids) {
           if (!delId) continue;
           const cleanId = String(delId).trim();
+          recordDeletedId(cleanId, 'sync');
           db.prepare('DELETE FROM labor_weekly_history WHERE id = ? OR week_label = ?').run(cleanId, cleanId);
           db.prepare('DELETE FROM projects WHERE id = ? OR name = ?').run(cleanId, cleanId);
           db.prepare('DELETE FROM materials WHERE id = ? OR bill_number = ?').run(cleanId, cleanId);
@@ -1863,13 +1974,16 @@ app.post('/api/sync/push', (req, res) => {
     });
 
     syncTransaction();
-    try { db.pragma('wal_checkpoint(TRUNCATE)'); saveSnapshot(); } catch(e) {}
+    try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+    notifyChange('push', 'all');
 
     const count = (projects ? projects.length : 0) + (materials ? materials.length : 0) + (labor ? labor.length : 0) + (transactions ? transactions.length : 0) + (supplierPayments ? supplierPayments.length : 0) + (laborWeeklyHistory ? laborWeeklyHistory.length : 0);
 
     res.json({
       success: true,
       recordCount: count,
+      revision: parseInt(getMeta('data_revision', '1'), 10),
+      last_updated_at: getMeta('last_updated_at'),
       message: 'All application data rehydrated and synchronized into SQLite database successfully.'
     });
   } catch (err) {

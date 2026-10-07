@@ -1546,9 +1546,16 @@
       renderAll();
     }
 
+    let localRevision = parseInt(localStorage.getItem('gb_data_revision') || '0', 10);
+    let localTimestamp = parseInt(localStorage.getItem('gb_last_data_timestamp') || '0', 10);
+
     function saveLocalState() {
       try {
+        localRevision++;
+        localTimestamp = Date.now();
         localStorage.setItem('gb_app_data', JSON.stringify(appData));
+        localStorage.setItem('gb_data_revision', localRevision.toString());
+        localStorage.setItem('gb_last_data_timestamp', localTimestamp.toString());
       } catch (e) {
         console.warn('Local storage save failed:', e);
       }
@@ -1758,8 +1765,12 @@
       return Array.from(map.values());
     }
 
+    let isFetchingSync = false;
+
     // --- Load / Sync Data From Cloud / SQLite Database ---
-    async function fetchFromSQLite() {
+    async function fetchFromSQLite(isEventTriggered = false) {
+      if (isFetchingSync && !isEventTriggered) return false;
+      isFetchingSync = true;
       API_URL = getApiUrl();
       const urlInput = document.getElementById('cloudSyncUrlInput');
       if (urlInput && !urlInput.value) {
@@ -1768,7 +1779,7 @@
 
       try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const timeoutId = setTimeout(() => controller.abort(), 9000);
 
         // Fetch full snapshot in 1 fast query
         const fullRes = await apiFetch(`${API_URL}/sync/full`, { signal: controller.signal });
@@ -1778,6 +1789,13 @@
           const serverData = await fullRes.json();
           isSQLiteOnline = true;
           updateSyncBadge(true);
+
+          // 1. Process server deleted items (Tombstones) so deleted items NEVER resurrect
+          if (Array.isArray(serverData.deleted_ids)) {
+            serverData.deleted_ids.forEach(delId => {
+              if (delId) markIdAsDeleted(delId);
+            });
+          }
 
           const serverProjects = Array.isArray(serverData.projects) ? serverData.projects : [];
           const serverMaterials = Array.isArray(serverData.materials) ? serverData.materials : [];
@@ -1791,8 +1809,14 @@
           const serverCount = serverProjects.length + serverMaterials.length + serverLabor.length + serverVendors.length + serverTxns.length + serverSuppPay.length + serverLaborHistory.length;
           const localCount = (appData.projects || []).length + (appData.materials || []).length + (appData.labor || []).length + (appData.vendors || []).length + (appData.transactions || []).length + (appData.supplierPayments || []).length + (appData.laborWeeklyHistory || []).length;
 
-          // SCENARIO 1: Server was restarted/empty, but device has valid records -> Auto-Rehydrate Server!
-          if (serverCount === 0 && localCount > 0) {
+          const serverRevision = parseInt(serverData.revision || '1', 10);
+          const serverTimestamp = parseInt(serverData.last_updated_at || '0', 10);
+          localTimestamp = parseInt(localStorage.getItem('gb_last_data_timestamp') || '0', 10);
+
+          // SCENARIO 1: Server was restarted/cold boot on Render, but this device has valid records -> Auto-Rehydrate Server!
+          const isServerOlder = localCount > 0 && (serverCount === 0 || (localTimestamp > 0 && serverTimestamp > 0 && (localTimestamp - serverTimestamp > 2000)));
+
+          if (isServerOlder) {
             try {
               await apiFetch(`${API_URL}/sync/push`, {
                 method: 'POST',
@@ -1801,7 +1825,7 @@
                   deleted_ids: Array.from(getDeletedIds())
                 })
               });
-              showSyncToast('☁️ Cloud database auto-restored from device!');
+              showSyncToast('☁️ Cloud database auto-restored & synced from device!');
             } catch (pushErr) {
               console.warn('Auto-sync push to cloud deferred:', pushErr);
             }
@@ -1809,8 +1833,8 @@
             return true;
           }
 
-          // SCENARIO 2: Server has records and local is clean -> Adopt server state directly
-          if (serverCount > 0 && localCount === 0) {
+          // SCENARIO 2: Server has records and is newer/equal, or local device is empty -> Adopt server state directly
+          if (serverCount > 0 && (localCount === 0 || serverTimestamp >= localTimestamp || serverRevision > localRevision || isEventTriggered)) {
             if (serverData.company && serverData.company.name) {
               appData.company = serverData.company;
             }
@@ -1822,8 +1846,17 @@
             appData.supplierPayments = deduplicateById(serverSuppPay.filter(s => !isItemDeleted(s)));
             appData.laborWeeklyHistory = deduplicateById(serverLaborHistory.filter(h => !isItemDeleted(h)));
             if (serverAccounts.length > 0) appData.accounts = serverAccounts;
-            saveLocalState();
-            renderAll();
+
+            localRevision = serverRevision;
+            localTimestamp = serverTimestamp || Date.now();
+            localStorage.setItem('gb_data_revision', localRevision.toString());
+            localStorage.setItem('gb_last_data_timestamp', localTimestamp.toString());
+            localStorage.setItem('gb_app_data', JSON.stringify(appData));
+
+            const activeTag = document.activeElement ? document.activeElement.tagName : '';
+            if (activeTag !== 'INPUT' && activeTag !== 'SELECT' && activeTag !== 'TEXTAREA') {
+              renderAll();
+            }
             return true;
           }
 
@@ -1831,8 +1864,6 @@
           if (serverData.company && serverData.company.name) {
             appData.company = serverData.company;
           }
-          const prevMatCount = (appData.materials || []).length;
-          const prevLaborCount = (appData.labor || []).length;
 
           appData.projects = mergeProjects(appData.projects, serverProjects);
           appData.materials = mergeById(appData.materials, serverMaterials);
@@ -1860,15 +1891,9 @@
             } catch(e) {}
           }
 
-          const serverFingerprint = `${serverCount}_${serverMaterials.length}_${serverLabor.length}_${serverTxns.length}_${serverSuppPay.length}_${serverProjects.length}_${serverData.company?.name || ''}_${(serverMaterials[0] || {}).amount}_${(serverLabor[0] || {}).total_amount}_${(serverTxns[0] || {}).amount}_${(serverSuppPay[0] || {}).amount}`;
-          const dataChanged = (serverFingerprint !== lastServerFingerprint);
-          lastServerFingerprint = serverFingerprint;
-
-          if (dataChanged) {
-            const activeTag = document.activeElement ? document.activeElement.tagName : '';
-            if (activeTag !== 'INPUT' && activeTag !== 'SELECT' && activeTag !== 'TEXTAREA') {
-              renderAll();
-            }
+          const activeTag = document.activeElement ? document.activeElement.tagName : '';
+          if (activeTag !== 'INPUT' && activeTag !== 'SELECT' && activeTag !== 'TEXTAREA') {
+            renderAll();
           }
 
           return true;
@@ -1878,7 +1903,70 @@
         isSQLiteOnline = false;
         updateSyncBadge(false);
         return false;
+      } finally {
+        isFetchingSync = false;
       }
+    }
+
+    // --- Real-Time Server-Sent Events (SSE) Multi-Device Live Sync ---
+    let liveEventSource = null;
+    let sseReconnectTimer = null;
+
+    function initLiveSync() {
+      if (typeof EventSource === 'undefined') return;
+      if (liveEventSource) {
+        try { liveEventSource.close(); } catch(e) {}
+        liveEventSource = null;
+      }
+
+      const sseUrl = `${getApiUrl()}/sync/live`;
+      try {
+        liveEventSource = new EventSource(sseUrl);
+
+        liveEventSource.onopen = () => {
+          isSQLiteOnline = true;
+          updateSyncBadge(true);
+        };
+
+        liveEventSource.onmessage = (e) => {
+          if (!e.data) return;
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'sync_event') {
+              fetchFromSQLite(true);
+            }
+          } catch(err) {}
+        };
+
+        liveEventSource.onerror = () => {
+          if (liveEventSource) {
+            try { liveEventSource.close(); } catch(e) {}
+            liveEventSource = null;
+          }
+          clearTimeout(sseReconnectTimer);
+          sseReconnectTimer = setTimeout(initLiveSync, 4000);
+        };
+      } catch(err) {
+        clearTimeout(sseReconnectTimer);
+        sseReconnectTimer = setTimeout(initLiveSync, 6000);
+      }
+    }
+
+    // Auto-sync when switching tabs, unlocking mobile screen, or network reconnection
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        fetchFromSQLite(true);
+        if (!liveEventSource) initLiveSync();
+      }
+    });
+    window.addEventListener('focus', () => {
+      fetchFromSQLite(true);
+      if (!liveEventSource) initLiveSync();
+    });
+    window.addEventListener('online', () => {
+      fetchFromSQLite(true);
+      initLiveSync();
+    });
     }
 
     async function forcePushLocalToCloud() {
@@ -5425,10 +5513,13 @@
         }
       });
 
-      // Continuous 24/7 background cloud sync every 10 seconds
+      // Initialize real-time SSE multi-device synchronization
+      initLiveSync();
+
+      // Continuous background cloud sync every 3.5 seconds as reliable fallback
       setInterval(() => {
         fetchFromSQLite();
-      }, 10000);
+      }, 3500);
     });
   </script>
 </body>
