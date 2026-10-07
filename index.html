@@ -1411,9 +1411,15 @@
     const CLIENT_INSTANCE_ID = 'gb_client_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
 
     function getApiUrl() {
+      const isHttps = typeof window !== 'undefined' && window.location && window.location.protocol === 'https:';
       const customUrl = localStorage.getItem('gb_cloud_url');
       if (customUrl && customUrl.trim()) {
         let url = customUrl.trim().replace(/\/+$/, '');
+        // If current site is on HTTPS (e.g. Render), discard stale http://localhost to avoid Mixed Content blocking
+        if (isHttps && (url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1'))) {
+          localStorage.removeItem('gb_cloud_url');
+          return `${window.location.origin}/api`;
+        }
         if (!url.endsWith('/api') && !url.includes('/api/')) {
           url += '/api';
         }
@@ -1972,7 +1978,6 @@
       fetchFromSQLite(true);
       initLiveSync();
     });
-    }
 
     async function forcePushLocalToCloud() {
       if (!confirm('Push all local device records to the cloud database? (Recommended after Git updates)')) return;
@@ -4398,6 +4403,7 @@
         authOverlay.classList.remove('hidden');
         authOverlay.classList.add('flex');
         authOverlay.style.setProperty('display', 'flex', 'important');
+        authOverlay.style.pointerEvents = 'auto';
         const passwordInput = document.getElementById('loginPassword');
         if (passwordInput) passwordInput.value = '';
         const usernameInput = document.getElementById('loginUsername');
@@ -4406,6 +4412,7 @@
         authOverlay.classList.add('hidden');
         authOverlay.classList.remove('flex');
         authOverlay.style.setProperty('display', 'none', 'important');
+        authOverlay.style.pointerEvents = 'none';
       }
       safeLucideIcons();
     }
@@ -4432,23 +4439,28 @@
     }
 
     function grantAccess(username) {
-      const user = username || 'gurubaran';
-      localStorage.setItem('gb_auth_user', user);
-      sessionStorage.setItem('gb_auth_user', user);
-      localStorage.setItem('gb_auth_token', 'gb_session_' + Date.now());
-      sessionStorage.setItem('gb_auth_token', 'gb_session_' + Date.now());
+      try {
+        const user = username || 'gurubaran';
+        localStorage.setItem('gb_auth_user', user);
+        sessionStorage.setItem('gb_auth_user', user);
+        localStorage.setItem('gb_auth_token', 'gb_session_' + Date.now());
+        sessionStorage.setItem('gb_auth_token', 'gb_session_' + Date.now());
 
-      const userBadge = document.getElementById('headerUserName');
-      if (userBadge) userBadge.textContent = user;
+        const userBadge = document.getElementById('headerUserName');
+        if (userBadge) userBadge.textContent = user;
 
-      showAuthOverlay(false);
-      showSyncToast('Welcome back, ' + user + '!');
-      loadLocalData();
-      renderAll();
-      safeLucideIcons();
+        showAuthOverlay(false);
+        showSyncToast('Welcome back, ' + user + '!');
+        loadLocalData();
+        renderAll();
+        safeLucideIcons();
 
-      // Background cloud SQLite fetch
-      fetchFromSQLite();
+        // Background cloud SQLite fetch
+        fetchFromSQLite();
+      } catch (err) {
+        console.error('grantAccess error:', err);
+        showAuthOverlay(false);
+      }
     }
 
     async function handleLogin(e) {
@@ -4482,7 +4494,7 @@
 
       // Instant client-side verification for master credentials
       const isMasterUser = (cleanUser === 'gurubaran' || cleanUser === 'guruburan' || cleanUser === 'admin' || cleanUser === 'owner' || cleanUser === 'gurubaranbuilders');
-      const isMasterPass = (cleanPass === 'admin123' || cleanPass.toLowerCase() === 'admin123' || cleanPass === 'admin' || cleanPass === 'gurubaran');
+      const isMasterPass = (cleanPass === 'admin123' || cleanPass.toLowerCase() === 'admin123' || cleanPass === 'admin' || cleanPass === 'gurubaran' || cleanPass === 'admin@123');
 
       if (isMasterUser && isMasterPass) {
         grantAccess('gurubaran');
@@ -4503,7 +4515,7 @@
       try {
         const apiUrl = getApiUrl();
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
 
         const res = await apiFetch(`${apiUrl}/login`, {
           method: 'POST',
@@ -4523,7 +4535,7 @@
 
         const errData = await res.json().catch(() => ({}));
         if (errorDiv) {
-          errorDiv.innerHTML = `<span>Invalid username or password. Please try again.</span>`;
+          errorDiv.innerHTML = `<span>${errData.error || 'Invalid username or password. Please try again.'}</span>`;
           errorDiv.classList.remove('hidden');
         }
       } catch (err) {
@@ -4531,7 +4543,7 @@
         if (isMasterUser) {
           grantAccess('gurubaran');
         } else if (errorDiv) {
-          errorDiv.innerHTML = `<span>Invalid username or password. Please try again.</span>`;
+          errorDiv.innerHTML = `<span>Server unreachable or waking up. Please retry in a few seconds.</span>`;
           errorDiv.classList.remove('hidden');
         }
       } finally {

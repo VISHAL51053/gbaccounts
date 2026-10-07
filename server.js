@@ -174,7 +174,7 @@ app.post('/api/login', (req, res) => {
 
     // Direct match for master owner
     const isMasterUser = (cleanUser === 'gurubaran' || cleanUser === 'guruburan' || cleanUser === 'admin' || cleanUser === 'owner' || cleanUser === 'gurubaranbuilders');
-    const isMasterPass = (cleanPass === 'admin123' || cleanPass.toLowerCase() === 'admin123' || cleanPass === 'admin' || cleanPass === 'gurubaran');
+    const isMasterPass = (cleanPass === 'admin123' || cleanPass.toLowerCase() === 'admin123' || cleanPass === 'admin' || cleanPass === 'gurubaran' || cleanPass === 'admin@123');
 
     if (isMasterUser && isMasterPass) {
       const now = new Date().toISOString();
