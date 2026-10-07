@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { AsyncLocalStorage } from 'async_hooks';
 import db, { dbPath, saveSnapshot, bumpRevision, getMeta, setMeta, recordDeletedId, getDeletedIds } from './database/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -10,9 +11,16 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const asyncLocalStorage = new AsyncLocalStorage();
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+app.use((req, res, next) => {
+  const clientId = req.headers['x-gb-client-id'] || null;
+  asyncLocalStorage.run({ clientId }, () => {
+    next();
+  });
+});
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') || req.path === '/' || req.path === '') {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -30,15 +38,22 @@ export function notifyChange(action, table, extra = {}) {
   try {
     const rev = bumpRevision();
     saveSnapshot();
+    const store = asyncLocalStorage.getStore();
+    const senderId = extra.senderId || (store && store.clientId) || null;
     const payload = JSON.stringify({
       type: 'sync_event',
       action,
       table,
+      senderId,
       revision: rev.revision,
       last_updated_at: rev.last_updated_at,
       ...extra
     });
     for (const client of sseClients) {
+      if (client.destroyed || client.closed || !client.writable) {
+        sseClients.delete(client);
+        continue;
+      }
       try {
         client.write(`data: ${payload}\n\n`);
       } catch (e) {
@@ -53,6 +68,10 @@ export function notifyChange(action, table, extra = {}) {
 // Keep SSE alive through proxies with 25s ping
 setInterval(() => {
   for (const client of sseClients) {
+    if (client.destroyed || client.closed || !client.writable) {
+      sseClients.delete(client);
+      continue;
+    }
     try {
       client.write(`: heartbeat\n\n`);
     } catch (e) {
@@ -60,6 +79,54 @@ setInterval(() => {
     }
   }
 }, 25000);
+
+// ================= 24/7 RENDER KEEP-ALIVE SYSTEM =================
+// Prevents Render Free Tier from spinning down after 15 minutes of inactivity
+let keepAliveTimer = null;
+let capturedAppUrl = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL || null;
+
+function startKeepAlive(targetUrl) {
+  if (keepAliveTimer || !targetUrl) return;
+  const cleanUrl = targetUrl.replace(/\/+$/, '');
+  const pingEndpoint = `${cleanUrl}/api/ping`;
+
+  console.log(`⏱️ 24/7 Keep-Alive Active: Pinging ${pingEndpoint} every 10 minutes to prevent sleep.`);
+
+  // First ping after 30 seconds
+  setTimeout(async () => {
+    try {
+      await fetch(pingEndpoint, { headers: { 'User-Agent': 'GBAccounts-AutoKeepAlive/2.0' } });
+    } catch (e) {}
+  }, 30000);
+
+  keepAliveTimer = setInterval(async () => {
+    try {
+      const res = await fetch(pingEndpoint, {
+        headers: { 'User-Agent': 'GBAccounts-AutoKeepAlive/2.0' }
+      });
+      console.log(`[${new Date().toISOString()}] 💓 Keep-alive ping status: ${res.status}`);
+    } catch (err) {
+      console.warn('Keep-alive ping note:', err.message);
+    }
+  }, 10 * 60 * 1000); // Every 10 minutes (Render sleeps at 15 minutes)
+}
+
+if (capturedAppUrl) {
+  startKeepAlive(capturedAppUrl);
+}
+
+// Auto-detect public URL from incoming requests if RENDER_EXTERNAL_URL wasn't provided
+app.use((req, res, next) => {
+  if (!capturedAppUrl && req.headers && req.headers.host) {
+    const host = req.headers.host;
+    if (!host.includes('localhost') && !host.includes('127.0.0.1')) {
+      const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      capturedAppUrl = `${proto}://${host}`;
+      startKeepAlive(capturedAppUrl);
+    }
+  }
+  next();
+});
 
 // Clean up any legacy duplicate projects and labor rows by name
 try {
@@ -79,7 +146,12 @@ try {
 
 // ================= API ENDPOINTS =================
 
-// 1. Health & Status
+// 1. Health, Keep-Alive & Status
+app.get('/api/ping', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store');
+  res.json({ pong: true, time: Date.now() });
+});
+
 app.get('/api/status', (req, res) => {
   res.json({
     status: 'online',
@@ -1551,9 +1623,9 @@ app.get('/api/sync/live', (req, res) => {
   const lastUpdate = getMeta('last_updated_at', Date.now().toString());
   res.write(`data: ${JSON.stringify({ type: 'connected', revision: rev, last_updated_at: lastUpdate })}\n\n`);
 
-  req.on('close', () => {
-    sseClients.delete(res);
-  });
+  req.on('close', () => sseClients.delete(res));
+  res.on('close', () => sseClients.delete(res));
+  res.on('error', () => sseClients.delete(res));
 });
 
 app.get('/api/sync/status', (req, res) => {

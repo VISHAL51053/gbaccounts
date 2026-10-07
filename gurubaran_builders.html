@@ -1408,6 +1408,8 @@
 
   <!-- ================= SQLITE API CLIENT & JAVASCRIPT ================= -->
   <script>
+    const CLIENT_INSTANCE_ID = 'gb_client_' + Math.random().toString(36).substring(2, 9) + '_' + Date.now().toString(36);
+
     function getApiUrl() {
       const customUrl = localStorage.getItem('gb_cloud_url');
       if (customUrl && customUrl.trim()) {
@@ -1425,7 +1427,8 @@
 
     async function apiFetch(url, options = {}) {
       const defaultHeaders = {
-        'Bypass-Tunnel-Reminder': 'true'
+        'Bypass-Tunnel-Reminder': 'true',
+        'X-GB-Client-ID': CLIENT_INSTANCE_ID
       };
       if (options.body && typeof options.body === 'string' && (!options.headers || !options.headers['Content-Type'])) {
         defaultHeaders['Content-Type'] = 'application/json';
@@ -1539,7 +1542,7 @@
         if (!Array.isArray(appData.accounts)) appData.accounts = [];
         if (!Array.isArray(appData.transactions)) appData.transactions = [];
         if (!Array.isArray(appData.laborWeeklyHistory)) appData.laborWeeklyHistory = [];
-        saveLocalState();
+        saveLocalState(false);
       } catch (err) {
         console.warn('Error reading local data:', err);
       }
@@ -1548,14 +1551,18 @@
 
     let localRevision = parseInt(localStorage.getItem('gb_data_revision') || '0', 10);
     let localTimestamp = parseInt(localStorage.getItem('gb_last_data_timestamp') || '0', 10);
+    let hasLocalEditsPending = false;
 
-    function saveLocalState() {
+    function saveLocalState(isUserEdit = true) {
       try {
-        localRevision++;
-        localTimestamp = Date.now();
+        if (isUserEdit) {
+          localRevision++;
+          localTimestamp = Date.now();
+          hasLocalEditsPending = true;
+          localStorage.setItem('gb_data_revision', localRevision.toString());
+          localStorage.setItem('gb_last_data_timestamp', localTimestamp.toString());
+        }
         localStorage.setItem('gb_app_data', JSON.stringify(appData));
-        localStorage.setItem('gb_data_revision', localRevision.toString());
-        localStorage.setItem('gb_last_data_timestamp', localTimestamp.toString());
       } catch (e) {
         console.warn('Local storage save failed:', e);
       }
@@ -1813,10 +1820,8 @@
           const serverTimestamp = parseInt(serverData.last_updated_at || '0', 10);
           localTimestamp = parseInt(localStorage.getItem('gb_last_data_timestamp') || '0', 10);
 
-          // SCENARIO 1: Server was restarted/cold boot on Render, but this device has valid records -> Auto-Rehydrate Server!
-          const isServerOlder = localCount > 0 && (serverCount === 0 || (localTimestamp > 0 && serverTimestamp > 0 && (localTimestamp - serverTimestamp > 2000)));
-
-          if (isServerOlder) {
+          // SCENARIO 1: Server was restarted/cold boot on Render (server is empty), but this device has valid records -> Auto-Rehydrate Server!
+          if (serverCount === 0 && localCount > 0) {
             try {
               await apiFetch(`${API_URL}/sync/push`, {
                 method: 'POST',
@@ -1825,16 +1830,17 @@
                   deleted_ids: Array.from(getDeletedIds())
                 })
               });
+              hasLocalEditsPending = false;
               showSyncToast('☁️ Cloud database auto-restored & synced from device!');
             } catch (pushErr) {
               console.warn('Auto-sync push to cloud deferred:', pushErr);
             }
-            saveLocalState();
+            saveLocalState(false);
             return true;
           }
 
-          // SCENARIO 2: Server has records and is newer/equal, or local device is empty -> Adopt server state directly
-          if (serverCount > 0 && (localCount === 0 || serverTimestamp >= localTimestamp || serverRevision > localRevision || isEventTriggered)) {
+          // SCENARIO 2: Server has records -> Adopt server state directly if newer, or initial load, or event triggered
+          if (serverCount > 0 && (localCount === 0 || !hasLocalEditsPending || serverRevision >= localRevision || isEventTriggered)) {
             if (serverData.company && serverData.company.name) {
               appData.company = serverData.company;
             }
@@ -1849,6 +1855,7 @@
 
             localRevision = serverRevision;
             localTimestamp = serverTimestamp || Date.now();
+            hasLocalEditsPending = false;
             localStorage.setItem('gb_data_revision', localRevision.toString());
             localStorage.setItem('gb_last_data_timestamp', localTimestamp.toString());
             localStorage.setItem('gb_app_data', JSON.stringify(appData));
@@ -1860,7 +1867,7 @@
             return true;
           }
 
-          // SCENARIO 3: Both have records -> Bidirectional smart merge without resurrecting deleted items
+          // SCENARIO 3: Both have records and local has pending edits -> Smart merge
           if (serverData.company && serverData.company.name) {
             appData.company = serverData.company;
           }
@@ -1876,20 +1883,7 @@
             appData.accounts = serverAccounts;
           }
 
-          saveLocalState();
-
-          // If device had unsynced offline records that weren't on server yet, push them in background
-          if (appData.materials.length > serverMaterials.length || appData.labor.length > serverLabor.length || appData.projects.length > serverProjects.length) {
-            try {
-              apiFetch(`${API_URL}/sync/push`, {
-                method: 'POST',
-                body: JSON.stringify({
-                  ...appData,
-                  deleted_ids: Array.from(getDeletedIds())
-                })
-              });
-            } catch(e) {}
-          }
+          saveLocalState(false);
 
           const activeTag = document.activeElement ? document.activeElement.tagName : '';
           if (activeTag !== 'INPUT' && activeTag !== 'SELECT' && activeTag !== 'TEXTAREA') {
@@ -1933,6 +1927,10 @@
           try {
             const msg = JSON.parse(e.data);
             if (msg.type === 'sync_event') {
+              // Ignore event if originated by this client to avoid infinite loops
+              if (msg.senderId && msg.senderId === CLIENT_INSTANCE_ID) {
+                return;
+              }
               fetchFromSQLite(true);
             }
           } catch(err) {}
@@ -1944,13 +1942,20 @@
             liveEventSource = null;
           }
           clearTimeout(sseReconnectTimer);
-          sseReconnectTimer = setTimeout(initLiveSync, 4000);
+          sseReconnectTimer = setTimeout(initLiveSync, 8000);
         };
       } catch(err) {
         clearTimeout(sseReconnectTimer);
-        sseReconnectTimer = setTimeout(initLiveSync, 6000);
+        sseReconnectTimer = setTimeout(initLiveSync, 10000);
       }
     }
+
+    // In-browser keep-alive ping every 5 minutes while user is on the page
+    setInterval(() => {
+      if (isSQLiteOnline) {
+        fetch(`${getApiUrl()}/ping`, { headers: { 'Cache-Control': 'no-cache' } }).catch(() => {});
+      }
+    }, 5 * 60 * 1000);
 
     // Auto-sync when switching tabs, unlocking mobile screen, or network reconnection
     document.addEventListener('visibilitychange', () => {
@@ -5516,10 +5521,10 @@
       // Initialize real-time SSE multi-device synchronization
       initLiveSync();
 
-      // Continuous background cloud sync every 3.5 seconds as reliable fallback
+      // Background cloud sync every 15 seconds as fallback (SSE handles instant live updates)
       setInterval(() => {
         fetchFromSQLite();
-      }, 3500);
+      }, 15000);
     });
   </script>
 </body>
