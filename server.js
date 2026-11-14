@@ -26,6 +26,18 @@ db.exec(`
   )
 `);
 
+// Labour rates are company settings and must survive deployments.
+for (const column of [
+  'mason_rate REAL NOT NULL DEFAULT 950',
+  'helper_rate REAL NOT NULL DEFAULT 750'
+]) {
+  try {
+    db.exec(`ALTER TABLE company_profile ADD COLUMN ${column}`);
+  } catch (err) {
+    if (!String(err.message || '').includes('duplicate column name')) throw err;
+  }
+}
+
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;',
@@ -383,10 +395,10 @@ app.get('/api/company', (req, res) => {
 
 app.post('/api/company', (req, res) => {
   try {
-    const { name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms } = req.body;
+    const { name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms, mason_rate, helper_rate } = req.body;
     db.prepare(`
-      INSERT INTO company_profile (id, name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms)
-      VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO company_profile (id, name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms, mason_rate, helper_rate)
+      VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         name = excluded.name,
         tagline = excluded.tagline,
@@ -401,8 +413,10 @@ app.post('/api/company', (req, res) => {
         account_number = excluded.account_number,
         ifsc_code = excluded.ifsc_code,
         branch = excluded.branch,
-        terms = excluded.terms
-    `).run(name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms);
+        terms = excluded.terms,
+        mason_rate = excluded.mason_rate,
+        helper_rate = excluded.helper_rate
+    `).run(name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms, Number(mason_rate) || 950, Number(helper_rate) || 750);
     notifyChange('update', 'company');
     res.json({ success: true });
   } catch (err) {
@@ -1865,8 +1879,8 @@ app.post('/api/sync/push', (req, res) => {
       // 1. Company Profile
       if (company && typeof company === 'object' && company.name) {
         db.prepare(`
-          INSERT INTO company_profile (id, name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms)
-          VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO company_profile (id, name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms, mason_rate, helper_rate)
+          VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(id) DO UPDATE SET
             name = excluded.name,
             tagline = excluded.tagline,
@@ -1881,7 +1895,9 @@ app.post('/api/sync/push', (req, res) => {
             account_number = excluded.account_number,
             ifsc_code = excluded.ifsc_code,
             branch = excluded.branch,
-            terms = excluded.terms
+            terms = excluded.terms,
+            mason_rate = excluded.mason_rate,
+            helper_rate = excluded.helper_rate
         `).run(
           company.name || 'GURUBARAN BUILDERS',
           company.tagline || '',
@@ -1896,7 +1912,9 @@ app.post('/api/sync/push', (req, res) => {
           company.account_number || '',
           company.ifsc_code || '',
           company.branch || '',
-          company.terms || ''
+          company.terms || '',
+          Number(company.mason_rate) || 950,
+          Number(company.helper_rate) || 750
         );
       }
 

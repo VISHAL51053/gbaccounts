@@ -647,12 +647,12 @@
           <div class="bg-slate-900/90 border border-amber-500/30 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl shadow-sm bg-amber-500/5 text-center sm:text-left">
             <span class="text-[9px] sm:text-[10px] uppercase font-bold text-amber-400 tracking-wider block truncate">Masons</span>
             <div id="labStatMasons" class="text-base sm:text-2xl font-black text-amber-300 mt-0.5 sm:mt-1 truncate">0</div>
-            <span class="text-[8px] sm:text-[10px] text-amber-400/80 block mt-0.5 truncate">₹950 / Day</span>
+            <span id="labMasonRateLabel" class="text-[8px] sm:text-[10px] text-amber-400/80 block mt-0.5 truncate">₹950 / Day</span>
           </div>
           <div class="bg-slate-900/90 border border-sky-500/30 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl shadow-sm bg-sky-500/5 text-center sm:text-left">
             <span class="text-[9px] sm:text-[10px] uppercase font-bold text-sky-400 tracking-wider block truncate">Helpers</span>
             <div id="labStatHelpers" class="text-base sm:text-2xl font-black text-sky-300 mt-0.5 sm:mt-1 truncate">0</div>
-            <span class="text-[8px] sm:text-[10px] text-sky-400/80 block mt-0.5 truncate">₹750 / Day</span>
+            <span id="labHelperRateLabel" class="text-[8px] sm:text-[10px] text-sky-400/80 block mt-0.5 truncate">₹750 / Day</span>
           </div>
         </div>
 
@@ -903,6 +903,26 @@
           <div>
             <label class="block text-slate-400 mb-1 font-semibold">Office Address</label>
             <input type="text" id="setAddress" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white" value="Chennai, Tamil Nadu" />
+          </div>
+
+          <div class="pt-3 border-t border-slate-800">
+            <div class="flex items-center justify-between gap-3 mb-2">
+              <div>
+                <h3 class="text-sm font-bold text-white">Labour Pay Rates</h3>
+                <p class="text-[11px] text-slate-400">Update these rates to recalculate attendance and weekly wages automatically.</p>
+              </div>
+              <i data-lucide="wallet-cards" class="w-5 h-5 text-amber-400"></i>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-slate-400 mb-1 font-semibold">Mason / Ma — Daily Rate (₹)</label>
+                <input type="number" id="setMasonRate" min="0" step="1" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono font-bold" value="950" />
+              </div>
+              <div>
+                <label class="block text-slate-400 mb-1 font-semibold">Helper / Mm — Daily Rate (₹)</label>
+                <input type="number" id="setHelperRate" min="0" step="1" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono font-bold" value="750" />
+              </div>
+            </div>
           </div>
 
           <div class="pt-4 border-t border-slate-800 flex justify-between items-center">
@@ -1624,7 +1644,9 @@
         tagline: "Quality Construction & Civil Engineering Excellence",
         address: "Chennai, Tamil Nadu",
         phone: "+91 98401 23456",
-        gstin: ""
+        gstin: "",
+        mason_rate: 950,
+        helper_rate: 750
       },
       projects: [],
       materials: [],
@@ -2574,7 +2596,7 @@
         const name = nameInput ? nameInput.value.trim() : '';
         const role = roleInput ? roleInput.value : 'Ma';
         const site_assigned = (appData.projects && appData.projects.length > 0) ? appData.projects[0].name : 'General Site';
-        const daily_rate = role === 'Mm' ? 750 : 950;
+        const daily_rate = getLaborRate(role);
 
         if (!name) {
           alert('Please enter worker / labour name.');
@@ -2646,12 +2668,38 @@
       }
     }
 
+    function getLaborRate(role) {
+      const key = role === 'Mm' ? 'helper_rate' : 'mason_rate';
+      const fallback = role === 'Mm' ? 750 : 950;
+      const rate = Number(appData.company && appData.company[key]);
+      return Number.isFinite(rate) && rate >= 0 ? rate : fallback;
+    }
+
     function getDutyAmount(role, duty) {
-      const isMm = role === 'Mm';
-      if (duty === '1 Duty') return isMm ? 750 : 950;
-      if (duty === '1.5 Duty' || duty === '1425' || duty === '1125') return isMm ? 1125 : 1425;
-      if (duty === '1/2 Duty' || duty === '0.5 Duty') return isMm ? 375 : 475;
+      const dailyRate = getLaborRate(role);
+      if (duty === '1 Duty') return dailyRate;
+      if (duty === '1.5 Duty' || duty === '1425' || duty === '1125') return dailyRate * 1.5;
+      if (duty === '1/2 Duty' || duty === '0.5 Duty') return dailyRate * 0.5;
       return 0; // '-' or 'Off'
+    }
+
+    function recalculateLaborRates() {
+      (appData.labor || []).forEach(worker => {
+        const role = worker.role || 'Ma';
+        const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+        let totalAmount = 0;
+        let daysPresent = 0;
+        days.forEach(day => {
+          const duty = worker[`${day}_duty`] || '-';
+          const amount = getDutyAmount(role, duty);
+          worker[`${day}_amt`] = amount;
+          totalAmount += amount;
+          if (duty !== '-' && duty !== 'Off') daysPresent += duty === '1/2 Duty' ? 0.5 : (duty === '1.5 Duty' ? 1.5 : 1);
+        });
+        worker.daily_rate = getLaborRate(role);
+        worker.total_amount = totalAmount;
+        worker.days_present = daysPresent;
+      });
     }
 
     async function updateLaborDayDuty(id, dayKey, duty) {
@@ -2735,7 +2783,7 @@
             daysCount += (dDuty === '1/2 Duty' ? 0.5 : (dDuty === '1.5 Duty' ? 1.5 : 1));
           }
         });
-        worker.daily_rate = value === 'Mm' ? 750 : 950;
+        worker.daily_rate = getLaborRate(value);
         worker.total_amount = totalAmt;
         worker.days_present = daysCount;
       }
@@ -3599,7 +3647,7 @@
       msg += `📅 *Date:* ${today}\n\n`;
 
       if (summary.maRows.length > 0) {
-        msg += `🧱 *MASONS (Ma - ₹950/day):*\n`;
+        msg += `🧱 *MASONS (Ma - ₹${getLaborRate('Ma').toLocaleString('en-IN')}/day):*\n`;
         summary.maRows.forEach((r, i) => {
           msg += `${i + 1}. *${r.name}* - ${r.days} Days ➔ ₹${r.amount.toLocaleString('en-IN')}\n`;
         });
@@ -3607,7 +3655,7 @@
       }
 
       if (summary.mmRows.length > 0) {
-        msg += `🦺 *HELPERS / ASSISTANTS (Mm - ₹750/day):*\n`;
+        msg += `🦺 *HELPERS / ASSISTANTS (Mm - ₹${getLaborRate('Mm').toLocaleString('en-IN')}/day):*\n`;
         summary.mmRows.forEach((r, i) => {
           msg += `${i + 1}. *${r.name}* - ${r.days} Days ➔ ₹${r.amount.toLocaleString('en-IN')}\n`;
         });
@@ -3867,6 +3915,11 @@
 
     function renderLaborTopMetrics() {
       const summary = getLabourWeeklySummary();
+
+      const masonRateLabel = document.getElementById('labMasonRateLabel');
+      const helperRateLabel = document.getElementById('labHelperRateLabel');
+      if (masonRateLabel) masonRateLabel.textContent = `₹${getLaborRate('Ma').toLocaleString('en-IN')} / Day`;
+      if (helperRateLabel) helperRateLabel.textContent = `₹${getLaborRate('Mm').toLocaleString('en-IN')} / Day`;
 
       if (document.getElementById('labStatTotalWorkers')) {
         document.getElementById('labStatTotalWorkers').textContent = `${summary.totalWorkers}`;
@@ -4800,7 +4853,9 @@
         tagline: document.getElementById('setTagline').value,
         gstin: document.getElementById('setGstin').value,
         phone: document.getElementById('setPhone').value,
-        address: document.getElementById('setAddress').value
+        address: document.getElementById('setAddress').value,
+        mason_rate: Math.max(0, Number(document.getElementById('setMasonRate').value) || 950),
+        helper_rate: Math.max(0, Number(document.getElementById('setHelperRate').value) || 750)
       };
 
       try {
@@ -4811,6 +4866,7 @@
         });
         if (!response.ok) throw new Error('Company settings could not be saved.');
         appData.company = { ...(appData.company || {}), ...payload };
+        recalculateLaborRates();
         saveLocalState();
         renderAll();
         await fetchFromSQLite();
@@ -4870,6 +4926,21 @@
 
       const reportAddr = document.getElementById('reportAddress');
       if (reportAddr) reportAddr.textContent = (appData.company && appData.company.address) || 'Chennai, Tamil Nadu';
+
+      const companySettings = appData.company || {};
+      const settingFields = {
+        setCompanyName: companySettings.name || 'GURUBARAN BUILDERS',
+        setTagline: companySettings.tagline || 'Quality Construction & Civil Engineering Excellence',
+        setGstin: companySettings.gstin || '',
+        setPhone: companySettings.phone || '',
+        setAddress: companySettings.address || 'Chennai, Tamil Nadu',
+        setMasonRate: Number(companySettings.mason_rate) || 950,
+        setHelperRate: Number(companySettings.helper_rate) || 750
+      };
+      Object.entries(settingFields).forEach(([id, value]) => {
+        const input = document.getElementById(id);
+        if (input && document.activeElement !== input) input.value = value;
+      });
 
       // Home KPI Metrics
       if (document.getElementById('statActiveSites')) {
@@ -5512,7 +5583,7 @@
                   <td colspan="12" class="py-2.5 px-4 text-xs font-black uppercase tracking-wider ${isMaGroup ? 'text-amber-300' : 'text-sky-300'}">
                     <div class="flex items-center gap-2">
                       <span>${isMaGroup ? '🧱' : '🦺'}</span>
-                      <span>${isMaGroup ? 'MASONS (Ma — ₹950 / Day)' : (currentRole === 'Mm' ? 'HELPERS / ASSISTANTS (Mm — ₹750 / Day)' : currentRole.toUpperCase())}</span>
+                    <span>${isMaGroup ? `MASONS (Ma — ₹${getLaborRate('Ma').toLocaleString('en-IN')} / Day)` : (currentRole === 'Mm' ? `HELPERS / ASSISTANTS (Mm — ₹${getLaborRate('Mm').toLocaleString('en-IN')} / Day)` : currentRole.toUpperCase())}</span>
                     </div>
                   </td>
                 </tr>
@@ -5558,9 +5629,9 @@
                   <div class="flex flex-col items-center gap-1 min-w-[95px]">
                     <select onchange="updateLaborDayDuty('${l.id}', '${d.key}', this.value)" class="bg-slate-800 border ${isActive ? 'border-emerald-500/80 text-emerald-300 font-bold bg-emerald-950/40' : 'border-slate-700 text-slate-400'} rounded-md px-1 py-1 text-[11px] focus:outline-none focus:border-amber-500 cursor-pointer w-full text-center">
                       <option value="-" ${duty === '-' ? 'selected' : ''}>- Off</option>
-                      <option value="1 Duty" ${duty === '1 Duty' ? 'selected' : ''}>1D (₹${isMm ? '750' : '950'})</option>
-                      <option value="1.5 Duty" ${duty === '1.5 Duty' ? 'selected' : ''}>1.5D (₹${isMm ? '1125' : '1425'})</option>
-                      <option value="1/2 Duty" ${duty === '1/2 Duty' ? 'selected' : ''}>½D (₹${isMm ? '375' : '475'})</option>
+                      <option value="1 Duty" ${duty === '1 Duty' ? 'selected' : ''}>1D (₹${getLaborRate(currentRole)})</option>
+                      <option value="1.5 Duty" ${duty === '1.5 Duty' ? 'selected' : ''}>1.5D (₹${getLaborRate(currentRole) * 1.5})</option>
+                      <option value="1/2 Duty" ${duty === '1/2 Duty' ? 'selected' : ''}>½D (₹${getLaborRate(currentRole) * 0.5})</option>
                     </select>
                     <select onchange="updateLaborDaySite('${l.id}', '${d.key}', this.value)" class="bg-slate-900 border ${isActive ? 'border-slate-600 text-amber-300 font-semibold' : 'border-slate-800 text-slate-500'} rounded-md px-1 py-0.5 text-[10px] focus:outline-none focus:border-amber-500 cursor-pointer w-full text-center">
                       ${daySiteOptions}

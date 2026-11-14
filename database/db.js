@@ -52,7 +52,9 @@ db.exec(`
     account_number TEXT,
     ifsc_code TEXT,
     branch TEXT,
-    terms TEXT
+    terms TEXT,
+    mason_rate REAL NOT NULL DEFAULT 950,
+    helper_rate REAL NOT NULL DEFAULT 750
   );
 
   -- Construction Sites / Projects
