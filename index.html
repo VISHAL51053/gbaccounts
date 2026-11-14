@@ -166,6 +166,43 @@
     @media (max-width: 767px) {
       body { font-size: 14px; }
     }
+
+    /* Responsive hardening: keep the shell usable on narrow phones without
+       sacrificing readable wide tables (tables remain horizontally scrollable). */
+    html, body { overflow-x: hidden; }
+    #mainContent { width: 100%; min-width: 0; }
+    .tbl-scroll, .overflow-x-auto { max-width: 100%; -webkit-overflow-scrolling: touch; }
+
+    @media (max-width: 767px) {
+      header .max-w-7xl { padding-left: .5rem; padding-right: .5rem; }
+      header .max-w-7xl > div { min-width: 0; gap: .5rem; }
+      header .max-w-7xl > div > div:first-child { min-width: 0; }
+      header h1 {
+        max-width: 42vw;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      header .header-add-site-label { display: none; }
+      header button[onclick="openModal('modalProject')"] { padding: .55rem; }
+      header button[onclick="openModal('modalProject')"] i { margin: 0; }
+      #mainContent { padding: .75rem; }
+      .tab-content { min-width: 0; }
+      .modal-inner { max-height: calc(100dvh - 1.5rem); padding: 1rem; border-radius: 12px; }
+      input, select, textarea { font-size: 16px !important; }
+      button { min-height: 40px; }
+      button.p-1, button.p-2 { min-height: 40px; }
+      #sheetViewerTabsContainer { padding-left: .5rem; padding-right: .5rem; }
+    }
+
+    @media (max-width: 420px) {
+      .tab-content > div > .flex.items-center.justify-between,
+      .tab-content > div > .flex.justify-between.items-center { align-items: flex-start; }
+      .tab-content .grid.grid-cols-3 { grid-template-columns: 1fr; }
+      .tab-content .grid.grid-cols-2 { gap: .5rem; }
+      .tab-content h2 { font-size: 1.05rem; }
+      .tab-content h3 { font-size: .95rem; }
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col bg-[#0b0f19] text-[#f1f5f9]">
@@ -267,7 +304,7 @@
 
           <button onclick="openModal('modalProject')" class="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer">
             <i data-lucide="plus-circle" class="w-4 h-4"></i>
-            <span>+ Add Site</span>
+             <span class="header-add-site-label">+ Add Site</span>
           </button>
 
           <!-- Logout -->
