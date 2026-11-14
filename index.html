@@ -101,6 +101,13 @@
     }
     body * { font-family: "DM Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif !important; }
     body { position: relative; letter-spacing: 0; line-height: 1.55; font-weight: 400; }
+    .lucide { stroke-width: 2.25; opacity: 1; }
+    .brand-mark {
+      background: linear-gradient(135deg, #c7ff68 0%, #83c52d 100%) !important;
+      color: #0b0e0c !important;
+      box-shadow: 0 0 0 1px rgba(199, 255, 104, .35), 0 10px 26px rgba(182, 255, 59, .16) !important;
+    }
+    .brand-mark svg { color: #0b0e0c !important; stroke: #0b0e0c !important; }
     body::before {
       content: "";
       position: fixed;
@@ -232,7 +239,7 @@
 
       <!-- Header / Logo -->
       <div class="text-center space-y-3">
-        <div class="inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 items-center justify-center text-slate-950 font-black shadow-xl shadow-amber-500/20 border border-amber-400/40 mx-auto">
+        <div class="brand-mark inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 items-center justify-center text-slate-950 font-black shadow-xl shadow-amber-500/20 border border-amber-400/40 mx-auto">
           <i data-lucide="building-2" class="w-9 h-9 text-slate-950"></i>
         </div>
         <div>
@@ -297,7 +304,7 @@
           <button type="button" onclick="toggleSidebar()" class="md:hidden p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors cursor-pointer mr-1" title="Toggle Navigation Menu">
             <i data-lucide="menu" class="w-5 h-5"></i>
           </button>
-          <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/20 border border-amber-400/40 shrink-0">
+          <div class="brand-mark w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/20 border border-amber-400/40 shrink-0">
             <i data-lucide="building-2" class="w-5 h-5 sm:w-6 sm:h-6 text-slate-950"></i>
           </div>
           <div>
