@@ -148,6 +148,15 @@
       color: var(--gb-ink) !important;
       border-radius: 8px !important;
     }
+    #settingsForm input:disabled,
+    #settingsForm select:disabled,
+    #settingsForm textarea:disabled {
+      opacity: .78;
+      cursor: not-allowed;
+      background-color: #101410 !important;
+      color: var(--gb-ink) !important;
+      border-color: #354239 !important;
+    }
     input::placeholder, textarea::placeholder { color: #89948f !important; }
     button { transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
     button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
@@ -856,28 +865,28 @@
         <form id="settingsForm" onsubmit="saveSettings(event)" class="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-md space-y-4 text-xs">
           <div>
             <label class="block text-slate-400 mb-1 font-semibold">Company Name *</label>
-            <input type="text" id="setCompanyName" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-bold text-sm" value="GURUBARAN BUILDERS" />
+            <input type="text" id="setCompanyName" required disabled class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-bold text-sm" value="GURUBARAN BUILDERS" />
           </div>
 
           <div>
             <label class="block text-slate-400 mb-1 font-semibold">Tagline / Motto</label>
-            <input type="text" id="setTagline" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white" value="Quality Construction & Civil Engineering Excellence" />
+            <input type="text" id="setTagline" disabled class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white" value="Quality Construction & Civil Engineering Excellence" />
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="block text-slate-400 mb-1 font-semibold">GSTIN</label>
-              <input type="text" id="setGstin" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono" placeholder="33AAB..." />
+              <input type="text" id="setGstin" disabled class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono" placeholder="33AAB..." />
             </div>
             <div>
               <label class="block text-slate-400 mb-1 font-semibold">Phone Number</label>
-              <input type="text" id="setPhone" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white" placeholder="+91 ..." />
+              <input type="text" id="setPhone" disabled class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white" placeholder="+91 ..." />
             </div>
           </div>
 
           <div>
             <label class="block text-slate-400 mb-1 font-semibold">Office Address</label>
-            <input type="text" id="setAddress" class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white" value="Chennai, Tamil Nadu" />
+            <input type="text" id="setAddress" disabled class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white" value="Chennai, Tamil Nadu" />
           </div>
 
           <div class="pt-3 border-t border-slate-800">
@@ -891,20 +900,22 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label class="block text-slate-400 mb-1 font-semibold">Mason / Ma — Daily Rate (₹)</label>
-                <input type="number" id="setMasonRate" min="0" step="1" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono font-bold" value="950" />
+                <input type="number" id="setMasonRate" min="0" step="1" required disabled class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono font-bold" value="950" />
               </div>
               <div>
                 <label class="block text-slate-400 mb-1 font-semibold">Helper / Mm — Daily Rate (₹)</label>
-                <input type="number" id="setHelperRate" min="0" step="1" required class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono font-bold" value="750" />
+                <input type="number" id="setHelperRate" min="0" step="1" required disabled class="w-full p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white font-mono font-bold" value="750" />
               </div>
             </div>
           </div>
 
-          <div class="pt-4 border-t border-slate-800 flex justify-between items-center">
-            <button type="button" onclick="clearAllAppStorage()" class="px-4 py-2 rounded-xl bg-rose-950/40 text-rose-300 border border-rose-900/60 font-semibold text-xs">
-              Clear All Data (Fresh Start)
+          <div class="pt-4 border-t border-slate-800 flex justify-end items-center gap-3">
+            <button type="button" id="btnEditSettings" onclick="setSettingsEditMode(true)" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white border border-slate-600 font-bold text-sm shadow-md">
+              <i data-lucide="pencil" class="w-4 h-4"></i>
+              Edit Company Settings
             </button>
-            <button type="submit" class="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-md">
+            <button type="submit" id="btnSaveSettings" disabled class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-md opacity-40 cursor-not-allowed">
+              <i data-lucide="save" class="w-4 h-4"></i>
               Save Company Info
             </button>
           </div>
@@ -4821,8 +4832,35 @@
     }
 
     // --- Settings Form ---
+    let settingsEditMode = false;
+
+    function setSettingsEditMode(enabled) {
+      settingsEditMode = Boolean(enabled);
+      const form = document.getElementById('settingsForm');
+      if (!form) return;
+
+      form.querySelectorAll('input, select, textarea').forEach(field => {
+        field.disabled = !settingsEditMode;
+      });
+
+      const editButton = document.getElementById('btnEditSettings');
+      const saveButton = document.getElementById('btnSaveSettings');
+      if (editButton) {
+        editButton.disabled = settingsEditMode;
+        editButton.classList.toggle('opacity-40', settingsEditMode);
+        editButton.classList.toggle('cursor-not-allowed', settingsEditMode);
+      }
+      if (saveButton) {
+        saveButton.disabled = !settingsEditMode;
+        saveButton.classList.toggle('opacity-40', !settingsEditMode);
+        saveButton.classList.toggle('cursor-not-allowed', !settingsEditMode);
+      }
+      safeLucideIcons();
+    }
+
     async function saveSettings(e) {
       e.preventDefault();
+      if (!settingsEditMode) return;
       const payload = {
         name: document.getElementById('setCompanyName').value,
         tagline: document.getElementById('setTagline').value,
@@ -4845,6 +4883,7 @@
         saveLocalState();
         renderAll();
         await fetchFromSQLite();
+        setSettingsEditMode(false);
         alert('Company profile updated successfully.');
       } catch (err) {
         alert(err.message || 'Company profile could not be saved.');
@@ -5754,6 +5793,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       loadLocalData();
       checkAuth();
+      setSettingsEditMode(false);
       safeLucideIcons();
 
       if (getStoredSessionToken()) {
