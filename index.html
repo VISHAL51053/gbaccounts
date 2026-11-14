@@ -105,11 +105,16 @@
     #authOverlay .pt-4.border-t { display: none !important; }
     .zero-loss-card { display: none !important; }
     .brand-mark {
-      background: linear-gradient(135deg, #c7ff68 0%, #83c52d 100%) !important;
-      color: #0b0e0c !important;
-      box-shadow: 0 0 0 1px rgba(199, 255, 104, .35), 0 10px 26px rgba(182, 255, 59, .16) !important;
+      background: #101d37 !important;
+      color: #f7d58a !important;
+      box-shadow: 0 0 0 1px rgba(247, 213, 138, .55), 0 10px 26px rgba(8, 17, 35, .38) !important;
+      border-color: rgba(247, 213, 138, .75) !important;
     }
-    .brand-mark svg { color: #0b0e0c !important; stroke: #0b0e0c !important; }
+    .brand-mark .gb-logo-icon { width: 78%; height: 78%; }
+    .gb-logo-icon { display: block; }
+    .gb-logo-icon .gb-roof { stroke: #f7d58a; }
+    .gb-logo-icon .gb-building { fill: #f7f3ea; }
+    .gb-logo-icon .gb-letter { fill: #f7d58a; }
     body::before {
       content: "";
       position: fixed;
@@ -242,6 +247,15 @@
 </head>
 <body class="min-h-screen flex flex-col bg-[#0b0f19] text-[#f1f5f9]">
 
+  <svg aria-hidden="true" width="0" height="0" style="position:absolute;overflow:hidden">
+    <symbol id="gbLogoMark" viewBox="0 0 100 100">
+      <path class="gb-roof" d="M12 42 50 15l38 27M25 34v12M75 34v12" fill="none" stroke-width="7" stroke-linecap="square" stroke-linejoin="round" />
+      <path class="gb-building" d="M35 43h11v24H35zM49 36h13v31H49zM64 43h8v24h-8z" />
+      <path class="gb-building" d="M39 48h4v6h-4zM53 42h4v6h-4zM53 52h4v6h-4zM67 48h3v6h-3z" fill="#101d37" />
+      <text class="gb-letter" x="11" y="84" font-family="Manrope, Arial, sans-serif" font-size="42" font-weight="800" letter-spacing="-5">GB</text>
+    </symbol>
+  </svg>
+
   <!-- ================= MASTER SINGLE LOGIN OVERLAY ================= -->
   <div id="authOverlay" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-4 transition-all duration-300">
     <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl space-y-6 relative overflow-hidden">
@@ -252,7 +266,7 @@
       <!-- Header / Logo -->
       <div class="text-center space-y-3">
         <div class="brand-mark inline-flex w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 items-center justify-center text-slate-950 font-black shadow-xl shadow-amber-500/20 border border-amber-400/40 mx-auto">
-          <i data-lucide="building-2" class="w-9 h-9 text-slate-950"></i>
+          <svg class="gb-logo-icon w-9 h-9" viewBox="0 0 100 100" aria-label="Gurubaran Builders logo"><use href="#gbLogoMark"></use></svg>
         </div>
         <div>
           <h2 class="text-2xl font-black tracking-tight text-white uppercase">GURUBARAN BUILDERS</h2>
@@ -317,7 +331,7 @@
             <i data-lucide="menu" class="w-5 h-5"></i>
           </button>
           <div class="brand-mark w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-slate-950 font-black shadow-lg shadow-amber-500/20 border border-amber-400/40 shrink-0">
-            <i data-lucide="building-2" class="w-5 h-5 sm:w-6 sm:h-6 text-slate-950"></i>
+            <svg class="gb-logo-icon w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 100 100" aria-label="Gurubaran Builders logo"><use href="#gbLogoMark"></use></svg>
           </div>
           <div>
             <div class="flex items-center gap-1.5 sm:gap-2">
