@@ -12,6 +12,19 @@ Personal accounts, material management, site costing, and labor tracking softwar
 - **Vendors & Suppliers**: Supplier directory and balance due tracking.
 - **Banking & Cash**: Current account and site petty cash ledgers.
 
+## Production data persistence
+
+SQLite is stored in the `database` directory by default. In production, point
+`DATA_DIR` to the hosting provider's persistent volume, or configure
+`DATABASE_URL` with a managed PostgreSQL database. The application reports its
+active persistence backend and storage warning at `/api/status`; verify this
+endpoint and take regular backups before relying on a deployment.
+
+The browser's local data is an offline cache, not the source of truth. If the
+server reports no saved records, the app will not automatically upload a
+device's cached data because it may be stale. Restore only from a verified
+backup after confirming the server's storage configuration.
+
 ## Getting Started
 1. Run `run_app.bat` or execute:
    ```bash

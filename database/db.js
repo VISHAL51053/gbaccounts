@@ -14,6 +14,7 @@ if (!fs.existsSync(dbDir)) {
 
 const dbPath = path.join(dbDir, 'gurubaran_builders.db');
 const db = new Database(dbPath);
+let postgresSaveQueue = Promise.resolve();
 
 // Enable Write-Ahead Logging and performance pragmas for ultra-fast response
 db.pragma('journal_mode = WAL');
@@ -229,16 +230,8 @@ try { db.exec(`ALTER TABLE labor_roster ADD COLUMN sun_site TEXT DEFAULT ''`); }
 // Safe migrations for vendors table
 try { db.exec(`ALTER TABLE vendors ADD COLUMN role TEXT DEFAULT 'Raw Materials'`); } catch(e) {}
 
-// Clean legacy dummy test rows so fresh database stays completely clean
-try {
-  db.exec(`
-    DELETE FROM projects WHERE id LIKE '%TEST%' OR name LIKE 'Test Site%' OR name = 'Site Alpha 2026';
-    DELETE FROM materials WHERE id LIKE '%TEST%';
-    DELETE FROM labor_roster WHERE id LIKE '%TEST%' OR name LIKE 'Test Worker%' OR name = 'Karthik Kumar';
-    DELETE FROM transactions WHERE id LIKE '%TEST%';
-    DELETE FROM supplier_payments WHERE id LIKE '%TEST%';
-  `);
-} catch(e) {}
+// Do not delete rows during startup. A restart must never modify business data.
+// Legacy/demo cleanup, if ever required, must be an explicit authenticated action.
 
 // Seed default personal owner credentials
 const checkAdmin = db.prepare('SELECT id, username FROM admin_user WHERE id = 1').get();
@@ -382,74 +375,110 @@ export async function rehydrateDatabase() {
             if (hasData) {
               console.log(`🔄 Auto-restoring SQLite database from snapshot: ${p}`);
               applySnapshotToSqlite(data);
-              return true;
+              break;
             }
           }
         }
       }
     }
+    if (getPgPool()) {
+      await saveSnapshot();
+    }
   } catch (err) {
-    console.warn('Auto-rehydration note:', err.message);
+    console.warn('Database rehydration failed:', err.message);
+    throw err;
   }
   return false;
 }
 
 export function applySnapshotToSqlite(data) {
   const restoreTxn = db.transaction(() => {
+    const deletedIds = new Set((Array.isArray(data.deletedIds) ? data.deletedIds : []).map(String));
     if (data.company && data.company.name) {
       const c = data.company;
       db.prepare(`
-        INSERT INTO company_profile (id, name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms)
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO company_profile (id, name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms, mason_rate, helper_rate)
+        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           name = excluded.name, tagline = excluded.tagline, gstin = excluded.gstin, pan = excluded.pan,
           phone = excluded.phone, email = excluded.email, website = excluded.website, address = excluded.address,
           bank_name = excluded.bank_name, account_name = excluded.account_name, account_number = excluded.account_number,
-          ifsc_code = excluded.ifsc_code, branch = excluded.branch, terms = excluded.terms
+          ifsc_code = excluded.ifsc_code, branch = excluded.branch, terms = excluded.terms,
+          mason_rate = excluded.mason_rate, helper_rate = excluded.helper_rate
       `).run(
         c.name || 'GURUBARAN BUILDERS', c.tagline || '', c.gstin || '', c.pan || '',
         c.phone || '9842751053', c.email || '', c.website || '', c.address || 'perundurai sullipalayam ,erode',
-        c.bank_name || '', c.account_name || '', c.account_number || '', c.ifsc_code || '', c.branch || '', c.terms || ''
+        c.bank_name || '', c.account_name || '', c.account_number || '', c.ifsc_code || '', c.branch || '', c.terms || '',
+        Number(c.mason_rate) || 950, Number(c.helper_rate) || 750
       );
     }
     if (Array.isArray(data.deletedIds)) {
       const delStmt = db.prepare('INSERT OR IGNORE INTO deleted_items (id) VALUES (?)');
       data.deletedIds.forEach(id => { if (id) delStmt.run(String(id)); });
+      const deleteStatements = [
+        'DELETE FROM projects WHERE id = ?',
+        'DELETE FROM materials WHERE id = ?',
+        'DELETE FROM labor_roster WHERE id = ?',
+        'DELETE FROM vendors WHERE id = ?',
+        'DELETE FROM transactions WHERE id = ?',
+        'DELETE FROM supplier_payments WHERE id = ?',
+        'DELETE FROM labor_weekly_history WHERE id = ?'
+      ].map(sql => db.prepare(sql));
+      data.deletedIds.forEach(id => {
+        if (id) deleteStatements.forEach(stmt => stmt.run(String(id)));
+      });
+    }
+    if (Array.isArray(data.accounts)) {
+      const stmt = db.prepare(`
+        INSERT INTO accounts (id, name, account_number, bank, type, balance)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          name = excluded.name, account_number = excluded.account_number,
+          bank = excluded.bank, type = excluded.type, balance = excluded.balance
+      `);
+      data.accounts.forEach(account => {
+        if (account.id && account.name) {
+          stmt.run(account.id, account.name, account.account_number || '', account.bank || '', account.type || '', Number(account.balance) || 0);
+        }
+      });
     }
     if (Array.isArray(data.projects)) {
       const stmt = db.prepare(`INSERT OR REPLACE INTO projects (id, name, client, client_phone, location, type, total_area_sqft, budget, spent, progress, status, supervisor, start_date, estimated_completion, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-      data.projects.forEach(x => { if (x.id && x.name) stmt.run(x.id, x.name, x.client || 'Direct Client', x.client_phone || '', x.location || 'Site Location', x.type || 'Residential', Number(x.total_area_sqft) || 0, Number(x.budget) || 0, Number(x.spent) || 0, Number(x.progress) || 10, x.status || 'In Progress', x.supervisor || 'Civil Engg', x.start_date || '', x.estimated_completion || '', x.notes || '', x.created_at || new Date().toISOString()); });
+      data.projects.forEach(x => { if (x.id && x.name && !deletedIds.has(String(x.id))) stmt.run(x.id, x.name, x.client || 'Direct Client', x.client_phone || '', x.location || 'Site Location', x.type || 'Residential', Number(x.total_area_sqft) || 0, Number(x.budget) || 0, Number(x.spent) || 0, Number(x.progress) || 10, x.status || 'In Progress', x.supervisor || 'Civil Engg', x.start_date || '', x.estimated_completion || '', x.notes || '', x.created_at || new Date().toISOString()); });
     }
     if (Array.isArray(data.materials)) {
       const stmt = db.prepare(`INSERT OR REPLACE INTO materials (id, date, category, item, project_id, project_name, vendor, amount, tax_amount, payment_mode, bill_number, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-      data.materials.forEach(x => { if (x.id && x.item) stmt.run(x.id, x.date, x.category || 'Raw Materials', x.item, x.project_id || null, x.project_name || 'General Site', x.vendor || 'Supplier', Number(x.amount) || 0, Number(x.tax_amount) || 0, x.payment_mode || 'Cash in Hand', x.bill_number || `VCH-${x.id}`, x.notes || '', x.created_at || new Date().toISOString()); });
+      data.materials.forEach(x => { if (x.id && x.item && !deletedIds.has(String(x.id))) stmt.run(x.id, x.date, x.category || 'Raw Materials', x.item, x.project_id || null, x.project_name || 'General Site', x.vendor || 'Supplier', Number(x.amount) || 0, Number(x.tax_amount) || 0, x.payment_mode || 'Cash in Hand', x.bill_number || `VCH-${x.id}`, x.notes || '', x.created_at || new Date().toISOString()); });
     }
     if (Array.isArray(data.labor)) {
       const stmt = db.prepare(`INSERT OR REPLACE INTO labor_roster (id, name, role, daily_rate, phone, site_assigned, day_name, duty, total_amount, days_present, advance_paid, status, mon_duty, mon_amt, mon_site, tue_duty, tue_amt, tue_site, wed_duty, wed_amt, wed_site, thu_duty, thu_amt, thu_site, fri_duty, fri_amt, fri_site, sat_duty, sat_amt, sat_site, sun_duty, sun_amt, sun_site, week_label, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-      data.labor.forEach(x => { if (x.id && x.name) stmt.run(x.id, x.name, x.role || 'Ma', Number(x.daily_rate) || 950, x.phone || '', x.site_assigned || 'General Site', x.day_name || 'Monday', x.duty || '-', Number(x.total_amount) || 0, Number(x.days_present) || 0, Number(x.advance_paid) || 0, x.status || 'Active', x.mon_duty || '-', Number(x.mon_amt) || 0, x.mon_site || '', x.tue_duty || '-', Number(x.tue_amt) || 0, x.tue_site || '', x.wed_duty || '-', Number(x.wed_amt) || 0, x.wed_site || '', x.thu_duty || '-', Number(x.thu_amt) || 0, x.thu_site || '', x.fri_duty || '-', Number(x.fri_amt) || 0, x.fri_site || '', x.sat_duty || '-', Number(x.sat_amt) || 0, x.sat_site || '', x.sun_duty || '-', Number(x.sun_amt) || 0, x.sun_site || '', x.week_label || '', x.created_at || new Date().toISOString()); });
+      data.labor.forEach(x => { if (x.id && x.name && !deletedIds.has(String(x.id))) stmt.run(x.id, x.name, x.role || 'Ma', Number(x.daily_rate) || 950, x.phone || '', x.site_assigned || 'General Site', x.day_name || 'Monday', x.duty || '-', Number(x.total_amount) || 0, Number(x.days_present) || 0, Number(x.advance_paid) || 0, x.status || 'Active', x.mon_duty || '-', Number(x.mon_amt) || 0, x.mon_site || '', x.tue_duty || '-', Number(x.tue_amt) || 0, x.tue_site || '', x.wed_duty || '-', Number(x.wed_amt) || 0, x.wed_site || '', x.thu_duty || '-', Number(x.thu_amt) || 0, x.thu_site || '', x.fri_duty || '-', Number(x.fri_amt) || 0, x.fri_site || '', x.sat_duty || '-', Number(x.sat_amt) || 0, x.sat_site || '', x.sun_duty || '-', Number(x.sun_amt) || 0, x.sun_site || '', x.week_label || '', x.created_at || new Date().toISOString()); });
     }
     if (Array.isArray(data.vendors)) {
       const stmt = db.prepare(`INSERT OR REPLACE INTO vendors (id, name, contact_person, phone, category, gstin, address, balance_due, role, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-      data.vendors.forEach(x => { if (x.id && x.name) stmt.run(x.id, x.name, x.contact_person || '', x.phone || '', x.category || 'Raw Materials', x.gstin || '', x.address || '', Number(x.balance_due) || 0, x.role || 'Raw Materials', x.created_at || new Date().toISOString()); });
+      data.vendors.forEach(x => { if (x.id && x.name && !deletedIds.has(String(x.id))) stmt.run(x.id, x.name, x.contact_person || '', x.phone || '', x.category || 'Raw Materials', x.gstin || '', x.address || '', Number(x.balance_due) || 0, x.role || 'Raw Materials', x.created_at || new Date().toISOString()); });
     }
     if (Array.isArray(data.transactions)) {
       const stmt = db.prepare(`INSERT OR REPLACE INTO transactions (id, date, type, account_id, account_name, category, amount, party, project, reference, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-      data.transactions.forEach(x => { if (x.id && x.amount) stmt.run(x.id, x.date, x.type || 'Expense', x.account_id || 'ACC-01', x.account_name || 'Primary Bank Current Account', x.category || 'General', Number(x.amount) || 0, x.party || 'Self', x.project || 'General / HQ', x.reference || 'Cash', x.created_at || new Date().toISOString()); });
+      data.transactions.forEach(x => { if (x.id && x.amount && !deletedIds.has(String(x.id))) stmt.run(x.id, x.date, x.type || 'Expense', x.account_id || 'ACC-01', x.account_name || 'Primary Bank Current Account', x.category || 'General', Number(x.amount) || 0, x.party || 'Self', x.project || 'General / HQ', x.reference || 'Cash', x.created_at || new Date().toISOString()); });
     }
     if (Array.isArray(data.supplierPayments)) {
       const stmt = db.prepare(`INSERT OR REPLACE INTO supplier_payments (id, vendor, project_name, amount, date, payment_mode, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
-      data.supplierPayments.forEach(x => { if (x.id && x.amount) stmt.run(x.id, x.vendor || 'Supplier', x.project_name || 'General Site', Number(x.amount) || 0, x.date, x.payment_mode || 'Cash in Hand', x.notes || '', x.created_at || new Date().toISOString()); });
+      data.supplierPayments.forEach(x => { if (x.id && x.amount && !deletedIds.has(String(x.id))) stmt.run(x.id, x.vendor || 'Supplier', x.project_name || 'General Site', Number(x.amount) || 0, x.date, x.payment_mode || 'Cash in Hand', x.notes || '', x.created_at || new Date().toISOString()); });
     }
     if (Array.isArray(data.laborWeeklyHistory)) {
       const stmt = db.prepare(`INSERT OR REPLACE INTO labor_weekly_history (id, week_label, week_ending, total_workers, total_shifts, total_wages, masons_count, helpers_count, site_breakdown_json, workers_data_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-      data.laborWeeklyHistory.forEach(x => { if (x.id && x.week_ending) stmt.run(x.id, x.week_label || `Week ending ${x.week_ending}`, x.week_ending, Number(x.total_workers) || 0, Number(x.total_shifts) || 0, Number(x.total_wages) || 0, Number(x.masons_count) || 0, Number(x.helpers_count) || 0, typeof x.site_breakdown_json === 'string' ? x.site_breakdown_json : JSON.stringify(x.site_breakdown_json || []), typeof x.workers_data_json === 'string' ? x.workers_data_json : JSON.stringify(x.workers_data_json || []), x.created_at || new Date().toISOString()); });
+      data.laborWeeklyHistory.forEach(x => { if (x.id && x.week_ending && !deletedIds.has(String(x.id))) stmt.run(x.id, x.week_label || `Week ending ${x.week_ending}`, x.week_ending, Number(x.total_workers) || 0, Number(x.total_shifts) || 0, Number(x.total_wages) || 0, Number(x.masons_count) || 0, Number(x.helpers_count) || 0, typeof x.site_breakdown_json === 'string' ? x.site_breakdown_json : JSON.stringify(x.site_breakdown_json || []), typeof x.workers_data_json === 'string' ? x.workers_data_json : JSON.stringify(x.workers_data_json || []), x.created_at || new Date().toISOString()); });
+    }
+    if (data.meta && typeof data.meta === 'object') {
+      Object.entries(data.meta).forEach(([key, value]) => setMeta(key, value));
     }
   });
   restoreTxn();
   bumpRevision();
 }
 
-export function saveSnapshot() {
+export async function saveSnapshot() {
   try {
     const company = db.prepare('SELECT * FROM company_profile WHERE id = 1').get() || {};
     const projects = db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
@@ -470,6 +499,10 @@ export function saveSnapshot() {
       saved_at: new Date().toISOString(),
       revision: currentRev,
       last_updated_at: lastUpdate,
+      meta: {
+        data_revision: currentRev,
+        last_updated_at: lastUpdate
+      },
       company,
       projects,
       materials,
@@ -490,18 +523,32 @@ export function saveSnapshot() {
       try { fs.writeFileSync(localSnapshot, JSON.stringify(snapshot, null, 2), 'utf-8'); } catch(e) {}
     }
 
-    // Also persist snapshot to PostgreSQL in background if configured
+    // Persist the cloud copy before acknowledging a write to the client.
     if (getPgPool()) {
-      saveSnapshotToPostgres(snapshot).catch(err => {
-        console.warn('Background PostgreSQL save note:', err.message);
-      });
+      const save = postgresSaveQueue.then(() => saveSnapshotToPostgres(snapshot));
+      postgresSaveQueue = save.catch(() => {});
+      const saved = await save;
+      if (!saved) throw new Error('PostgreSQL snapshot could not be saved.');
     }
 
     return snapshot;
   } catch (err) {
     console.warn('Failed to save auto-snapshot:', err);
-    return null;
+    throw err;
   }
+}
+
+export function getPersistenceInfo() {
+  const pgConfigured = Boolean(getPgPool());
+  const explicitDataDir = Boolean(process.env.DATA_DIR);
+  const productionRuntime = process.env.NODE_ENV === 'production';
+  return {
+    backend: pgConfigured ? 'postgresql-and-sqlite-cache' : 'sqlite',
+    durable: pgConfigured || explicitDataDir,
+    warning: !pgConfigured && productionRuntime && !explicitDataDir
+      ? 'SQLite is using the application directory, which may be temporary. Configure DATA_DIR to use persistent storage before storing production data.'
+      : null
+  };
 }
 
 // Initial boot initialization
@@ -510,7 +557,9 @@ if (!getMeta('data_revision')) {
   setMeta('last_updated_at', Date.now().toString());
 }
 
-rehydrateDatabase();
+// Export readiness so the HTTP server cannot accept requests before a cloud
+// snapshot has been restored into the local SQLite cache.
+export const databaseReady = rehydrateDatabase();
 
 // Ensure all changes are flushed to the database file on disk
 try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}

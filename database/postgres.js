@@ -59,8 +59,12 @@ export async function initPostgresSchema() {
           account_number TEXT,
           ifsc_code TEXT,
           branch TEXT,
-          terms TEXT
+          terms TEXT,
+          mason_rate NUMERIC NOT NULL DEFAULT 950,
+          helper_rate NUMERIC NOT NULL DEFAULT 750
         );
+        ALTER TABLE gb_company_profile ADD COLUMN IF NOT EXISTS mason_rate NUMERIC NOT NULL DEFAULT 950;
+        ALTER TABLE gb_company_profile ADD COLUMN IF NOT EXISTS helper_rate NUMERIC NOT NULL DEFAULT 750;
 
         CREATE TABLE IF NOT EXISTS gb_projects (
           id VARCHAR(255) PRIMARY KEY,
@@ -189,8 +193,8 @@ export async function initPostgresSchema() {
       client.release();
     }
   } catch (err) {
-    console.warn('PostgreSQL schema verification skipped:', err.message);
-    return false;
+    console.warn('PostgreSQL schema verification failed:', err.message);
+    throw err;
   }
 }
 
@@ -240,7 +244,7 @@ export async function loadSnapshotFromPostgres() {
     }
   } catch (err) {
     console.warn('Failed to load snapshot from PostgreSQL:', err.message);
-    return null;
+    throw err;
   }
 }
 
@@ -257,14 +261,28 @@ export async function saveSnapshotToPostgres(snapshot) {
       if (snapshot.company && snapshot.company.name) {
         const c = snapshot.company;
         await client.query(`
-          INSERT INTO gb_company_profile (id, name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms)
-          VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          INSERT INTO gb_company_profile (id, name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms, mason_rate, helper_rate)
+          VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
           ON CONFLICT(id) DO UPDATE SET
             name = EXCLUDED.name, tagline = EXCLUDED.tagline, gstin = EXCLUDED.gstin, pan = EXCLUDED.pan,
             phone = EXCLUDED.phone, email = EXCLUDED.email, website = EXCLUDED.website, address = EXCLUDED.address,
             bank_name = EXCLUDED.bank_name, account_name = EXCLUDED.account_name, account_number = EXCLUDED.account_number,
-            ifsc_code = EXCLUDED.ifsc_code, branch = EXCLUDED.branch, terms = EXCLUDED.terms
-        `, [c.name, c.tagline || '', c.gstin || '', c.pan || '', c.phone || '', c.email || '', c.website || '', c.address || '', c.bank_name || '', c.account_name || '', c.account_number || '', c.ifsc_code || '', c.branch || '', c.terms || '']);
+            ifsc_code = EXCLUDED.ifsc_code, branch = EXCLUDED.branch, terms = EXCLUDED.terms,
+            mason_rate = EXCLUDED.mason_rate, helper_rate = EXCLUDED.helper_rate
+        `, [c.name, c.tagline || '', c.gstin || '', c.pan || '', c.phone || '', c.email || '', c.website || '', c.address || '', c.bank_name || '', c.account_name || '', c.account_number || '', c.ifsc_code || '', c.branch || '', c.terms || '', Number(c.mason_rate) || 950, Number(c.helper_rate) || 750]);
+      }
+
+      if (Array.isArray(snapshot.accounts)) {
+        for (const account of snapshot.accounts) {
+          if (!account.id || !account.name) continue;
+          await client.query(`
+            INSERT INTO gb_accounts (id, name, account_number, bank, type, balance)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (id) DO UPDATE SET
+              name = EXCLUDED.name, account_number = EXCLUDED.account_number,
+              bank = EXCLUDED.bank, type = EXCLUDED.type, balance = EXCLUDED.balance
+          `, [account.id, account.name, account.account_number || '', account.bank || '', account.type || '', Number(account.balance) || 0]);
+        }
       }
 
       if (Array.isArray(snapshot.deletedIds)) {
@@ -277,6 +295,7 @@ export async function saveSnapshotToPostgres(snapshot) {
           await client.query('DELETE FROM gb_vendors WHERE id = $1', [delId]);
           await client.query('DELETE FROM gb_transactions WHERE id = $1', [delId]);
           await client.query('DELETE FROM gb_supplier_payments WHERE id = $1', [delId]);
+          await client.query('DELETE FROM gb_labor_weekly_history WHERE id = $1', [delId]);
         }
       }
 

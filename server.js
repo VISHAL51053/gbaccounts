@@ -5,7 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { AsyncLocalStorage } from 'async_hooks';
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
-import db, { dbPath, saveSnapshot, bumpRevision, getMeta, recordDeletedId, getDeletedIds } from './database/db.js';
+import db, { dbPath, saveSnapshot, bumpRevision, getMeta, recordDeletedId, getDeletedIds, databaseReady, getPersistenceInfo } from './database/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -180,34 +180,30 @@ app.get('/gurubaran_builders.html', (req, res) => res.redirect(302, '/'));
 // Live Multi-Device SSE Broadcast Manager
 const sseClients = new Set();
 
-export function notifyChange(action, table, extra = {}) {
-  try {
-    const rev = bumpRevision();
-    saveSnapshot();
-    const store = asyncLocalStorage.getStore();
-    const senderId = extra.senderId || (store && store.clientId) || null;
-    const payload = JSON.stringify({
-      type: 'sync_event',
-      action,
-      table,
-      senderId,
-      revision: rev.revision,
-      last_updated_at: rev.last_updated_at,
-      ...extra
-    });
-    for (const client of sseClients) {
-      if (client.destroyed || client.closed || !client.writable) {
-        sseClients.delete(client);
-        continue;
-      }
-      try {
-        client.write(`data: ${payload}\n\n`);
-      } catch (e) {
-        sseClients.delete(client);
-      }
+export async function notifyChange(action, table, extra = {}) {
+  const rev = bumpRevision();
+  await saveSnapshot();
+  const store = asyncLocalStorage.getStore();
+  const senderId = extra.senderId || (store && store.clientId) || null;
+  const payload = JSON.stringify({
+    type: 'sync_event',
+    action,
+    table,
+    senderId,
+    revision: rev.revision,
+    last_updated_at: rev.last_updated_at,
+    ...extra
+  });
+  for (const client of sseClients) {
+    if (client.destroyed || client.closed || !client.writable) {
+      sseClients.delete(client);
+      continue;
     }
-  } catch (err) {
-    console.warn('notifyChange warning:', err.message);
+    try {
+      client.write(`data: ${payload}\n\n`);
+    } catch (e) {
+      sseClients.delete(client);
+    }
   }
 }
 
@@ -226,70 +222,6 @@ setInterval(() => {
   }
 }, 25000);
 
-// ================= 24/7 RENDER KEEP-ALIVE SYSTEM =================
-// Prevents Render Free Tier from spinning down after 15 minutes of inactivity
-let keepAliveTimer = null;
-let capturedAppUrl = process.env.RENDER_EXTERNAL_URL || process.env.APP_URL || null;
-
-function startKeepAlive(targetUrl) {
-  if (keepAliveTimer || !targetUrl) return;
-  const cleanUrl = targetUrl.replace(/\/+$/, '');
-  const pingEndpoint = `${cleanUrl}/api/ping`;
-
-  console.log(`⏱️ 24/7 Keep-Alive Active: Pinging ${pingEndpoint} every 10 minutes to prevent sleep.`);
-
-  // First ping after 30 seconds
-  setTimeout(async () => {
-    try {
-      await fetch(pingEndpoint, { headers: { 'User-Agent': 'GBAccounts-AutoKeepAlive/2.0' } });
-    } catch (e) {}
-  }, 30000);
-
-  keepAliveTimer = setInterval(async () => {
-    try {
-      const res = await fetch(pingEndpoint, {
-        headers: { 'User-Agent': 'GBAccounts-AutoKeepAlive/2.0' }
-      });
-      console.log(`[${new Date().toISOString()}] 💓 Keep-alive ping status: ${res.status}`);
-    } catch (err) {
-      console.warn('Keep-alive ping note:', err.message);
-    }
-  }, 10 * 60 * 1000); // Every 10 minutes (Render sleeps at 15 minutes)
-}
-
-if (capturedAppUrl) {
-  startKeepAlive(capturedAppUrl);
-}
-
-// Auto-detect public URL from incoming requests if RENDER_EXTERNAL_URL wasn't provided
-app.use((req, res, next) => {
-  if (!capturedAppUrl && req.headers && req.headers.host) {
-    const host = req.headers.host;
-    if (!host.includes('localhost') && !host.includes('127.0.0.1')) {
-      const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-      capturedAppUrl = `${proto}://${host}`;
-      startKeepAlive(capturedAppUrl);
-    }
-  }
-  next();
-});
-
-// Clean up any legacy duplicate projects and labor rows by name
-try {
-  db.exec(`
-    DELETE FROM projects 
-    WHERE rowid NOT IN (
-      SELECT MIN(rowid) FROM projects GROUP BY LOWER(TRIM(name))
-    );
-    DELETE FROM labor_roster 
-    WHERE rowid NOT IN (
-      SELECT MIN(rowid) FROM labor_roster GROUP BY LOWER(TRIM(name))
-    );
-  `);
-} catch (e) {
-  console.warn('Initial duplicate cleanup note:', e.message);
-}
-
 // ================= API ENDPOINTS =================
 
 // 1. Health, Keep-Alive & Status
@@ -299,9 +231,11 @@ app.get('/api/ping', (req, res) => {
 });
 
 app.get('/api/status', (req, res) => {
+  const persistence = getPersistenceInfo();
   res.json({
     status: 'online',
-    database: 'SQLite 3 (WAL Mode)',
+    database: persistence.backend,
+    persistence,
     timestamp: new Date().toISOString()
   });
 });
@@ -393,7 +327,7 @@ app.get('/api/company', (req, res) => {
   }
 });
 
-app.post('/api/company', (req, res) => {
+app.post('/api/company', async (req, res) => {
   try {
     const { name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms, mason_rate, helper_rate } = req.body;
     db.prepare(`
@@ -417,7 +351,7 @@ app.post('/api/company', (req, res) => {
         mason_rate = excluded.mason_rate,
         helper_rate = excluded.helper_rate
     `).run(name, tagline, gstin, pan, phone, email, website, address, bank_name, account_name, account_number, ifsc_code, branch, terms, Number(mason_rate) || 950, Number(helper_rate) || 750);
-    notifyChange('update', 'company');
+    await notifyChange('update', 'company');
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -446,7 +380,7 @@ app.get('/api/projects', (req, res) => {
   }
 });
 
-app.post('/api/projects', (req, res) => {
+app.post('/api/projects', async (req, res) => {
   try {
     const { name, client, client_phone, location, type, total_area_sqft, budget, supervisor, notes } = req.body;
     if (!name || !name.trim()) {
@@ -487,14 +421,14 @@ app.post('/api/projects', (req, res) => {
     );
 
     const created = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
-    notifyChange('create', 'projects', { id });
+    await notifyChange('create', 'projects', { id });
     res.json({ ...created, spent: 0 });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.delete('/api/projects/:id', (req, res) => {
+app.delete('/api/projects/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const decoded = decodeURIComponent(id).trim();
@@ -518,7 +452,7 @@ app.delete('/api/projects/:id', (req, res) => {
     delTxn();
     recordDeletedId(decoded, 'projects');
     try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
-    notifyChange('delete', 'projects', { id: decoded });
+    await notifyChange('delete', 'projects', { id: decoded });
     res.json({ success: true, message: `Site ${decoded} removed successfully` });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -535,7 +469,7 @@ app.get('/api/materials', (req, res) => {
   }
 });
 
-app.post('/api/materials', (req, res) => {
+app.post('/api/materials', async (req, res) => {
   try {
     const { date, category, item, project_id, project_name, vendor, amount, tax_amount, payment_mode, bill_number, notes } = req.body;
     const id = (req.body.id && String(req.body.id).trim()) || `MAT-${Date.now()}`;
@@ -582,14 +516,14 @@ app.post('/api/materials', (req, res) => {
     insertMat();
 
     const created = db.prepare('SELECT * FROM materials WHERE id = ?').get(id);
-    notifyChange('create', 'materials', { id });
+    await notifyChange('create', 'materials', { id });
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.put('/api/materials/:id', (req, res) => {
+app.put('/api/materials/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { date, category, item, project_id, project_name, vendor, amount, tax_amount, payment_mode, bill_number, notes } = req.body;
@@ -634,14 +568,14 @@ app.put('/api/materials/:id', (req, res) => {
     updateMat();
 
     const updated = db.prepare('SELECT * FROM materials WHERE id = ?').get(id);
-    notifyChange('update', 'materials', { id });
+    await notifyChange('update', 'materials', { id });
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.delete('/api/materials/:id', (req, res) => {
+app.delete('/api/materials/:id', async (req, res) => {
   try {
     const rawId = req.params.id;
     const decodedId = decodeURIComponent(rawId).trim();
@@ -657,7 +591,7 @@ app.delete('/api/materials/:id', (req, res) => {
     recordDeletedId(rawId, 'materials');
     if (decodedId !== rawId) recordDeletedId(decodedId, 'materials');
     try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
-    notifyChange('delete', 'materials', { id: decodedId });
+    await notifyChange('delete', 'materials', { id: decodedId });
     res.json({ success: true, deletedId: decodedId });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -674,7 +608,7 @@ app.get('/api/supplier-payments', (req, res) => {
   }
 });
 
-app.post('/api/supplier-payments', (req, res) => {
+app.post('/api/supplier-payments', async (req, res) => {
   try {
     const { vendor, project_name, amount, date, payment_mode, notes, txnId } = req.body;
     const id = (req.body.id && String(req.body.id).trim()) || `SPAY-${Date.now()}`;
@@ -714,14 +648,14 @@ app.post('/api/supplier-payments', (req, res) => {
     insertPay();
 
     const created = db.prepare('SELECT * FROM supplier_payments WHERE id = ?').get(id);
-    notifyChange('create', 'supplier_payments', { id });
+    await notifyChange('create', 'supplier_payments', { id });
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.delete('/api/supplier-payments/:id', (req, res) => {
+app.delete('/api/supplier-payments/:id', async (req, res) => {
   try {
     const rawId = req.params.id;
     const decodedId = decodeURIComponent(rawId).trim();
@@ -729,8 +663,10 @@ app.delete('/api/supplier-payments/:id', (req, res) => {
     db.prepare('DELETE FROM transactions WHERE id = ? OR id = ? OR id = ? OR id = ?').run(rawId, decodedId, `TXN-${rawId}`, `TXN-${decodedId}`);
     recordDeletedId(rawId, 'supplier_payments');
     if (decodedId !== rawId) recordDeletedId(decodedId, 'supplier_payments');
+    recordDeletedId(`TXN-${rawId}`, 'transactions');
+    if (decodedId !== rawId) recordDeletedId(`TXN-${decodedId}`, 'transactions');
     try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
-    notifyChange('delete', 'supplier_payments', { id: decodedId });
+    await notifyChange('delete', 'supplier_payments', { id: decodedId });
     res.json({ success: true, deletedId: decodedId });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -750,7 +686,7 @@ app.get('/api/labor', (req, res) => {
   }
 });
 
-app.post('/api/labor', (req, res) => {
+app.post('/api/labor', async (req, res) => {
   try {
     const { name, role, daily_rate, phone, site_assigned, advance_paid, mon_duty, tue_duty, wed_duty, thu_duty, fri_duty, sat_duty, sun_duty, mon_amt, tue_amt, wed_amt, thu_amt, fri_amt, sat_amt, sun_amt, mon_site, tue_site, wed_site, thu_site, fri_site, sat_site, sun_site, total_amount, days_present } = req.body;
     if (!name || !name.trim()) {
@@ -791,14 +727,14 @@ app.post('/api/labor', (req, res) => {
     );
 
     const created = db.prepare('SELECT * FROM labor_roster WHERE id = ?').get(id);
-    notifyChange('create', 'labor', { id });
+    await notifyChange('create', 'labor', { id });
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.put('/api/labor/:id', (req, res) => {
+app.put('/api/labor/:id', async (req, res) => {
   try {
     const current = db.prepare('SELECT * FROM labor_roster WHERE id = ?').get(req.params.id);
     if (!current) {
@@ -850,19 +786,19 @@ app.put('/api/labor/:id', (req, res) => {
     );
 
     const updated = db.prepare('SELECT * FROM labor_roster WHERE id = ?').get(req.params.id);
-    notifyChange('update', 'labor', { id: req.params.id });
+    await notifyChange('update', 'labor', { id: req.params.id });
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.delete('/api/labor/:id', (req, res) => {
+app.delete('/api/labor/:id', async (req, res) => {
   try {
     db.prepare('DELETE FROM labor_roster WHERE id = ?').run(req.params.id);
     recordDeletedId(req.params.id, 'labor');
     try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
-    notifyChange('delete', 'labor', { id: req.params.id });
+    await notifyChange('delete', 'labor', { id: req.params.id });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1181,7 +1117,7 @@ app.get(['/api/labor/history', '/api/labour/history'], (req, res) => {
   }
 });
 
-app.post(['/api/labor/history', '/api/labour/history'], (req, res) => {
+app.post(['/api/labor/history', '/api/labour/history'], async (req, res) => {
   try {
     const {
       id,
@@ -1254,7 +1190,7 @@ app.post(['/api/labor/history', '/api/labour/history'], (req, res) => {
     archiveTxn();
 
     const created = db.prepare('SELECT * FROM labor_weekly_history WHERE id = ?').get(recordId);
-    notifyChange('archive', 'labor_history', { id: recordId });
+    await notifyChange('archive', 'labor_history', { id: recordId });
     res.json({
       success: true,
       message: 'Weekly labour attendance archived to history and current week reset successfully.',
@@ -1265,14 +1201,14 @@ app.post(['/api/labor/history', '/api/labour/history'], (req, res) => {
   }
 });
 
-app.delete(['/api/labor/history/:id', '/api/labour/history/:id'], (req, res) => {
+app.delete(['/api/labor/history/:id', '/api/labour/history/:id'], async (req, res) => {
   try {
     const { id } = req.params;
     const decoded = decodeURIComponent(id).trim();
     db.prepare('DELETE FROM labor_weekly_history WHERE id = ? OR week_label = ? OR id LIKE ?').run(decoded, decoded, `%${decoded}%`);
     recordDeletedId(decoded, 'labor_history');
     try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
-    notifyChange('delete', 'labor_history', { id: decoded });
+    await notifyChange('delete', 'labor_history', { id: decoded });
     res.json({ success: true, message: 'Archived week deleted from history.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1653,7 +1589,7 @@ app.get('/api/vendors', (req, res) => {
   }
 });
 
-app.post('/api/vendors', (req, res) => {
+app.post('/api/vendors', async (req, res) => {
   try {
     const { name, role, contact_person, phone, category, gstin, address, balance_due } = req.body;
     const id = (req.body.id && String(req.body.id).trim()) || `VND-${Date.now()}`;
@@ -1672,19 +1608,19 @@ app.post('/api/vendors', (req, res) => {
     `).run(id, name, role || category || 'Raw Materials', contact_person || '', phone || '', category || role || 'Raw Materials', gstin || '', address || '', balance_due || 0);
 
     const created = db.prepare('SELECT * FROM vendors WHERE id = ?').get(id);
-    notifyChange('create', 'vendors', { id });
+    await notifyChange('create', 'vendors', { id });
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.delete('/api/vendors/:id', (req, res) => {
+app.delete('/api/vendors/:id', async (req, res) => {
   try {
     db.prepare('DELETE FROM vendors WHERE id = ?').run(req.params.id);
     recordDeletedId(req.params.id, 'vendors');
     try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
-    notifyChange('delete', 'vendors', { id: req.params.id });
+    await notifyChange('delete', 'vendors', { id: req.params.id });
     res.json({ success: true, message: 'Vendor deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1710,7 +1646,7 @@ app.get('/api/transactions', (req, res) => {
   }
 });
 
-app.post('/api/transactions', (req, res) => {
+app.post('/api/transactions', async (req, res) => {
   try {
     const { type, category, amount, party, project, reference, date } = req.body;
     const id = (req.body.id && String(req.body.id).trim()) || `TXN-${Date.now()}`;
@@ -1738,19 +1674,19 @@ app.post('/api/transactions', (req, res) => {
     );
 
     const created = db.prepare('SELECT * FROM transactions WHERE id = ?').get(id);
-    notifyChange('create', 'transactions', { id });
+    await notifyChange('create', 'transactions', { id });
     res.json(created);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-app.delete('/api/transactions/:id', (req, res) => {
+app.delete('/api/transactions/:id', async (req, res) => {
   try {
     db.prepare('DELETE FROM transactions WHERE id = ?').run(req.params.id);
     recordDeletedId(req.params.id, 'transactions');
     try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
-    notifyChange('delete', 'transactions', { id: req.params.id });
+    await notifyChange('delete', 'transactions', { id: req.params.id });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1845,7 +1781,7 @@ app.get('/api/sync/full', (req, res) => {
   }
 });
 
-app.post('/api/sync/push', (req, res) => {
+app.post('/api/sync/push', async (req, res) => {
   try {
     const { company, projects, materials, labor, vendors, accounts, transactions, supplierPayments, laborWeeklyHistory, deleted_ids, replace } = req.body;
 
@@ -2198,7 +2134,7 @@ app.post('/api/sync/push', (req, res) => {
 
     syncTransaction();
     try { db.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
-    notifyChange('push', 'all');
+    await notifyChange('push', 'all');
 
     const count = (projects ? projects.length : 0) + (materials ? materials.length : 0) + (labor ? labor.length : 0) + (transactions ? transactions.length : 0) + (supplierPayments ? supplierPayments.length : 0) + (laborWeeklyHistory ? laborWeeklyHistory.length : 0);
 
@@ -2236,7 +2172,7 @@ app.get('/api/backup', (req, res) => {
 });
 
 // 10. Reset All Database Records (Fresh Start)
-app.post('/api/reset', (req, res) => {
+app.post('/api/reset', async (req, res) => {
   try {
     const resetTables = ['projects', 'materials', 'labor_roster', 'labor_weekly_history', 'vendors', 'transactions', 'supplier_payments'];
     const idsToDelete = resetTables.flatMap(table => db.prepare(`SELECT id FROM ${table}`).all().map(row => row.id).filter(Boolean));
@@ -2251,25 +2187,35 @@ app.post('/api/reset', (req, res) => {
         DELETE FROM vendors;
         DELETE FROM transactions;
         DELETE FROM supplier_payments;
-        DELETE FROM deleted_items;
         DELETE FROM system_meta;
         UPDATE accounts SET balance = 0;
       `);
     });
     resetTransaction();
     db.pragma('wal_checkpoint(TRUNCATE)');
-    notifyChange('reset', 'all');
-    res.json({ success: true, message: 'All business data and deletion tombstones reset cleanly; sync metadata refreshed.' });
+    await notifyChange('reset', 'all');
+    res.json({ success: true, message: 'Business data reset; deleted records will not be restored from stale device caches.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Start Server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`====================================================`);
-  console.log(`🏢 GURUBARAN BUILDERS - SQLite Database Server Ready`);
-  console.log(`📡 API Server running on http://0.0.0.0:${PORT}`);
-  console.log(`💾 SQLite Database File: ${dbPath}`);
-  console.log(`====================================================`);
+// Start only after any PostgreSQL snapshot has been restored.
+databaseReady.then(() => {
+  const persistence = getPersistenceInfo();
+  if (!persistence.durable && process.env.NODE_ENV === 'production') {
+    throw new Error(persistence.warning || 'Production requires a persistent DATA_DIR or a configured PostgreSQL database.');
+  }
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`====================================================`);
+    console.log(`🏢 GURUBARAN BUILDERS - Database Server Ready`);
+    console.log(`📡 API Server running on http://0.0.0.0:${PORT}`);
+    console.log(`💾 SQLite Database File: ${dbPath}`);
+    console.log(`💿 Persistence: ${persistence.backend}`);
+    if (persistence.warning) console.warn(`⚠️ ${persistence.warning}`);
+    console.log(`====================================================`);
+  });
+}).catch(err => {
+  console.error('Database startup failed; refusing to serve potentially empty data:', err);
+  process.exit(1);
 });

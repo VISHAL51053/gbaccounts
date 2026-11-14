@@ -815,19 +815,19 @@
       <!-- ================= 8. COMPANY SETTINGS ================= -->
       <section id="tab-settings" class="tab-content hidden space-y-6 max-w-3xl">
         <div>
-          <h2 class="text-2xl font-black text-white m-0">Company Profile & SQLite Database Settings</h2>
+          <h2 class="text-2xl font-black text-white m-0">Company Profile & Database Settings</h2>
           <p class="text-xs text-slate-400"></p>
         </div>
 
-        <!-- Zero-Loss Data Protection & Backup Center -->
+        <!-- Data Backup & Recovery -->
         <div class="zero-loss-card bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-md space-y-4">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
               <i data-lucide="shield-check" class="w-5 h-5"></i>
             </div>
             <div>
-              <h3 class="font-bold text-white text-base m-0">Zero-Loss Data Protection & Cloud Rehydration</h3>
-              <p class="text-xs text-slate-400">Local device cache automatically restores cloud data after Git updates & server redeployments</p>
+              <h3 class="font-bold text-white text-base m-0">Data Backup & Recovery</h3>
+              <p class="text-xs text-slate-400">Local device data is an offline cache, not a cloud backup. Keep a separate backup before restoring server data.</p>
             </div>
           </div>
 
@@ -839,7 +839,7 @@
                   <i data-lucide="upload-cloud" class="w-4 h-4"></i>
                   <span>Push Local to Cloud</span>
                 </div>
-                <p class="text-[11px] text-slate-400 mt-1">Re-populates cloud database from this device if server was redeployed.</p>
+                <p class="text-[11px] text-slate-400 mt-1">Manually uploads this device's data. Do this only after verifying it is the correct recovery copy.</p>
               </div>
               <button type="button" onclick="forcePushLocalToCloud()" class="w-full mt-2 py-2 px-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs cursor-pointer shadow transition-colors">
                 ⬆️ Push to Cloud Now
@@ -1553,7 +1553,7 @@
       const customUrl = localStorage.getItem('gb_cloud_url');
       if (customUrl && customUrl.trim()) {
         let url = customUrl.trim().replace(/\/+$/, '');
-        // If current site is on HTTPS (e.g. Render), discard stale http://localhost to avoid Mixed Content blocking
+        // Avoid using a stale local API address from a secure hosted site.
         if (isHttps && (url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1'))) {
           localStorage.removeItem('gb_cloud_url');
           return `${window.location.origin}/api`;
@@ -1996,23 +1996,10 @@
           const serverTimestamp = parseInt(serverData.last_updated_at || '0', 10);
           localTimestamp = parseInt(localStorage.getItem('gb_last_data_timestamp') || '0', 10);
 
-          // SCENARIO 1: Server was restarted/cold boot on Render (server is empty), but this device has valid records -> Auto-Rehydrate Server!
+          // Never repopulate an empty server from a device cache: it may be stale.
           if (serverCount === 0 && localCount > 0) {
-            try {
-              await apiFetch(`${API_URL}/sync/push`, {
-                method: 'POST',
-                body: JSON.stringify({
-                  ...appData,
-                  deleted_ids: Array.from(getDeletedIds())
-                })
-              });
-              hasLocalEditsPending = false;
-              showSyncToast('☁️ Cloud database auto-restored & synced from device!');
-            } catch (pushErr) {
-              console.warn('Auto-sync push to cloud deferred:', pushErr);
-            }
-            saveLocalState(false);
-            return true;
+            showSyncToast('Server has no saved records. Local cache was not uploaded; verify storage before restoring a backup.');
+            return false;
           }
 
           // SCENARIO 2: Server has records -> Adopt server state directly if newer, or initial load, or event triggered
@@ -2165,7 +2152,7 @@
         });
         if (res && res.ok) {
           const out = await res.json();
-          alert(`✅ Cloud Database Successfully Rehydrated!\n${out.recordCount || 0} total records synchronized into SQLite.`);
+          alert(`✅ Server database updated!\n${out.recordCount || 0} total records synchronized.`);
           fetchFromSQLite();
         } else {
           alert('Could not push to cloud. Check internet connection and API URL.');
@@ -2221,7 +2208,7 @@
               await fetchFromSQLite();
             }
 
-            alert('✅ Backup restored successfully to both device and SQLite cloud database!');
+            alert('✅ Backup restored successfully to this device and the server database!');
           }
         } catch (err) {
           alert('Failed to restore backup: ' + (err.message || err));
