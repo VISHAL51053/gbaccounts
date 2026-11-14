@@ -14,7 +14,17 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const asyncLocalStorage = new AsyncLocalStorage();
 const activeSessions = new Map();
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+
+// Keep authenticated sessions in SQLite so browser logins survive server
+// restarts and deployments. A session is removed only by explicit logout.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS auth_sessions (
+    token TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL
+  )
+`);
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, character => ({
@@ -101,25 +111,39 @@ function extractSessionToken(req) {
   return bearer?.[1]?.trim() || String(req.query.token || '').trim();
 }
 
+function getStoredSession(token) {
+  if (!token) return null;
+  const memorySession = activeSessions.get(token);
+  if (memorySession) return memorySession;
+
+  const stored = db.prepare('SELECT token, username, created_at, last_seen_at FROM auth_sessions WHERE token = ?').get(token);
+  if (!stored) return null;
+
+  const session = {
+    username: stored.username,
+    createdAt: stored.created_at,
+    lastSeenAt: stored.last_seen_at
+  };
+  activeSessions.set(token, session);
+  return session;
+}
+
 function requireAdminSession(req, res, next) {
   const token = extractSessionToken(req);
-  const session = token && activeSessions.get(token);
-  if (!session || session.expiresAt <= Date.now()) {
-    if (token) activeSessions.delete(token);
+  const session = getStoredSession(token);
+  if (!session) {
+    if (token) {
+      activeSessions.delete(token);
+      db.prepare('DELETE FROM auth_sessions WHERE token = ?').run(token);
+    }
     return res.status(401).json({ error: 'Session expired. Please sign in again.' });
   }
-  session.expiresAt = Date.now() + SESSION_TTL_MS;
+  const lastSeenAt = new Date().toISOString();
+  session.lastSeenAt = lastSeenAt;
+  db.prepare('UPDATE auth_sessions SET last_seen_at = ? WHERE token = ?').run(lastSeenAt, token);
   req.adminSession = session;
   next();
 }
-
-const sessionCleanup = setInterval(() => {
-  const now = Date.now();
-  for (const [token, session] of activeSessions) {
-    if (session.expiresAt <= now) activeSessions.delete(token);
-  }
-}, 15 * 60 * 1000);
-sessionCleanup.unref();
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -288,7 +312,11 @@ app.post('/api/login', (req, res) => {
     const now = new Date().toISOString();
     db.prepare('UPDATE admin_user SET last_login = ? WHERE id = 1').run(now);
     const token = randomBytes(32).toString('hex');
-    activeSessions.set(token, { username: admin.username, expiresAt: Date.now() + SESSION_TTL_MS });
+    db.prepare(`
+      INSERT INTO auth_sessions (token, username, created_at, last_seen_at)
+      VALUES (?, ?, ?, ?)
+    `).run(token, admin.username, now, now);
+    activeSessions.set(token, { username: admin.username, createdAt: now, lastSeenAt: now });
     return res.json({ success: true, username: admin.username, last_login: now, token });
   } catch (err) {
     res.status(500).json({ error: 'Unable to sign in right now.' });
@@ -299,7 +327,10 @@ app.use('/api', requireAdminSession);
 
 app.post('/api/logout', (req, res) => {
   const token = extractSessionToken(req);
-  if (token) activeSessions.delete(token);
+  if (token) {
+    activeSessions.delete(token);
+    db.prepare('DELETE FROM auth_sessions WHERE token = ?').run(token);
+  }
   res.json({ success: true });
 });
 
