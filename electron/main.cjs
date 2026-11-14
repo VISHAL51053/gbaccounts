@@ -8,8 +8,10 @@ let serverProcess = null;
 function startServer() {
   const serverPath = path.join(__dirname, '..', 'server.js');
   serverProcess = spawn(process.execPath, [serverPath], {
-    env: { ...process.env, PORT: '5000' },
-    stdio: 'ignore'
+    cwd: path.dirname(serverPath),
+    env: { ...process.env, PORT: '5000', ELECTRON_RUN_AS_NODE: '1' },
+    stdio: 'ignore',
+    windowsHide: true
   });
 }
 
@@ -52,9 +54,6 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (serverProcess) {
-    serverProcess.kill();
-  }
   if (process.platform !== 'darwin') {
     app.quit();
   }

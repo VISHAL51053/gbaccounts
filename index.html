@@ -22,7 +22,7 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
@@ -71,6 +71,100 @@
     @media print {
       .no-print { display: none !important; }
       body { background: white !important; color: black !important; }
+    }
+
+    /* Gurubaran's working palette: warm paper, ink, and restrained brass. */
+    :root {
+      color-scheme: light;
+      --gb-paper: #e5ebe6;
+      --gb-panel: #f8f8f4;
+      --gb-panel-soft: #edf2ed;
+      --gb-line: #d2ddd5;
+      --gb-ink: #2d4038;
+      --gb-muted: #617168;
+      --gb-accent: #896a42;
+      --gb-accent-soft: #efe8da;
+      --gb-green: #42705a;
+      --gb-chrome: #dce6df;
+    }
+    html {
+      font-size: 15px;
+    }
+    html, body {
+      font-family: "DM Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif !important;
+      background: var(--gb-paper) !important;
+      color: var(--gb-ink) !important;
+      -webkit-font-smoothing: antialiased;
+    }
+    body * { font-family: "DM Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif !important; }
+    body { letter-spacing: 0; line-height: 1.55; font-weight: 400; }
+    h1, h2, h3, h4, h5, h6 {
+      font-family: "Manrope", "DM Sans", "Segoe UI", sans-serif !important;
+      font-weight: 700 !important;
+      letter-spacing: -0.025em !important;
+      line-height: 1.25;
+    }
+    [class*="font-black"], [class*="font-extrabold"] { font-weight: 700 !important; }
+    [class*="font-bold"] { font-weight: 650 !important; }
+    [class*="font-semibold"] { font-weight: 600 !important; }
+    [class*="font-mono"] {
+      font-family: "DM Mono", "Cascadia Mono", Consolas, monospace !important;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.015em;
+    }
+    [class*="tracking-"] { letter-spacing: 0.005em !important; }
+    [class*="uppercase"] { text-transform: none !important; }
+    [class*="text-[10px]"] { font-size: 11px !important; }
+    [class*="text-[11px]"] { font-size: 11.5px !important; }
+    input, select, textarea, button { font: inherit; }
+    input, select, textarea {
+      border-color: var(--gb-line) !important;
+      background-color: #f8f8f4 !important;
+      color: var(--gb-ink) !important;
+      border-radius: 8px !important;
+    }
+    input::placeholder, textarea::placeholder { color: #89948f !important; }
+    button { transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease; }
+    button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+      outline: 3px solid #cba773 !important;
+      outline-offset: 2px;
+    }
+    ::-webkit-scrollbar-track { background: #e9ece9 !important; }
+    ::-webkit-scrollbar-thumb { background: #b8c1bc !important; }
+
+    /* Surface and text utilities used across the portal. */
+    [class*="bg-slate-950"] { background-color: var(--gb-paper) !important; }
+    [class*="bg-slate-900"] { background-color: var(--gb-panel) !important; }
+    [class*="bg-slate-800"] { background-color: var(--gb-panel-soft) !important; }
+    [class*="bg-slate-700"] { background-color: #edf0ed !important; }
+    [class*="bg-gradient-to-"] { background-image: none !important; background-color: #dce6df !important; }
+    [class*="border-slate-800"], [class*="border-slate-700"], [class*="border-slate-600"] { border-color: var(--gb-line) !important; }
+    [class*="text-white"], [class*="text-slate-100"], [class*="text-slate-200"] { color: var(--gb-ink) !important; }
+    [class*="text-slate-300"], [class*="text-slate-400"], [class*="text-slate-500"] { color: var(--gb-muted) !important; }
+    [class*="text-slate-600"] { color: #7b8781 !important; }
+    [class*="bg-amber-500"], [class*="bg-amber-600"], [class*="from-amber-"] { background-color: var(--gb-accent) !important; }
+    [class*="hover:bg-amber-400"]:hover { background-color: #855a28 !important; }
+    [class*="text-amber-300"], [class*="text-amber-400"] { color: var(--gb-accent) !important; }
+    [class*="border-amber-500"] { border-color: #d4bd9e !important; }
+    [class*="bg-amber-500/"], [class*="bg-amber-600/"] { background-color: var(--gb-accent-soft) !important; }
+    [class*="text-emerald-300"], [class*="text-emerald-400"] { color: var(--gb-green) !important; }
+    [class*="text-rose-300"], [class*="text-rose-400"] { color: #a14e49 !important; }
+    [class*="bg-emerald-500/"], [class*="bg-rose-500/"] { background-color: #edf3ef !important; }
+    [class*="shadow-amber-500/"] { --tw-shadow-color: rgb(38 54 49 / 0.08) !important; }
+    [class~="bg-white"] { background-color: #f8f8f4 !important; }
+    header.bg-slate-900 { background-color: var(--gb-chrome) !important; }
+    #appSidebar.bg-slate-900 { background-color: #e8eee9 !important; }
+    .rounded-2xl, .rounded-3xl { border-radius: 12px !important; }
+    .rounded-xl { border-radius: 9px !important; }
+    .shadow-xl, .shadow-2xl { box-shadow: 0 12px 30px rgb(38 54 49 / 0.08) !important; }
+    [class*="backdrop-blur"] { backdrop-filter: blur(5px); }
+    table { border-collapse: separate; border-spacing: 0; }
+    thead { background: #e9efea !important; }
+    th { color: #56645e !important; font-weight: 650 !important; letter-spacing: .035em; }
+    td, th { border-color: var(--gb-line) !important; }
+    tr:hover td { background-color: #eef3ee !important; }
+    @media (max-width: 767px) {
+      body { font-size: 14px; }
     }
   </style>
 </head>
@@ -1431,11 +1525,17 @@
       return 'http://localhost:5000/api';
     }
 
+    function getStoredSessionToken() {
+      return localStorage.getItem('gb_auth_token') || sessionStorage.getItem('gb_auth_token') || '';
+    }
+
     async function apiFetch(url, options = {}) {
       const defaultHeaders = {
         'Bypass-Tunnel-Reminder': 'true',
         'X-GB-Client-ID': CLIENT_INSTANCE_ID
       };
+      const sessionToken = getStoredSessionToken();
+      if (sessionToken) defaultHeaders.Authorization = `Bearer ${sessionToken}`;
       if (options.body && typeof options.body === 'string' && (!options.headers || !options.headers['Content-Type'])) {
         defaultHeaders['Content-Type'] = 'application/json';
       }
@@ -1447,6 +1547,17 @@
             ...(options.headers || {})
           }
         });
+        if (res.status === 401 && !url.includes('/login')) {
+          ['gb_auth_user', 'gb_auth_token'].forEach(key => {
+            localStorage.removeItem(key);
+            sessionStorage.removeItem(key);
+          });
+          if (liveEventSource) {
+            liveEventSource.close();
+            liveEventSource = null;
+          }
+          if (typeof showAuthOverlay === 'function') showAuthOverlay(true);
+        }
         if (res.ok) {
           isSQLiteOnline = true;
           updateSyncBadge(true);
@@ -1605,7 +1716,11 @@
         toast.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-slate-900/95 border border-emerald-500/50 text-emerald-300 text-xs font-bold shadow-2xl backdrop-blur flex items-center gap-2 transition-all duration-300 opacity-0 pointer-events-none transform translate-y-2';
         document.body.appendChild(toast);
       }
-      toast.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>${msg}</span>`;
+      const indicator = document.createElement('span');
+      indicator.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+      const message = document.createElement('span');
+      message.textContent = String(msg ?? '');
+      toast.replaceChildren(indicator, message);
       toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-2');
       toast.classList.add('opacity-100', 'translate-y-0');
       setTimeout(() => {
@@ -1782,6 +1897,7 @@
 
     // --- Load / Sync Data From Cloud / SQLite Database ---
     async function fetchFromSQLite(isEventTriggered = false) {
+      if (!getStoredSessionToken()) return false;
       if (isFetchingSync && !isEventTriggered) return false;
       isFetchingSync = true;
       API_URL = getApiUrl();
@@ -1808,6 +1924,14 @@
             serverData.deleted_ids.forEach(delId => {
               if (delId) markIdAsDeleted(delId);
             });
+          }
+
+          // Apply server tombstones before considering local data for rehydration.
+          // This prevents a deliberate reset or remote delete from being restored by a stale device.
+          for (const collection of ['projects', 'materials', 'labor', 'vendors', 'transactions', 'supplierPayments', 'laborWeeklyHistory']) {
+            if (Array.isArray(appData[collection])) {
+              appData[collection] = appData[collection].filter(item => !isItemDeleted(item));
+            }
           }
 
           const serverProjects = Array.isArray(serverData.projects) ? serverData.projects : [];
@@ -1914,12 +2038,14 @@
 
     function initLiveSync() {
       if (typeof EventSource === 'undefined') return;
+      const sessionToken = getStoredSessionToken();
+      if (!sessionToken) return;
       if (liveEventSource) {
         try { liveEventSource.close(); } catch(e) {}
         liveEventSource = null;
       }
 
-      const sseUrl = `${getApiUrl()}/sync/live`;
+      const sseUrl = `${getApiUrl()}/sync/live?token=${encodeURIComponent(sessionToken)}`;
       try {
         liveEventSource = new EventSource(sseUrl);
 
@@ -1965,18 +2091,22 @@
 
     // Auto-sync when switching tabs, unlocking mobile screen, or network reconnection
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
+      if (!document.hidden && getStoredSessionToken()) {
         fetchFromSQLite(true);
         if (!liveEventSource) initLiveSync();
       }
     });
     window.addEventListener('focus', () => {
-      fetchFromSQLite(true);
-      if (!liveEventSource) initLiveSync();
+      if (getStoredSessionToken()) {
+        fetchFromSQLite(true);
+        if (!liveEventSource) initLiveSync();
+      }
     });
     window.addEventListener('online', () => {
-      fetchFromSQLite(true);
-      initLiveSync();
+      if (getStoredSessionToken()) {
+        fetchFromSQLite(true);
+        initLiveSync();
+      }
     });
 
     async function forcePushLocalToCloud() {
@@ -2121,6 +2251,18 @@
     function escapeHtml(str) {
       if (!str) return '';
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function inlineJsString(value) {
+      const safeValue = String(value ?? '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\r/g, '\\r')
+        .replace(/\n/g, '\\n')
+        .replace(/\u2028/g, '\\u2028')
+        .replace(/\u2029/g, '\\u2029')
+        .replace(/</g, '\\x3C');
+      return escapeHtml(`'${safeValue}'`);
     }
 
     // --- Modal Helpers ---
@@ -2697,6 +2839,35 @@
       } catch (err) {
         console.warn('Blob download fallback to Data URI:', err);
         triggerDataUriDownload(csvContent, filename);
+      }
+    }
+
+    async function openAuthenticatedResource(url, filename = '') {
+      const previewTab = filename ? null : window.open('about:blank', '_blank');
+      try {
+        const response = await apiFetch(url);
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({}));
+          throw new Error(detail.error || 'The requested file could not be opened.');
+        }
+
+        const objectUrl = URL.createObjectURL(await response.blob());
+        if (filename) {
+          const link = document.createElement('a');
+          link.href = objectUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        } else if (previewTab && !previewTab.closed) {
+          previewTab.location.href = objectUrl;
+        } else {
+          window.location.href = objectUrl;
+        }
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+      } catch (err) {
+        if (previewTab && !previewTab.closed) previewTab.close();
+        alert(err.message || 'The requested file could not be opened.');
       }
     }
 
@@ -3398,7 +3569,7 @@
 
       const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
       const compName = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
-      const sheetUrl = `${getApiUrl()}/labor/sheet`;
+      const sheetUrl = 'Sign in to the portal to view the live attendance sheet.';
 
       let msg = `🏗️ *${compName.toUpperCase()}*\n`;
       msg += `📋 *Weekly Labour Attendance & Wage Summary*\n`;
@@ -3638,7 +3809,7 @@
       if (!history) return;
 
       const compName = (appData.company && appData.company.name) || 'GURUBARAN BUILDERS';
-      const sheetUrl = `${getApiUrl()}/labor/history/${id}/sheet`;
+      const sheetUrl = 'Sign in to the portal to view the archived attendance sheet.';
 
       let siteBreakdown = [];
       try {
@@ -3745,14 +3916,14 @@
               </div>
 
               <div class="flex items-center gap-2 flex-wrap">
-                <a href="${sheetUrl}" target="_blank" class="px-3 py-1.5 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/70 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-colors inline-flex items-center gap-1.5">
+                <button type="button" data-auth-document="${escapeHtml(sheetUrl)}" class="px-3 py-1.5 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/70 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer">
                   <i data-lucide="table" class="w-3.5 h-3.5 text-emerald-400"></i>
                   <span>Google Sheet</span>
-                </a>
-                <a href="${csvUrl}" download="Labour_${h.week_ending}.csv" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-bold transition-colors inline-flex items-center gap-1.5">
+                </button>
+                <button type="button" data-auth-document="${escapeHtml(csvUrl)}" data-download-name="Labour_${escapeHtml(h.week_ending)}.csv" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer">
                   <i data-lucide="download" class="w-3.5 h-3.5"></i>
                   <span>CSV</span>
-                </a>
+                </button>
                 <button onclick="shareArchivedWeekWhatsApp('${h.id}')" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors inline-flex items-center gap-1.5 cursor-pointer">
                   <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
                   <span>WhatsApp</span>
@@ -3775,6 +3946,9 @@
         `;
       }).join('');
 
+      container.querySelectorAll('[data-auth-document]').forEach(button => {
+        button.addEventListener('click', () => openAuthenticatedResource(button.dataset.authDocument, button.dataset.downloadName || ''));
+      });
       safeLucideIcons();
     }
 
@@ -4420,31 +4594,29 @@
     // --- Authentication Logic (Personal Single Login) ---
     function checkAuth() {
       const savedUser = localStorage.getItem('gb_auth_user') || sessionStorage.getItem('gb_auth_user');
+      const savedToken = localStorage.getItem('gb_auth_token') || sessionStorage.getItem('gb_auth_token');
       const userBadge = document.getElementById('headerUserName');
 
-      if (savedUser) {
+      if (savedUser && savedToken) {
         showAuthOverlay(false);
         if (userBadge) userBadge.textContent = savedUser;
       } else {
+        ['gb_auth_user', 'gb_auth_token'].forEach(key => {
+          localStorage.removeItem(key);
+          sessionStorage.removeItem(key);
+        });
         showAuthOverlay(true);
       }
     }
 
-    function quickFillAndLogin() {
-      const uInput = document.getElementById('loginUsername');
-      const pInput = document.getElementById('loginPassword');
-      if (uInput) uInput.value = 'gurubaran';
-      if (pInput) pInput.value = 'admin123';
-      handleLogin();
-    }
-
-    function grantAccess(username) {
+    function grantAccess(username, token) {
+      if (!token) return false;
       try {
         const user = username || 'gurubaran';
         localStorage.setItem('gb_auth_user', user);
         sessionStorage.setItem('gb_auth_user', user);
-        localStorage.setItem('gb_auth_token', 'gb_session_' + Date.now());
-        sessionStorage.setItem('gb_auth_token', 'gb_session_' + Date.now());
+        localStorage.setItem('gb_auth_token', token);
+        sessionStorage.setItem('gb_auth_token', token);
 
         const userBadge = document.getElementById('headerUserName');
         if (userBadge) userBadge.textContent = user;
@@ -4457,9 +4629,12 @@
 
         // Background cloud SQLite fetch
         fetchFromSQLite();
+        initLiveSync();
+        return true;
       } catch (err) {
         console.error('grantAccess error:', err);
-        showAuthOverlay(false);
+        showAuthOverlay(true);
+        return false;
       }
     }
 
@@ -4483,27 +4658,9 @@
 
       if (!username || !password) {
         if (errorDiv) {
-          errorDiv.innerHTML = '<span>Please enter both username and password.</span>';
+          errorDiv.textContent = 'Please enter both username and password.';
           errorDiv.classList.remove('hidden');
         }
-        return;
-      }
-
-      const cleanUser = username.toLowerCase().replace(/[^a-z0-9]/gi, '');
-      const cleanPass = password;
-
-      // Instant client-side verification for master credentials
-      const isMasterUser = (cleanUser === 'gurubaran' || cleanUser === 'guruburan' || cleanUser === 'admin' || cleanUser === 'owner' || cleanUser === 'gurubaranbuilders');
-      const isMasterPass = (cleanPass === 'admin123' || cleanPass.toLowerCase() === 'admin123' || cleanPass === 'admin' || cleanPass === 'gurubaran' || cleanPass === 'admin@123');
-
-      if (isMasterUser && isMasterPass) {
-        grantAccess('gurubaran');
-        // Notify backend in background without awaiting
-        const apiUrl = getApiUrl();
-        apiFetch(`${apiUrl}/login`, {
-          method: 'POST',
-          body: JSON.stringify({ username, password })
-        }).catch(() => {});
         return;
       }
 
@@ -4516,34 +4673,32 @@
         const apiUrl = getApiUrl();
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-        const res = await apiFetch(`${apiUrl}/login`, {
-          method: 'POST',
-          body: JSON.stringify({ username, password }),
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.success) {
-            isSQLiteOnline = true;
-            grantAccess(data.username || username);
-            return;
-          }
+        let res;
+        try {
+          res = await apiFetch(`${apiUrl}/login`, {
+            method: 'POST',
+            body: JSON.stringify({ username, password }),
+            signal: controller.signal
+          });
+        } finally {
+          clearTimeout(timeoutId);
         }
 
-        const errData = await res.json().catch(() => ({}));
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success && data.token) {
+          isSQLiteOnline = true;
+          grantAccess(data.username || username, data.token);
+          return;
+        }
+
         if (errorDiv) {
-          errorDiv.innerHTML = `<span>${errData.error || 'Invalid username or password. Please try again.'}</span>`;
+          errorDiv.textContent = data.error || 'Invalid username or password. Please try again.';
           errorDiv.classList.remove('hidden');
         }
       } catch (err) {
         console.error('Login error:', err);
-        if (isMasterUser) {
-          grantAccess('gurubaran');
-        } else if (errorDiv) {
-          errorDiv.innerHTML = `<span>Server unreachable or waking up. Please retry in a few seconds.</span>`;
+        if (errorDiv) {
+          errorDiv.textContent = 'Could not reach the sign-in service. Check the connection and try again.';
           errorDiv.classList.remove('hidden');
         }
       } finally {
@@ -4555,8 +4710,17 @@
       }
     }
 
-    function handleLogout() {
+    async function handleLogout() {
       if (confirm('Logout of GURUBARAN BUILDERS portal?')) {
+        if (liveEventSource) {
+          liveEventSource.close();
+          liveEventSource = null;
+        }
+        try {
+          await apiFetch(`${getApiUrl()}/logout`, { method: 'POST' });
+        } catch (err) {
+          console.warn('Could not contact the sign-out service:', err);
+        }
         localStorage.removeItem('gb_auth_user');
         localStorage.removeItem('gb_auth_token');
         sessionStorage.removeItem('gb_auth_user');
@@ -4577,46 +4741,29 @@
       feedback.textContent = '';
 
       try {
-        if (isSQLiteOnline) {
-          const res = await apiFetch(`${API_URL}/change-password`, {
-            method: 'POST',
-            body: JSON.stringify({ currentPassword, newUsername, newPassword })
-          });
-          const data = await res.json();
+        if (!isSQLiteOnline) throw new Error('Reconnect to the server before changing account credentials.');
+        const res = await apiFetch(`${API_URL}/change-password`, {
+          method: 'POST',
+          body: JSON.stringify({ currentPassword, newUsername, newPassword })
+        });
+        const data = await res.json();
 
-          if (res.ok && data.success) {
-            feedback.textContent = 'Master credentials updated in SQLite database successfully!';
-            feedback.className = 'p-3 rounded-xl text-xs font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 block';
-            if (newUsername) {
-              sessionStorage.setItem('gb_auth_user', newUsername);
-              document.getElementById('headerUserName').textContent = newUsername;
-            }
-            e.target.reset();
-          } else {
-            feedback.textContent = data.error || 'Failed to update password';
-            feedback.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-500/15 border border-rose-500/30 text-rose-300 block';
+        if (res.ok && data.success) {
+          feedback.textContent = 'Master credentials updated successfully.';
+          feedback.className = 'p-3 rounded-xl text-xs font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 block';
+          if (newUsername) {
+            localStorage.setItem('gb_auth_user', newUsername);
+            sessionStorage.setItem('gb_auth_user', newUsername);
+            const headerUser = document.getElementById('headerUserName');
+            if (headerUser) headerUser.textContent = newUsername;
           }
+          e.target.reset();
         } else {
-          // Offline fallback
-          const savedCreds = JSON.parse(localStorage.getItem('gb_admin_creds') || '{"username":"gurubaran","password":"admin123"}');
-          if (currentPassword !== savedCreds.password) {
-            feedback.textContent = 'Current password does not match!';
-            feedback.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-500/15 border border-rose-500/30 text-rose-300 block';
-          } else {
-            const updated = {
-              username: newUsername || savedCreds.username,
-              password: newPassword || savedCreds.password
-            };
-            localStorage.setItem('gb_admin_creds', JSON.stringify(updated));
-            sessionStorage.setItem('gb_auth_user', updated.username);
-            document.getElementById('headerUserName').textContent = updated.username;
-            feedback.textContent = 'Credentials updated locally!';
-            feedback.className = 'p-3 rounded-xl text-xs font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 block';
-            e.target.reset();
-          }
+          feedback.textContent = data.error || 'Failed to update password';
+          feedback.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-500/15 border border-rose-500/30 text-rose-300 block';
         }
       } catch (err) {
-        feedback.textContent = 'Error connecting to database server';
+        feedback.textContent = err.message || 'Error connecting to database server';
         feedback.className = 'p-3 rounded-xl text-xs font-semibold bg-rose-500/15 border border-rose-500/30 text-rose-300 block';
       }
       safeLucideIcons();
@@ -4633,30 +4780,49 @@
         address: document.getElementById('setAddress').value
       };
 
-      if (isSQLiteOnline) {
-        await apiFetch(`${API_URL}/company`, {
+      try {
+        if (!isSQLiteOnline) throw new Error('Reconnect to the server before saving company settings.');
+        const response = await apiFetch(`${API_URL}/company`, {
           method: 'POST',
           body: JSON.stringify(payload)
         });
+        if (!response.ok) throw new Error('Company settings could not be saved.');
+        appData.company = { ...(appData.company || {}), ...payload };
+        saveLocalState();
+        renderAll();
         await fetchFromSQLite();
+        alert('Company profile updated successfully.');
+      } catch (err) {
+        alert(err.message || 'Company profile could not be saved.');
       }
-
-      alert('Company profile updated in SQLite database!');
     }
 
     async function clearAllAppStorage() {
-      if (confirm('Clear all data from SQLite database and start completely fresh?')) {
-        if (isSQLiteOnline) {
-          await apiFetch(`${API_URL}/reset`, { method: 'POST' });
-          await fetchFromSQLite();
-        } else {
-          appData.projects = [];
-          appData.materials = [];
-          appData.labor = [];
-          appData.vendors = [];
-          renderAll();
-        }
-        alert('All SQLite database records reset successfully.');
+      if (!confirm('Clear all operational data from the database and start fresh? Company settings and account records will remain.')) return;
+      if (!isSQLiteOnline) {
+        alert('The database server is offline. No data was cleared. Reconnect and try again.');
+        return;
+      }
+
+      try {
+        const response = await apiFetch(`${API_URL}/reset`, { method: 'POST' });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.success) throw new Error(result.error || 'The database reset failed.');
+
+        appData.projects = [];
+        appData.materials = [];
+        appData.labor = [];
+        appData.vendors = [];
+        appData.transactions = [];
+        appData.supplierPayments = [];
+        appData.laborWeeklyHistory = [];
+        appData.accounts = (appData.accounts || []).map(account => ({ ...account, balance: 0 }));
+        saveLocalState(false);
+        renderAll();
+        await fetchFromSQLite();
+        alert('Operational data was cleared successfully.');
+      } catch (err) {
+        alert(err.message || 'The database reset failed.');
       }
     }
 
@@ -5521,21 +5687,20 @@
       checkAuth();
       safeLucideIcons();
 
-      // Attempt immediate cloud sync
-      fetchFromSQLite().then(connected => {
-        if (!connected) {
-          // If server is spinning up (Render cold start), retry at 3s and 8s
-          setTimeout(() => fetchFromSQLite(), 3000);
-          setTimeout(() => fetchFromSQLite(), 8000);
-        }
-      });
-
-      // Initialize real-time SSE multi-device synchronization
-      initLiveSync();
+      if (getStoredSessionToken()) {
+        fetchFromSQLite().then(connected => {
+          if (!connected) {
+            // If server is spinning up (Render cold start), retry at 3s and 8s
+            setTimeout(() => fetchFromSQLite(), 3000);
+            setTimeout(() => fetchFromSQLite(), 8000);
+          }
+        });
+        initLiveSync();
+      }
 
       // Background cloud sync every 15 seconds as fallback (SSE handles instant live updates)
       setInterval(() => {
-        fetchFromSQLite();
+        if (getStoredSessionToken()) fetchFromSQLite();
       }, 15000);
     });
   </script>

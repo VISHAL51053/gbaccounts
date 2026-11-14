@@ -4,7 +4,8 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { AsyncLocalStorage } from 'async_hooks';
-import db, { dbPath, saveSnapshot, bumpRevision, getMeta, setMeta, recordDeletedId, getDeletedIds } from './database/db.js';
+import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
+import db, { dbPath, saveSnapshot, bumpRevision, getMeta, recordDeletedId, getDeletedIds } from './database/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +13,113 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 const asyncLocalStorage = new AsyncLocalStorage();
+const activeSessions = new Map();
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
+
+function csvCell(value) {
+  let text = String(value ?? '');
+  if (typeof value === 'string' && /^[\s]*[=+@]/.test(text)) text = `'${text}`;
+  if (typeof value === 'string' && /^[\s]*-/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function csvRow(values) {
+  return values.map(csvCell).join(',') + '\r\n';
+}
+
+function getPublicApiBase(req) {
+  const forwardedProto = String(req.get('x-forwarded-proto') || '').split(',')[0].trim();
+  return `${forwardedProto || req.protocol}://${req.get('host')}/api/`;
+}
+
+function authenticatedCsvDownloadScript() {
+  return `<script>
+    async function downloadAuthenticatedCsv(path, fileName) {
+      const token = localStorage.getItem('gb_auth_token') || sessionStorage.getItem('gb_auth_token');
+      if (!token) { alert('Sign in to the portal before downloading this file.'); return; }
+      try {
+        const response = await fetch(new URL(path, document.body.dataset.apiBase), {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        if (!response.ok) { alert('The CSV could not be downloaded. Sign in again and retry.'); return; }
+        const objectUrl = URL.createObjectURL(await response.blob());
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+      } catch (error) {
+        alert('The CSV could not be downloaded. Check your connection and retry.');
+      }
+    }
+    document.addEventListener('click', event => {
+      const link = event.target.closest('a[href]');
+      const href = link && link.getAttribute('href');
+      if (!href || (!href.startsWith('/api/labor/csv') && !/^\\/api\\/labor\\/history\\/[^/]+\\/csv$/.test(href))) return;
+      event.preventDefault();
+      downloadAuthenticatedCsv(href.replace(/^\\/api\\//, ''), link.getAttribute('download') || 'Labour.csv');
+    });
+  </script>`;
+}
+
+function hashPassword(password) {
+  const salt = randomBytes(16).toString('hex');
+  const digest = scryptSync(String(password), salt, 64).toString('hex');
+  return `scrypt$${salt}$${digest}`;
+}
+
+function verifyPassword(password, encoded) {
+  if (typeof encoded !== 'string') return false;
+  const [, salt, digest] = encoded.split('$');
+  if (!salt || !digest || !/^[a-f\d]+$/i.test(digest) || digest.length % 2 !== 0) return false;
+  const expected = Buffer.from(digest, 'hex');
+  const actual = scryptSync(String(password), salt, expected.length);
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
+// Upgrade existing plaintext credentials in place without changing the owner's password.
+const savedAdminPassword = db.prepare('SELECT password FROM admin_user WHERE id = 1').get()?.password;
+if (savedAdminPassword && !savedAdminPassword.startsWith('scrypt$')) {
+  db.prepare('UPDATE admin_user SET password = ? WHERE id = 1').run(hashPassword(savedAdminPassword));
+}
+
+function extractSessionToken(req) {
+  const authorization = req.get('authorization') || '';
+  const bearer = authorization.match(/^Bearer\s+(.+)$/i);
+  return bearer?.[1]?.trim() || String(req.query.token || '').trim();
+}
+
+function requireAdminSession(req, res, next) {
+  const token = extractSessionToken(req);
+  const session = token && activeSessions.get(token);
+  if (!session || session.expiresAt <= Date.now()) {
+    if (token) activeSessions.delete(token);
+    return res.status(401).json({ error: 'Session expired. Please sign in again.' });
+  }
+  session.expiresAt = Date.now() + SESSION_TTL_MS;
+  req.adminSession = session;
+  next();
+}
+
+const sessionCleanup = setInterval(() => {
+  const now = Date.now();
+  for (const [token, session] of activeSessions) {
+    if (session.expiresAt <= now) activeSessions.delete(token);
+  }
+}, 15 * 60 * 1000);
+sessionCleanup.unref();
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -29,7 +137,9 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'deny', index: false }));
+app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+app.get('/gurubaran_builders.html', (req, res) => res.redirect(302, '/'));
 
 // Live Multi-Device SSE Broadcast Manager
 const sseClients = new Set();
@@ -156,7 +266,6 @@ app.get('/api/status', (req, res) => {
   res.json({
     status: 'online',
     database: 'SQLite 3 (WAL Mode)',
-    databaseFile: dbPath,
     timestamp: new Date().toISOString()
   });
 });
@@ -165,48 +274,33 @@ app.get('/api/status', (req, res) => {
 app.post('/api/login', (req, res) => {
   try {
     const { username, password } = req.body || {};
-    if (!username || !password) {
+    if (typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password) {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const cleanUser = String(username).trim().toLowerCase().replace(/[^a-z0-9]/gi, '');
-    const cleanPass = String(password).trim();
-
-    // Direct match for master owner
-    const isMasterUser = (cleanUser === 'gurubaran' || cleanUser === 'guruburan' || cleanUser === 'admin' || cleanUser === 'owner' || cleanUser === 'gurubaranbuilders');
-    const isMasterPass = (cleanPass === 'admin123' || cleanPass.toLowerCase() === 'admin123' || cleanPass === 'admin' || cleanPass === 'gurubaran' || cleanPass === 'admin@123');
-
-    if (isMasterUser && isMasterPass) {
-      const now = new Date().toISOString();
-      try { db.prepare('UPDATE admin_user SET last_login = ? WHERE id = 1').run(now); } catch(e) {}
-      return res.json({
-        success: true,
-        username: 'gurubaran',
-        last_login: now,
-        token: `gb_session_${Date.now()}`
-      });
-    }
-
     const admin = db.prepare('SELECT * FROM admin_user WHERE id = 1').get();
-    if (admin) {
-      const dbUser = (admin.username || '').trim().toLowerCase().replace(/[^a-z0-9]/gi, '');
-      const dbPass = (admin.password || '').trim();
-      if ((dbUser === cleanUser || admin.username.trim().toLowerCase() === String(username).trim().toLowerCase()) && dbPass === cleanPass) {
-        const now = new Date().toISOString();
-        try { db.prepare('UPDATE admin_user SET last_login = ? WHERE id = 1').run(now); } catch(e) {}
-        return res.json({
-          success: true,
-          username: admin.username,
-          last_login: now,
-          token: `gb_session_${Date.now()}`
-        });
-      }
+    const cleanUser = username.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const savedUser = String(admin?.username || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!admin || !savedUser || cleanUser !== savedUser || !verifyPassword(password, admin.password)) {
+      return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    return res.status(401).json({ error: 'Invalid username or password' });
+    const now = new Date().toISOString();
+    db.prepare('UPDATE admin_user SET last_login = ? WHERE id = 1').run(now);
+    const token = randomBytes(32).toString('hex');
+    activeSessions.set(token, { username: admin.username, expiresAt: Date.now() + SESSION_TTL_MS });
+    return res.json({ success: true, username: admin.username, last_login: now, token });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Unable to sign in right now.' });
   }
+});
+
+app.use('/api', requireAdminSession);
+
+app.post('/api/logout', (req, res) => {
+  const token = extractSessionToken(req);
+  if (token) activeSessions.delete(token);
+  res.json({ success: true });
 });
 
 app.get('/api/auth-user', (req, res) => {
@@ -227,12 +321,12 @@ app.post('/api/change-password', (req, res) => {
       return res.status(404).json({ error: 'Admin record not found' });
     }
 
-    if (admin.password !== currentPassword) {
+    if (!verifyPassword(currentPassword, admin.password)) {
       return res.status(400).json({ error: 'Current password does not match' });
     }
 
     const updatedUsername = (newUsername && newUsername.trim()) ? newUsername.trim() : admin.username;
-    const updatedPassword = (newPassword && newPassword.trim()) ? newPassword.trim() : admin.password;
+    const updatedPassword = (newPassword && newPassword.trim()) ? hashPassword(newPassword.trim()) : admin.password;
 
     db.prepare('UPDATE admin_user SET username = ?, password = ? WHERE id = 1').run(updatedUsername, updatedPassword);
 
@@ -777,7 +871,7 @@ app.get(['/api/labor/sheet', '/api/labour/sheet'], (req, res) => {
         sectionHeader = `
           <tr style="background: ${headerBg};">
             <td colspan="12" style="padding: 8px 12px; font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: ${headerColor}; border: 1px solid ${headerBorder};">
-              ${sectionTitle}
+              ${escapeHtml(sectionTitle)}
             </td>
           </tr>
         `;
@@ -793,7 +887,7 @@ app.get(['/api/labor/sheet', '/api/labour/sheet'], (req, res) => {
         }
         return `
           <td class="cell day-cell ${isActive ? 'active-day' : ''}">
-            <div class="duty-badge">${duty}</div>
+            <div class="duty-badge">${escapeHtml(duty)}</div>
             ${isActive ? `<div class="duty-amt">₹${amt}</div>` : `<div class="duty-amt text-muted">-</div>`}
           </td>
         `;
@@ -811,8 +905,8 @@ app.get(['/api/labor/sheet', '/api/labour/sheet'], (req, res) => {
         ${sectionHeader}
         <tr>
           <td class="cell text-center font-bold text-muted">${idx + 1}</td>
-          <td class="cell font-bold worker-name">${w.name}</td>
-          <td class="cell text-center"><span class="role-badge ${role === 'Ma' ? 'role-ma' : 'role-mm'}">${role}</span></td>
+          <td class="cell font-bold worker-name">${escapeHtml(w.name)}</td>
+          <td class="cell text-center"><span class="role-badge ${role === 'Ma' ? 'role-ma' : 'role-mm'}">${escapeHtml(role)}</span></td>
           ${dayTds}
           <td class="cell text-center font-bold">${wDays} d</td>
           <td class="cell text-right font-black wage-col">₹${wTotal.toLocaleString('en-IN')}</td>
@@ -826,7 +920,7 @@ app.get(['/api/labor/sheet', '/api/labour/sheet'], (req, res) => {
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${company.name} - Weekly Labour Wage Sheet</title>
+        <title>${escapeHtml(company.name)} - Weekly Labour Wage Sheet</title>
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -889,14 +983,15 @@ app.get(['/api/labor/sheet', '/api/labour/sheet'], (req, res) => {
             .actions { display: none; }
           }
         </style>
+      ${authenticatedCsvDownloadScript()}
       </head>
-      <body>
+      <body data-api-base="${escapeHtml(getPublicApiBase(req))}">
         <div class="container">
           <div class="sheets-bar">
             <div class="sheets-title">
               <div class="sheets-icon">📊</div>
               <div>
-                <h1>${company.name} - Labour Muster Roll</h1>
+                <h1>${escapeHtml(company.name)} - Labour Muster Roll</h1>
                 <p>Date: ${today} • Live Cloud Synchronized Google Sheet</p>
               </div>
             </div>
@@ -955,7 +1050,7 @@ app.get(['/api/labor/sheet', '/api/labour/sheet'], (req, res) => {
           </div>
 
           <div class="footer">
-            <span>Generated from ${company.name} Cloud Accounts ERP</span>
+            <span>Generated from ${escapeHtml(company.name)} Cloud Accounts ERP</span>
             <span>Live Sync Active • 100% Verified SQLite Data</span>
           </div>
         </div>
@@ -991,8 +1086,8 @@ app.get(['/api/labor/csv', '/api/labour/csv'], (req, res) => {
     let grandTotal = 0;
     let totalDaysAll = 0;
 
-    let csv = `"${company.name} - Weekly Labour Attendance & Wage Sheet (${today})"\n\n`;
-    csv += `"S.No","Worker Name","Role","Mon","Tue","Wed","Thu","Fri","Sat","Sun","Total Days","Weekly Wage (INR)"\n`;
+    let csv = '\uFEFF' + csvRow([`${company.name} - Weekly Labour Attendance & Wage Sheet (${today})`]) + '\r\n';
+    csv += csvRow(['S.No', 'Worker Name', 'Role', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Total Days', 'Weekly Wage (INR)']);
 
     workers.forEach((w, idx) => {
       const role = w.role || 'Ma';
@@ -1018,12 +1113,12 @@ app.get(['/api/labor/csv', '/api/labour/csv'], (req, res) => {
       grandTotal += wTotal;
       totalDaysAll += wDays;
 
-      csv += `"${idx + 1}","${w.name}","${role}","${duties['mon']}","${duties['tue']}","${duties['wed']}","${duties['thu']}","${duties['fri']}","${duties['sat']}","${duties['sun']}","${wDays}","${wTotal}"\n`;
+      csv += csvRow([idx + 1, w.name, role, duties.mon, duties.tue, duties.wed, duties.thu, duties.fri, duties.sat, duties.sun, wDays, wTotal]);
     });
 
-    csv += `\n"","","","","","","","","","Total Labour Charges:","${totalDaysAll} Days","${grandTotal}"\n`;
+    csv += '\r\n' + csvRow(['', '', '', '', '', '', '', '', '', 'Total Labour Charges:', `${totalDaysAll} Days`, grandTotal]);
 
-    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename=Labour_Attendance_${today}.csv`);
     res.send(csv);
   } catch (err) {
@@ -1156,12 +1251,16 @@ app.get(['/api/labor/history/:id/sheet', '/api/labour/history/:id/sheet'], (req,
     } catch (e) {
       workers = [];
     }
+    if (!Array.isArray(workers)) workers = [];
+    workers = workers.filter(worker => worker && typeof worker === 'object' && !Array.isArray(worker));
 
     try {
       siteBreakdown = JSON.parse(record.site_breakdown_json || '[]');
     } catch (e) {
       siteBreakdown = [];
     }
+    if (!Array.isArray(siteBreakdown)) siteBreakdown = [];
+    siteBreakdown = siteBreakdown.filter(site => site && typeof site === 'object' && !Array.isArray(site));
 
     // Sort workers: Ma first, Mm second
     workers.sort((a, b) => {
@@ -1224,8 +1323,8 @@ app.get(['/api/labor/history/:id/sheet', '/api/labour/history/:id/sheet'], (req,
 
         return `
           <td class="cell day-cell ${isActive ? 'active-day' : ''}">
-            <div class="duty-badge">${duty}</div>
-            ${site ? `<div class="site-chip" title="${site}">${site}</div>` : ''}
+            <div class="duty-badge">${escapeHtml(duty)}</div>
+            ${site ? `<div class="site-chip" title="${escapeHtml(site)}">${escapeHtml(site)}</div>` : ''}
             <div class="duty-amt ${isActive ? '' : 'text-muted'}">${isActive ? '₹' + amt : '-'}</div>
           </td>
         `;
@@ -1240,8 +1339,8 @@ app.get(['/api/labor/history/:id/sheet', '/api/labour/history/:id/sheet'], (req,
         ${rowGroupHeader}
         <tr>
           <td class="cell text-center text-muted font-bold">${idx + 1}</td>
-          <td class="cell font-bold worker-name">${w.name}</td>
-          <td class="cell text-center"><span class="role-badge ${isMm ? 'role-mm' : 'role-ma'}">${role}</span></td>
+          <td class="cell font-bold worker-name">${escapeHtml(w.name)}</td>
+          <td class="cell text-center"><span class="role-badge ${isMm ? 'role-mm' : 'role-ma'}">${escapeHtml(role)}</span></td>
           ${dayCells}
           <td class="cell text-center font-bold">${workerDays} d</td>
           <td class="cell text-right font-black wage-col">₹${workerTotal.toLocaleString('en-IN')}</td>
@@ -1251,10 +1350,10 @@ app.get(['/api/labor/history/:id/sheet', '/api/labour/history/:id/sheet'], (req,
 
     const siteBreakdownCardsHtml = siteBreakdown.map(s => `
       <div class="site-card">
-        <div class="site-card-title">🏗️ ${s.site || 'General Site'}</div>
+        <div class="site-card-title">🏗️ ${escapeHtml(s.site || 'General Site')}</div>
         <div class="site-card-stats">
-          <div><span class="lbl">Workers:</span> <strong>${s.workersCount || s.workerCount || 0}</strong></div>
-          <div><span class="lbl">Shifts:</span> <strong>${s.shiftsCount || s.totalShifts || 0} d</strong></div>
+          <div><span class="lbl">Workers:</span> <strong>${Number(s.workersCount ?? s.workerCount) || 0}</strong></div>
+          <div><span class="lbl">Shifts:</span> <strong>${Number(s.shiftsCount ?? s.totalShifts) || 0} d</strong></div>
           <div><span class="lbl">Wages:</span> <strong class="green">₹${(Number(s.totalWages) || 0).toLocaleString('en-IN')}</strong></div>
         </div>
       </div>
@@ -1266,7 +1365,7 @@ app.get(['/api/labor/history/:id/sheet', '/api/labour/history/:id/sheet'], (req,
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${company.name} - ${record.week_label} Labour Sheet</title>
+        <title>${escapeHtml(company.name)} - ${escapeHtml(record.week_label)} Labour Sheet</title>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
         <style>
@@ -1340,15 +1439,16 @@ app.get(['/api/labor/history/:id/sheet', '/api/labour/history/:id/sheet'], (req,
             .actions { display: none; }
           }
         </style>
+        ${authenticatedCsvDownloadScript()}
       </head>
-      <body>
+      <body data-api-base="${escapeHtml(getPublicApiBase(req))}">
         <div class="container">
           <div class="sheets-bar">
             <div class="sheets-title">
               <div class="sheets-icon">📊</div>
               <div>
-                <h1>${company.name} - ${record.week_label}</h1>
-                <p>Week Ending: ${record.week_ending} • Archived Labour Muster Roll & Site Allocation</p>
+                <h1>${escapeHtml(company.name)} - ${escapeHtml(record.week_label)}</h1>
+                <p>Week Ending: ${escapeHtml(record.week_ending)} • Archived Labour Muster Roll & Site Allocation</p>
               </div>
             </div>
             <div class="actions">
@@ -1448,6 +1548,8 @@ app.get(['/api/labor/history/:id/csv', '/api/labour/history/:id/csv'], (req, res
     } catch (e) {
       workers = [];
     }
+    if (!Array.isArray(workers)) workers = [];
+    workers = workers.filter(worker => worker && typeof worker === 'object' && !Array.isArray(worker));
 
     function getDutyAmount(role, duty) {
       const isMm = role === 'Mm';
@@ -1458,8 +1560,8 @@ app.get(['/api/labor/history/:id/csv', '/api/labour/history/:id/csv'], (req, res
     }
 
     const daysKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-    let csv = `"${company.name} - ${record.week_label} (Ending ${record.week_ending})"\n\n`;
-    csv += `"S.No","Worker Name","Role","Mon","Tue","Wed","Thu","Fri","Sat","Sun","Total Days","Weekly Wage (INR)"\n`;
+    let csv = '\uFEFF' + csvRow([`${company.name} - ${record.week_label} (Ending ${record.week_ending})`]) + '\r\n';
+    csv += csvRow(['S.No', 'Worker Name', 'Role', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Total Days', 'Weekly Wage (INR)']);
 
     workers.forEach((w, idx) => {
       const role = w.role || 'Ma';
@@ -1483,12 +1585,12 @@ app.get(['/api/labor/history/:id/csv', '/api/labour/history/:id/csv'], (req, res
         wDays = Number(w.days_present) || 1;
       }
 
-      csv += `"${idx + 1}","${w.name}","${role}","${duties['mon']}","${duties['tue']}","${duties['wed']}","${duties['thu']}","${duties['fri']}","${duties['sat']}","${duties['sun']}","${wDays}","${wTotal}"\n`;
+      csv += csvRow([idx + 1, w.name, role, duties.mon, duties.tue, duties.wed, duties.thu, duties.fri, duties.sat, duties.sun, wDays, wTotal]);
     });
 
-    csv += `\n"","","","","","","","","","Total Labour Charges:","${record.total_shifts} Days","${record.total_wages}"\n`;
+    csv += '\r\n' + csvRow(['', '', '', '', '', '', '', '', '', 'Total Labour Charges:', `${record.total_shifts} Days`, record.total_wages]);
 
-    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename=Labour_${record.week_ending}.csv`);
     res.send(csv);
   } catch (err) {
@@ -2087,19 +2189,28 @@ app.get('/api/backup', (req, res) => {
 // 10. Reset All Database Records (Fresh Start)
 app.post('/api/reset', (req, res) => {
   try {
-    db.exec(`
-      DELETE FROM projects;
-      DELETE FROM materials;
-      DELETE FROM labor_roster;
-      DELETE FROM labor_weekly_history;
-      DELETE FROM vendors;
-      DELETE FROM transactions;
-      DELETE FROM supplier_payments;
-      UPDATE accounts SET balance = 0;
-    `);
+    const resetTables = ['projects', 'materials', 'labor_roster', 'labor_weekly_history', 'vendors', 'transactions', 'supplier_payments'];
+    const idsToDelete = resetTables.flatMap(table => db.prepare(`SELECT id FROM ${table}`).all().map(row => row.id).filter(Boolean));
+    const resetTransaction = db.transaction(() => {
+      const markDeleted = db.prepare("INSERT OR IGNORE INTO deleted_items (id, type) VALUES (?, 'reset')");
+      idsToDelete.forEach(id => markDeleted.run(String(id).trim()));
+      db.exec(`
+        DELETE FROM projects;
+        DELETE FROM materials;
+        DELETE FROM labor_roster;
+        DELETE FROM labor_weekly_history;
+        DELETE FROM vendors;
+        DELETE FROM transactions;
+        DELETE FROM supplier_payments;
+        DELETE FROM deleted_items;
+        DELETE FROM system_meta;
+        UPDATE accounts SET balance = 0;
+      `);
+    });
+    resetTransaction();
     db.pragma('wal_checkpoint(TRUNCATE)');
-    try { saveSnapshot(); } catch(e) {}
-    res.json({ success: true, message: 'All site, labor, materials, supplier, and history data reset cleanly.' });
+    notifyChange('reset', 'all');
+    res.json({ success: true, message: 'All business data and deletion tombstones reset cleanly; sync metadata refreshed.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
