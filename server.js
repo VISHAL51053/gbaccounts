@@ -174,6 +174,19 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'deny', index: false }));
+
+// PWA Service Worker & Web App Manifest Handlers
+app.get('/sw.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.join(__dirname, 'public', 'sw.js'));
+});
+app.get(['/manifest.json', '/manifest.webmanifest'], (req, res) => {
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, 'public', 'manifest.json'));
+});
 app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 app.get('/gurubaran_builders.html', (req, res) => res.redirect(302, '/'));
 

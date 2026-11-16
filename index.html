@@ -5,6 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GURUBARAN BUILDERS - Construction ERP & Accounts</title>
 
+  <!-- Progressive Web App (PWA) & Browser App Shortcut Support -->
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+  <link rel="alternate icon" href="/favicon.svg" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
+  <meta name="theme-color" content="#0b0f19" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="GB Accounts" />
+  <meta name="application-name" content="GURUBARAN BUILDERS" />
+
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -346,6 +359,12 @@
 
         <!-- Header Actions -->
         <div class="flex items-center gap-2">
+          <!-- Install as App Shortcut Button -->
+          <button type="button" id="pwaInstallHeaderBtn" onclick="promptAppInstall()" title="Install GURUBARAN BUILDERS as App Shortcut" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer">
+            <i data-lucide="download" class="w-4 h-4 text-amber-400"></i>
+            <span class="hidden sm:inline">Install App</span>
+          </button>
+
           <button onclick="openModal('modalProject')" class="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer">
             <i data-lucide="plus-circle" class="w-4 h-4"></i>
              <span class="header-add-site-label">+ Add Site</span>
@@ -406,6 +425,12 @@
             <i data-lucide="settings" class="w-5 h-5 text-slate-400"></i>
             <span>Company Settings</span>
           </button>
+          <div class="pt-2 mt-2 border-t border-slate-800/80">
+            <button type="button" onclick="promptAppInstall()" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm text-amber-400 hover:bg-amber-500/10 border border-amber-500/20 transition-all text-left cursor-pointer">
+              <i data-lucide="smartphone" class="w-5 h-5 text-amber-400"></i>
+              <span>Install as App</span>
+            </button>
+          </div>
         </nav>
       </div>
     </aside>
@@ -981,6 +1006,91 @@
 
 
   <!-- ================= MODALS ================= -->
+
+  <!-- Modal: Install as App / Browser Shortcut -->
+  <div id="modalInstallApp" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/85 backdrop-blur-md p-4">
+    <div class="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-5 modal-inner text-slate-200">
+      <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
+            <i data-lucide="download" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white">Install GURUBARAN BUILDERS as App</h3>
+            <p class="text-[11px] text-slate-400">Launch in full-screen standalone window without browser search bars</p>
+          </div>
+        </div>
+        <button type="button" onclick="closeModal('modalInstallApp')" class="text-slate-400 hover:text-white text-xl p-1 leading-none">&times;</button>
+      </div>
+
+      <!-- Quick Action: Direct Install Trigger -->
+      <div id="pwaDirectPromptBox" class="p-4 rounded-xl bg-gradient-to-r from-amber-500/15 to-amber-600/10 border border-amber-500/30 flex items-center justify-between gap-3">
+        <div>
+          <div class="text-sm font-bold text-white flex items-center gap-2">
+            <span>Desktop & Mobile Shortcut</span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-slate-950 uppercase">Instant</span>
+          </div>
+          <p class="text-xs text-slate-300 mt-0.5">Click to trigger the browser's native app installer.</p>
+        </div>
+        <button type="button" onclick="triggerPwaPromptDirectly()" class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-all shrink-0 cursor-pointer">
+          Install Now
+        </button>
+      </div>
+
+      <!-- Browser Tabs Instruction -->
+      <div class="space-y-3">
+        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Browser Shortcut Steps</p>
+        
+        <div class="space-y-3 text-xs">
+          <!-- Chrome / Edge (Desktop) -->
+          <div class="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700 space-y-2">
+            <div class="flex items-center gap-2 font-bold text-amber-400 text-sm">
+              <i data-lucide="monitor" class="w-4 h-4"></i>
+              <span>Google Chrome, Microsoft Edge & Brave (PC / Laptop)</span>
+            </div>
+            <ol class="list-decimal list-inside space-y-1.5 text-slate-300 leading-relaxed pl-1">
+              <li>Look at the right side of the URL/address bar for the <strong class="text-white">Install App icon</strong> (computer monitor with down arrow) and click it.</li>
+              <li>Or click browser <strong class="text-white">Menu (⋮ or ⋯)</strong> at top right &rarr; <strong class="text-white">"Save and share"</strong> or <strong class="text-white">"Apps"</strong>.</li>
+              <li>Click <strong class="text-amber-400">"Install GURUBARAN BUILDERS as app"</strong> (or <strong class="text-white">"Create shortcut"</strong> with <strong class="text-white">"Open as window"</strong> checked).</li>
+              <li>A desktop icon will be created, opening GURUBARAN BUILDERS in its own standalone app window!</li>
+            </ol>
+          </div>
+
+          <!-- Android Chrome -->
+          <div class="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700 space-y-2">
+            <div class="flex items-center gap-2 font-bold text-emerald-400 text-sm">
+              <i data-lucide="smartphone" class="w-4 h-4"></i>
+              <span>Android Phones & Tablets (Chrome / Samsung Internet)</span>
+            </div>
+            <ol class="list-decimal list-inside space-y-1.5 text-slate-300 leading-relaxed pl-1">
+              <li>Tap the <strong class="text-white">Three Dots (⋮)</strong> menu in Chrome at top right.</li>
+              <li>Tap <strong class="text-emerald-400">"Install app"</strong> or <strong class="text-white">"Add to Home screen"</strong>.</li>
+              <li>Tap <strong class="text-white">Install</strong>. It will be added to your home screen and open without any browser address bar.</li>
+            </ol>
+          </div>
+
+          <!-- iPhone / iPad Safari -->
+          <div class="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700 space-y-2">
+            <div class="flex items-center gap-2 font-bold text-blue-400 text-sm">
+              <i data-lucide="tablet" class="w-4 h-4"></i>
+              <span>iPhone & iPad (Safari)</span>
+            </div>
+            <ol class="list-decimal list-inside space-y-1.5 text-slate-300 leading-relaxed pl-1">
+              <li>Open this site in <strong class="text-white">Safari</strong>.</li>
+              <li>Tap the <strong class="text-white">Share button</strong> (square with arrow pointing up).</li>
+              <li>Scroll down and tap <strong class="text-blue-400">"Add to Home Screen"</strong> &rarr; tap <strong class="text-white">Add</strong>.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-slate-800 flex justify-end">
+        <button type="button" onclick="closeModal('modalInstallApp')" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-colors cursor-pointer">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Modal: Add Project -->
   <div id="modalProject" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
@@ -5791,8 +5901,53 @@
     }
 
 
+    // --- PWA Installation & App Shortcut Manager ---
+    let deferredInstallPrompt = null;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      const headerBtn = document.getElementById('pwaInstallHeaderBtn');
+      if (headerBtn) {
+        headerBtn.classList.remove('hidden');
+      }
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      if (typeof showSyncToast === 'function') {
+        showSyncToast('GURUBARAN BUILDERS installed as an app shortcut!');
+      }
+      closeModal('modalInstallApp');
+    });
+
+    function promptAppInstall() {
+      openModal('modalInstallApp');
+      safeLucideIcons();
+    }
+
+    function triggerPwaPromptDirectly() {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.then((choiceResult) => {
+          if (choiceResult && choiceResult.outcome === 'accepted') {
+            closeModal('modalInstallApp');
+          }
+          deferredInstallPrompt = null;
+        });
+      } else {
+        alert('Browser Shortcut Instructions:\n\n• On Chrome/Edge (PC): Click the Install icon in the browser address bar (top right) or Menu (⋮) -> "Save and share" -> "Install GURUBARAN BUILDERS as app".\n\n• On Android: Tap Menu (⋮) -> "Install app" or "Add to Home screen".\n\n• On iPhone: Tap Safari Share (box with arrow) -> "Add to Home Screen".');
+      }
+    }
+
     // Initial boot & Auto-Reconnect lifecycle
     window.addEventListener('DOMContentLoaded', () => {
+      // Register PWA Service Worker for App Installation & Offline Capabilities
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then((reg) => console.log('PWA Service Worker active:', reg.scope))
+          .catch((err) => console.warn('PWA SW note:', err));
+      }
       loadLocalData();
       checkAuth();
       setSettingsEditMode(false);
