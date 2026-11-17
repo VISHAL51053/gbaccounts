@@ -443,7 +443,7 @@
         
         <!-- Home Dashboard KPI Cards -->
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
-          <div class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-3">
+          <button type="button" onclick="switchTab('tab-projects')" aria-label="Open Sites and Projects" class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-3 w-full text-left cursor-pointer transition-all hover:border-slate-700 hover:bg-slate-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400">
             <div class="p-2 sm:p-2.5 rounded-xl bg-blue-500/15 text-blue-400 shrink-0">
               <i data-lucide="building-2" class="w-4 h-4 sm:w-5 sm:h-5"></i>
             </div>
@@ -451,9 +451,9 @@
               <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block truncate">Active Sites</span>
               <div id="statActiveSites" class="text-base sm:text-2xl font-black text-white mt-0.5 truncate">0</div>
             </div>
-          </div>
+          </button>
 
-          <div class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-3">
+          <button type="button" onclick="switchTab('tab-labor')" aria-label="Open Labour Attendance" class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-3 w-full text-left cursor-pointer transition-all hover:border-slate-700 hover:bg-slate-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400">
             <div class="p-2 sm:p-2.5 rounded-xl bg-amber-500/15 text-amber-400 shrink-0">
               <i data-lucide="users" class="w-4 h-4 sm:w-5 sm:h-5"></i>
             </div>
@@ -461,9 +461,9 @@
               <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block truncate">Labor Workforce</span>
               <div id="statTotalWorkers" class="text-base sm:text-2xl font-black text-amber-400 mt-0.5 truncate">0 Workers</div>
             </div>
-          </div>
+          </button>
 
-          <div class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-3">
+          <button type="button" onclick="switchTab('tab-materials-directory')" aria-label="Open Materials Payment" class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-3 w-full text-left cursor-pointer transition-all hover:border-slate-700 hover:bg-slate-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400">
             <div class="p-2 sm:p-2.5 rounded-xl bg-rose-500/15 text-rose-400 shrink-0">
               <i data-lucide="scale" class="w-4 h-4 sm:w-5 sm:h-5"></i>
             </div>
@@ -471,9 +471,9 @@
               <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block truncate">Outstanding Balance</span>
               <div id="statTotalMaterials" class="text-base sm:text-2xl font-black text-rose-400 font-mono mt-0.5 truncate">₹0</div>
             </div>
-          </div>
+          </button>
 
-          <div class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-3">
+          <button type="button" onclick="switchTab('tab-labor')" aria-label="Open Labour Attendance" class="bg-slate-900/90 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-sm flex items-center gap-3 w-full text-left cursor-pointer transition-all hover:border-slate-700 hover:bg-slate-800/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400">
             <div class="p-2 sm:p-2.5 rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0">
               <i data-lucide="wallet" class="w-4 h-4 sm:w-5 sm:h-5"></i>
             </div>
@@ -481,7 +481,7 @@
               <span class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider block truncate">Week Labour Amount</span>
               <div id="statWeekLabor" class="text-base sm:text-2xl font-black text-emerald-400 font-mono mt-0.5 truncate">₹0</div>
             </div>
-          </div>
+          </button>
         </div>
 
         <!-- Construction Sites Section -->
