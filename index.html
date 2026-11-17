@@ -341,7 +341,7 @@
 
         <!-- Mobile Menu Toggle & Company Logo -->
         <div class="flex items-center gap-2 sm:gap-3">
-          <button type="button" onclick="goBackToPreviousTab()" aria-label="Go back to previous page" title="Back" class="inline-flex items-center gap-1.5 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400">
+          <button type="button" id="pageBackButton" onclick="goBackToPreviousTab()" aria-label="Go back to previous page" title="Back" style="display: none" class="inline-flex items-center gap-1.5 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400">
             <i data-lucide="arrow-left" class="w-5 h-5"></i>
             <span class="hidden sm:inline text-xs font-semibold">Back</span>
           </button>
@@ -2371,6 +2371,8 @@
 
       if (recordHistory && tabId !== activeTabId) tabHistory.push(activeTabId);
       activeTabId = tabId;
+      const backButton = document.getElementById('pageBackButton');
+      if (backButton) backButton.style.display = tabId === 'tab-dashboard' ? 'none' : 'inline-flex';
 
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       activeEl.classList.remove('hidden');
