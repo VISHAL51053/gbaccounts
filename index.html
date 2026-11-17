@@ -233,28 +233,19 @@
         min-width: 0;
         height: auto;
         padding: .35rem 0;
-        flex-direction: column;
-        align-items: stretch;
-        justify-content: center;
-        gap: .35rem;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        gap: .4rem;
       }
       header .max-w-7xl > div > div:first-child { width: 100%; min-width: 0; gap: .4rem; }
       header .max-w-7xl > div > div:first-child > div:last-child { flex: 1; min-width: 0; }
-      header .max-w-7xl > div > div:last-child {
-        width: 100%;
-        justify-content: space-around;
-        gap: .35rem;
-      }
-      header .max-w-7xl > div > div:last-child > div { padding-left: 0; border-left: 0; }
       header h1 {
         max-width: none;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-      header .header-add-site-label { display: none; }
-      header button[onclick="openModal('modalProject')"] { padding: .55rem; }
-      header button[onclick="openModal('modalProject')"] i { margin: 0; }
       #mainContent { padding: .75rem; }
       .tab-content { min-width: 0; }
       #materialsDirectoryHeader { align-items: stretch; gap: .75rem; }
@@ -495,27 +486,6 @@
           </div>
         </div>
 
-        <!-- Header Actions -->
-        <div class="flex items-center gap-2">
-          <!-- Install as App Shortcut Button -->
-          <button type="button" id="pwaInstallHeaderBtn" onclick="promptAppInstall()" title="Install GURUBARAN BUILDERS as App Shortcut" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer">
-            <i data-lucide="download" class="w-4 h-4 text-amber-400"></i>
-            <span class="hidden sm:inline">Install App</span>
-          </button>
-
-          <button onclick="openModal('modalProject')" class="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm shadow-md transition-all cursor-pointer">
-            <i data-lucide="plus-circle" class="w-4 h-4"></i>
-             <span class="header-add-site-label">+ Add Site</span>
-          </button>
-
-          <!-- Logout -->
-          <div class="flex items-center gap-1.5 pl-2 border-l border-slate-800">
-            <button onclick="handleLogout()" title="Logout" class="p-2 rounded-xl bg-slate-800 hover:bg-rose-950/40 text-slate-400 hover:text-rose-300 border border-slate-700 transition-all cursor-pointer">
-              <i data-lucide="log-out" class="w-4 h-4"></i>
-            </button>
-          </div>
-        </div>
-
       </div>
     </div>
   </header>
@@ -567,6 +537,10 @@
             <button type="button" onclick="promptAppInstall()" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm text-amber-400 hover:bg-amber-500/10 border border-amber-500/20 transition-all text-left cursor-pointer">
               <i data-lucide="smartphone" class="w-5 h-5 text-amber-400"></i>
               <span>Install as App</span>
+            </button>
+            <button type="button" onclick="handleLogout()" class="w-full flex items-center gap-3 px-3.5 py-2.5 mt-1 rounded-xl font-semibold text-sm text-rose-300 hover:bg-rose-950/40 border border-rose-500/20 transition-all text-left cursor-pointer">
+              <i data-lucide="log-out" class="w-5 h-5"></i>
+              <span>Logout</span>
             </button>
           </div>
         </nav>
@@ -6060,10 +6034,6 @@
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredInstallPrompt = e;
-      const headerBtn = document.getElementById('pwaInstallHeaderBtn');
-      if (headerBtn) {
-        headerBtn.classList.remove('hidden');
-      }
     });
 
     window.addEventListener('appinstalled', () => {
