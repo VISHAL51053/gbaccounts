@@ -242,6 +242,35 @@
       header button[onclick="openModal('modalProject')"] i { margin: 0; }
       #mainContent { padding: .75rem; }
       .tab-content { min-width: 0; }
+      #materialsSummaryCards {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: .25rem;
+      }
+      #materialsSummaryCards > div {
+        min-width: 0;
+        gap: .35rem;
+        padding: .35rem .25rem;
+        border-radius: 7px;
+      }
+      #materialsSummaryCards > div > div:first-child {
+        flex-shrink: 0;
+        padding: .35rem;
+        border-radius: 7px;
+      }
+      #materialsSummaryCards > div > div:first-child i { width: 1rem; height: 1rem; }
+      #materialsSummaryCards > div > div:last-child { min-width: 0; }
+      #materialsSummaryCards > div > div:last-child > div:first-child {
+        overflow: hidden;
+        font-size: 8px;
+        line-height: 1.1;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #materialsSummaryCards > div > div:last-child > div:last-child {
+        margin-top: 2px;
+        font-size: 12px;
+        line-height: 1.1;
+      }
       .modal-inner { max-height: calc(100dvh - 1.5rem); padding: 1rem; border-radius: 12px; }
       input, select, textarea { font-size: 16px !important; }
       button { min-height: 40px; }
@@ -574,7 +603,7 @@
         </div>
 
         <!-- KPI Metrics Summary for Materials by Supplier -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div id="materialsSummaryCards" class="grid grid-cols-3 gap-1 sm:gap-4">
           <div class="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex items-center gap-3">
             <div class="p-3 rounded-xl bg-rose-500/15 text-rose-400">
               <i data-lucide="indian-rupee" class="w-5 h-5"></i>
