@@ -229,10 +229,25 @@
 
     @media (max-width: 767px) {
       header .max-w-7xl { padding-left: .5rem; padding-right: .5rem; }
-      header .max-w-7xl > div { min-width: 0; gap: .5rem; }
-      header .max-w-7xl > div > div:first-child { min-width: 0; }
+      header .max-w-7xl > div {
+        min-width: 0;
+        height: auto;
+        padding: .35rem 0;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: center;
+        gap: .35rem;
+      }
+      header .max-w-7xl > div > div:first-child { width: 100%; min-width: 0; gap: .4rem; }
+      header .max-w-7xl > div > div:first-child > div:last-child { flex: 1; min-width: 0; }
+      header .max-w-7xl > div > div:last-child {
+        width: 100%;
+        justify-content: space-around;
+        gap: .35rem;
+      }
+      header .max-w-7xl > div > div:last-child > div { padding-left: 0; border-left: 0; }
       header h1 {
-        max-width: 42vw;
+        max-width: none;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -242,6 +257,83 @@
       header button[onclick="openModal('modalProject')"] i { margin: 0; }
       #mainContent { padding: .75rem; }
       .tab-content { min-width: 0; }
+      #materialsDirectoryHeader { align-items: stretch; gap: .75rem; }
+      #materialsDirectoryActions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .5rem;
+        width: 100%;
+      }
+      #materialsDirectoryActions button {
+        min-width: 0;
+        min-height: 40px;
+        justify-content: center;
+        gap: .35rem;
+        padding: .55rem .35rem;
+        font-size: 10px;
+        line-height: 1.1;
+      }
+      #materialsDirectoryActions button span { white-space: nowrap; }
+      #materialsSupplierDirectoryList .materials-supplier-summary {
+        align-items: stretch;
+        gap: .75rem;
+        padding: .75rem;
+      }
+      #materialsSupplierDirectoryList .materials-supplier-heading {
+        align-items: flex-start;
+        gap: .55rem;
+        min-width: 0;
+        width: 100%;
+      }
+      #materialsSupplierDirectoryList .materials-supplier-icon {
+        flex-shrink: 0;
+        padding: .55rem;
+      }
+      #materialsSupplierDirectoryList .materials-supplier-heading-content { min-width: 0; flex: 1; }
+      #materialsSupplierDirectoryList .materials-supplier-title {
+        min-width: 0;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: .35rem;
+      }
+      #materialsSupplierDirectoryList .materials-supplier-name {
+        margin: 0;
+        min-width: 0;
+        font-size: 15px;
+        line-height: 1.2;
+        overflow-wrap: anywhere;
+      }
+      #materialsSupplierDirectoryList .materials-supplier-role {
+        padding: .2rem .5rem;
+        font-size: 10px;
+        line-height: 1.2;
+        white-space: nowrap;
+      }
+      #materialsSupplierDirectoryList .materials-supplier-meta {
+        margin-top: .25rem;
+        font-size: 11px;
+        line-height: 1.3;
+      }
+      #materialsSupplierDirectoryList .materials-supplier-actions {
+        width: 100%;
+        align-self: stretch;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: .5rem;
+      }
+      #materialsSupplierDirectoryList .materials-supplier-total { min-width: 0; text-align: left; }
+      #materialsSupplierDirectoryList .materials-supplier-total > div:first-child { font-size: 10px; }
+      #materialsSupplierDirectoryList .materials-supplier-total > div:nth-child(2) { font-size: 14px; line-height: 1.2; }
+      #materialsSupplierDirectoryList .materials-supplier-add {
+        min-height: 40px;
+        justify-content: center;
+        padding: .5rem .65rem;
+        font-size: 11px;
+        white-space: nowrap;
+      }
+      #materialsSupplierDirectoryList .materials-supplier-delete { min-height: 40px; padding: .5rem; }
+      #materialsSupplierDirectoryList .materials-supplier-empty { padding: 1rem !important; }
       #materialsSummaryCards {
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: .25rem;
@@ -578,11 +670,11 @@
 
       <!-- ================= 3A. MATERIALS PAYMENT DIRECTORY ================= -->
       <section id="tab-materials-directory" class="tab-content hidden space-y-6">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div id="materialsDirectoryHeader" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 class="text-2xl font-black text-white m-0">Materials Payment</h2>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
+          <div id="materialsDirectoryActions" class="flex flex-wrap items-center gap-2">
             <button onclick="openMaterialsGoogleSheetView('purchases')" class="px-3.5 py-2 rounded-xl bg-emerald-950/50 hover:bg-emerald-900/70 text-emerald-300 font-bold text-xs border border-emerald-500/40 shadow-md transition-all flex items-center gap-1.5 cursor-pointer">
               <i data-lucide="table" class="w-4 h-4 text-emerald-400"></i>
               <span>Live Google Sheet</span>
@@ -5625,33 +5717,33 @@
             const isLedgerOpen = !closedAccordions.has(ledgerKey);
 
             return `
-              <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-md overflow-hidden transition-all hover:border-slate-700">
+              <div class="materials-supplier-folder bg-slate-900 border border-slate-800 rounded-2xl shadow-md overflow-hidden transition-all hover:border-slate-700">
                 <details class="group" ${isLedgerOpen ? 'open' : ''} ontoggle="handleAccordionToggle('${escapeHtml(ledgerKey)}', this.open)">
-                  <summary class="flex flex-col sm:flex-row sm:items-center justify-between p-4.5 bg-slate-800/50 hover:bg-slate-800/80 cursor-pointer select-none border-b border-slate-800 gap-3">
-                    <div class="flex items-center gap-3.5">
-                      <div class="p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                  <summary class="materials-supplier-summary flex flex-col sm:flex-row sm:items-center justify-between p-4.5 bg-slate-800/50 hover:bg-slate-800/80 cursor-pointer select-none border-b border-slate-800 gap-3">
+                    <div class="materials-supplier-heading flex items-center gap-3.5">
+                      <div class="materials-supplier-icon p-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
                         <i data-lucide="truck" class="w-5 h-5"></i>
                       </div>
-                      <div>
-                        <div class="flex items-center gap-2">
-                          <h3 class="font-extrabold text-white text-base tracking-tight">${escapeHtml(supp.name)}</h3>
-                          <span class="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold">${escapeHtml(supp.role)}</span>
+                      <div class="materials-supplier-heading-content">
+                        <div class="materials-supplier-title flex items-center gap-2">
+                          <h3 class="materials-supplier-name font-extrabold text-white text-base tracking-tight">${escapeHtml(supp.name)}</h3>
+                          <span class="materials-supplier-role px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[11px] font-bold">${escapeHtml(supp.role)}</span>
                         </div>
-                        <p class="text-xs text-slate-400 mt-0.5"><strong class="text-slate-200 font-semibold">${suppMats.length}</strong> material delivery records across <strong class="text-amber-400 font-semibold">${siteRows.length}</strong> site(s)</p>
+                        <p class="materials-supplier-meta text-xs text-slate-400 mt-0.5"><strong class="text-slate-200 font-semibold">${suppMats.length}</strong> material delivery records across <strong class="text-amber-400 font-semibold">${siteRows.length}</strong> site(s)</p>
                       </div>
                     </div>
 
-                    <div class="flex items-center gap-3 self-end sm:self-auto">
-                      <div class="text-right">
+                    <div class="materials-supplier-actions flex items-center gap-3 self-end sm:self-auto">
+                      <div class="materials-supplier-total text-right">
                         <div class="text-[10px] uppercase font-bold text-slate-400">Total Supplied</div>
                         <div class="font-mono font-black ${suppTotalBalance <= 0 && totalCost > 0 ? 'text-emerald-400' : 'text-rose-400'} text-base">${formatINR(suppTotalBalance)}</div>
                         ${suppTotalPaid > 0 ? `<div class="text-[10px] text-slate-400 font-normal">Paid: <span class="text-emerald-400 font-bold">${formatINR(suppTotalPaid)}</span> / ${formatINR(totalCost)}</div>` : ''}
                       </div>
-                      <button type="button" onclick="event.stopPropagation(); openModalMaterialForSupplier('${escapeHtml(supp.name)}', '${escapeHtml(supp.role)}')" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow transition-colors flex items-center gap-1 cursor-pointer">
+                      <button type="button" onclick="event.stopPropagation(); openModalMaterialForSupplier('${escapeHtml(supp.name)}', '${escapeHtml(supp.role)}')" class="materials-supplier-add px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow transition-colors flex items-center gap-1 cursor-pointer">
                         <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                         <span>Add Material</span>
                       </button>
-                      <button type="button" onclick="event.stopPropagation(); deleteSupplierFolder('${supp.id}', '${escapeHtml(supp.name)}', ${supp.fromVendors})" title="Delete Supplier" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 cursor-pointer transition-colors">
+                      <button type="button" onclick="event.stopPropagation(); deleteSupplierFolder('${supp.id}', '${escapeHtml(supp.name)}', ${supp.fromVendors})" title="Delete Supplier" class="materials-supplier-delete p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 cursor-pointer transition-colors">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                       </button>
                     </div>
@@ -5660,7 +5752,7 @@
                   <!-- Materials Table for this Supplier (Grouped by Site) -->
                   <div class="p-0 overflow-x-auto">
                     ${siteRows.length === 0 ? `
-                      <div class="p-8 text-center text-xs text-slate-500 space-y-2">
+                      <div class="materials-supplier-empty p-8 text-center text-xs text-slate-500 space-y-2">
                         <p>No materials recorded for <strong>${escapeHtml(supp.name)}</strong> yet.</p>
                         <button type="button" onclick="openModalMaterialForSupplier('${escapeHtml(supp.name)}', '${escapeHtml(supp.role)}')" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-semibold text-xs border border-slate-700 cursor-pointer">
                           + Add Material Delivery for ${escapeHtml(supp.name)}
