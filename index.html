@@ -341,6 +341,10 @@
 
         <!-- Mobile Menu Toggle & Company Logo -->
         <div class="flex items-center gap-2 sm:gap-3">
+          <button type="button" onclick="goBackToPreviousTab()" aria-label="Go back to previous page" title="Back" class="inline-flex items-center gap-1.5 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400">
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+            <span class="hidden sm:inline text-xs font-semibold">Back</span>
+          </button>
           <button type="button" onclick="toggleSidebar()" class="md:hidden p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors cursor-pointer mr-1" title="Toggle Navigation Menu">
             <i data-lucide="menu" class="w-5 h-5"></i>
           </button>
@@ -2358,10 +2362,18 @@
     }
 
     // --- Tab Navigation (syncs desktop sidebar & mobile drawer) ---
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    let activeTabId = 'tab-dashboard';
+    const tabHistory = [];
+
+    function switchTab(tabId, recordHistory = true) {
       const activeEl = document.getElementById(tabId);
-      if (activeEl) activeEl.classList.remove('hidden');
+      if (!activeEl) return;
+
+      if (recordHistory && tabId !== activeTabId) tabHistory.push(activeTabId);
+      activeTabId = tabId;
+
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      activeEl.classList.remove('hidden');
 
       // Sync desktop sidebar
       document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -2382,6 +2394,11 @@
       if (mc) mc.scrollTop = 0;
 
       safeLucideIcons();
+    }
+
+    function goBackToPreviousTab() {
+      const previousTabId = tabHistory.pop() || 'tab-dashboard';
+      switchTab(previousTabId, false);
     }
 
     let activeMaterialSupplierFilter = 'ALL';
